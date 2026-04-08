@@ -33,22 +33,30 @@
         </span>
       </label>
       <div class="relative">
-        <input type="text"
-               x-model="target"
-               class="w-full px-3 py-2.5 rounded-md border border-slate-300 dark:border-sf-border
-                      bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
-                      placeholder-slate-400 dark:placeholder-slate-500
-                      focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
-                      text-sm font-mono pr-28"
-               placeholder="e.g. example.com, 192.168.1.0/24, user@email.com">
+        <textarea x-model="target"
+                  rows="1"
+                  @input="autoResizeTextarea($event.target)"
+                  class="w-full px-3 py-2.5 rounded-md border border-slate-300 dark:border-sf-border
+                         bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
+                         placeholder-slate-400 dark:placeholder-slate-500
+                         focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
+                         text-sm font-mono resize-none overflow-hidden"
+                  placeholder="e.g. example.com, 192.168.1.0/24, user@email.com&#10;One target per line for batch scanning"></textarea>
 
-        {# Detected type badge — only shown when a type is detected #}
-        <span x-show="targetType"
-              x-transition
-              :class="targetTypeBadgeClass()"
-              class="absolute right-2 top-1/2 -translate-y-1/2
-                     text-xs font-semibold px-2.5 py-1 rounded-full"
-              x-text="targetType"></span>
+        {# Target count + type badges #}
+        <div class="mt-2 flex flex-wrap gap-1.5" x-show="parsedTargets().length > 0">
+          <template x-for="(t, i) in parsedTargets()" :key="i">
+            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border"
+                  :class="t.type
+                    ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
+                    : 'bg-red-500/10 text-red-400 border-red-500/20'">
+              <span class="font-mono" x-text="t.value.length > 30 ? t.value.substring(0, 30) + '...' : t.value"></span>
+              <span class="opacity-60" x-text="t.type || 'unknown'"></span>
+            </span>
+          </template>
+        </div>
+        <div class="mt-1 text-xs text-slate-500" x-show="parsedTargets().length > 1"
+             x-text="`${parsedTargets().length} targets — each will launch as a separate scan`"></div>
       </div>
     </div>
 
@@ -195,13 +203,15 @@
   <div class="flex justify-end">
     <button type="button"
             @click="submitScan()"
-            :disabled="totalEnabled() === 0 || !target.trim()"
-            :class="totalEnabled() === 0 || !target.trim()
+            :disabled="totalEnabled() === 0 || parsedTargets().length === 0"
+            :class="totalEnabled() === 0 || parsedTargets().length === 0
               ? 'opacity-50 cursor-not-allowed bg-sf-accent'
               : 'bg-sf-accent hover:bg-cyan-400'"
             class="px-8 py-2.5 text-white rounded-md font-medium text-sm
                    transition-colors duration-150 shadow-sm">
-      Launch Scan
+      <span x-text="parsedTargets().length > 1
+        ? `Launch ${parsedTargets().length} Scans`
+        : 'Launch Scan'"></span>
       <span x-show="totalEnabled() > 0"
             x-text="`(${totalEnabled()} module${totalEnabled() === 1 ? '' : 's'})`"
             class="ml-1.5 opacity-80 font-normal"></span>
