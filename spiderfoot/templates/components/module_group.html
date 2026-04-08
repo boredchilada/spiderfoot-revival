@@ -12,12 +12,12 @@
     modules         — reactive dict
 #}
 {% set cat_js = category_name | replace("\\", "\\\\") | replace("'", "\\'") %}
-<div x-data="{ open: false }"
+<div x-data="{ isOpen: false }"
      class="border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden">
 
   {# --- Group header --- #}
   <button type="button"
-          @click="open = !open"
+          @click="isOpen = !isOpen"
           class="w-full flex items-center justify-between px-4 py-3
                  bg-slate-50 dark:bg-sf-elevated
                  hover:bg-slate-100 dark:hover:bg-slate-700/60
@@ -52,7 +52,7 @@
 
       {# Chevron — rotates when open #}
       <svg class="w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200"
-           :class="open ? 'rotate-180' : ''"
+           :class="isOpen ? 'rotate-180' : ''"
            fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/>
       </svg>
@@ -60,7 +60,7 @@
   </button>
 
   {# --- Module list (expanded) --- #}
-  <div x-show="open"
+  <div x-show="isOpen"
        x-transition
        class="divide-y divide-slate-100 dark:divide-sf-border/60">
 

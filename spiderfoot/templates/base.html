@@ -50,12 +50,14 @@
 
   <!-- HTMX -->
   <script defer src="{{ url_for('static', filename='vendor/htmx.min.js') }}"></script>
-  <!-- Alpine.js -->
-  <script defer src="{{ url_for('static', filename='vendor/alpine.min.js') }}"></script>
   <!-- Theme manager -->
   <script defer src="{{ url_for('static', filename='js/theme.js') }}"></script>
 
+  <!-- Page-specific scripts (must load BEFORE Alpine so components are registered) -->
   {% block head %}{% endblock %}
+
+  <!-- Alpine.js (must be LAST defer script so Alpine.data() registrations happen first) -->
+  <script defer src="{{ url_for('static', filename='vendor/alpine.min.js') }}"></script>
 </head>
 <body class="bg-white dark:bg-sf-base text-slate-800 dark:text-slate-200 font-sans min-h-screen">
 
