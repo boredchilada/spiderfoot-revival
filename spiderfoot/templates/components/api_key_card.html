@@ -1,0 +1,43 @@
+{# API Key Card component #}
+{# card: dict with keys: mod_name, service_name, opt_key, value, configured #}
+
+<div class="api-key-card bg-slate-50 dark:bg-sf-elevated rounded-lg p-4 border border-slate-200 dark:border-sf-border"
+     data-api-card="{{ card.service_name | lower }}">
+
+  <div class="flex items-start justify-between mb-3">
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{{ card.service_name }}</p>
+      <p class="text-xs text-slate-400 dark:text-slate-500 font-mono truncate mt-0.5">{{ card.mod_name }}</p>
+    </div>
+    <div class="flex items-center gap-1.5 ml-3 shrink-0">
+      {% if card.configured %}
+        <span class="w-2 h-2 rounded-full bg-sf-success inline-block"></span>
+        <span class="text-xs text-sf-success">Configured</span>
+      {% else %}
+        <span class="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600 inline-block"></span>
+        <span class="text-xs text-slate-400 dark:text-slate-500">Not configured</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="relative">
+    <input type="password"
+           name="{{ card.mod_name }}:{{ card.opt_key }}"
+           value="{{ card.value }}"
+           placeholder="Paste API key here"
+           autocomplete="new-password"
+           class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-surface
+                  text-slate-800 dark:text-slate-100 text-sm font-mono px-3 py-2 pr-10
+                  focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent">
+    <button type="button"
+            onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            title="Toggle visibility">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.641 0-8.58-3.007-9.964-7.178Z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+      </svg>
+    </button>
+  </div>
+
+</div>

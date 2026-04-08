@@ -1,0 +1,76 @@
+{# Database settings fragment #}
+{# db_path: str — absolute path to the database file #}
+{# db_size: str — human-readable file size #}
+
+<div class="space-y-6">
+  <div>
+    <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">Database</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400">Information and maintenance tools for the SpiderFoot database.</p>
+  </div>
+
+  {# Info card #}
+  <div class="bg-slate-50 dark:bg-sf-elevated rounded-lg border border-slate-200 dark:border-sf-border overflow-hidden">
+    <div class="divide-y divide-slate-200 dark:divide-sf-border">
+
+      <div class="flex items-start gap-4 px-4 py-3">
+        <span class="text-sm font-medium text-slate-500 dark:text-slate-400 w-28 shrink-0 pt-0.5">Path</span>
+        <span class="text-sm font-mono text-slate-700 dark:text-slate-300 break-all select-all">{{ db_path }}</span>
+      </div>
+
+      <div class="flex items-center gap-4 px-4 py-3">
+        <span class="text-sm font-medium text-slate-500 dark:text-slate-400 w-28 shrink-0">Size</span>
+        <span class="text-sm font-mono text-slate-700 dark:text-slate-300">{{ db_size }}</span>
+      </div>
+
+    </div>
+  </div>
+
+  {# Maintenance actions #}
+  <div>
+    <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Maintenance</h3>
+    <div class="flex items-start gap-4 p-4 bg-slate-50 dark:bg-sf-elevated rounded-lg border border-slate-200 dark:border-sf-border">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Optimize Database</p>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Run VACUUM to reclaim disk space and defragment the SQLite database.</p>
+      </div>
+      <div class="shrink-0 flex items-center gap-3">
+        <span id="vacuum-msg" class="text-sm hidden"></span>
+        <button id="vacuum-btn"
+                hx-get="/api/vacuum"
+                hx-swap="none"
+                hx-on::after-request="handleVacuumResponse(event)"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-slate-200 dark:bg-sf-border
+                       text-slate-700 dark:text-slate-200 text-sm font-medium
+                       hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors duration-150
+                       focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
+          </svg>
+          Optimize
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function handleVacuumResponse(event) {
+  const msg = document.getElementById('vacuum-msg');
+  msg.classList.remove('hidden', 'text-sf-critical', 'text-sf-success');
+  try {
+    const data = JSON.parse(event.detail.xhr.responseText);
+    if (data[0] === 'SUCCESS') {
+      msg.textContent = 'Database optimized.';
+      msg.classList.add('text-sf-success');
+    } else {
+      msg.textContent = data[1] || 'Optimization failed.';
+      msg.classList.add('text-sf-critical');
+    }
+  } catch(e) {
+    msg.textContent = 'Unexpected response.';
+    msg.classList.add('text-sf-critical');
+  }
+  msg.classList.remove('hidden');
+  setTimeout(function() { msg.classList.add('hidden'); }, 4000);
+}
+</script>

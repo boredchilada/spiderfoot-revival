@@ -233,8 +233,26 @@ def scaninfo():
 
 @ui_bp.route('/opts')
 def settings():
+    # Load saved config values for the default (General) section
+    try:
+        dbh = _get_db()
+        saved_config = dbh.configGet()
+    except Exception as e:
+        log.warning("Could not load settings config: %s", e)
+        saved_config = {}
+
+    # Merge saved config over the live SF_CONFIG so defaults are available
+    sf_config = current_app.config.get('SF_CONFIG', {})
+    config = dict(sf_config)
+    config.update(saved_config)
+
+    # Expose the CSRF/session token for the settings save endpoints
+    token = current_app.config.get('SF_TOKEN', '')
+
     return render_template(
         'pages/settings.html',
         page_id='SETTINGS',
         version=__version__,
+        config=config,
+        token=token,
     )

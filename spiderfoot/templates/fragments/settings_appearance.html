@@ -1,0 +1,133 @@
+{# Appearance settings fragment #}
+
+<div class="space-y-6">
+  <div>
+    <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">Appearance</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400">Choose how SpiderFoot looks. Your preference is saved in the browser.</p>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+    {# Operations theme (dark) #}
+    <button type="button"
+            onclick="setTheme('dark')"
+            class="theme-card group relative text-left rounded-xl border-2 overflow-hidden transition-all duration-150
+                   border-transparent hover:border-sf-accent focus:outline-none focus:border-sf-accent"
+            id="theme-dark-card">
+      {# Preview area #}
+      <div class="h-32 bg-[#0a0e17] p-3 flex flex-col gap-2">
+        <div class="flex items-center gap-1.5">
+          <div class="w-2 h-2 rounded-full bg-[#334155]"></div>
+          <div class="h-1.5 w-20 rounded bg-[#334155]"></div>
+        </div>
+        <div class="flex gap-2 flex-1">
+          <div class="w-10 bg-[#111827] rounded"></div>
+          <div class="flex-1 bg-[#111827] rounded p-2 space-y-1.5">
+            <div class="h-1.5 w-3/4 rounded bg-[#334155]"></div>
+            <div class="h-1.5 w-1/2 rounded bg-[#1e293b]"></div>
+            <div class="h-1.5 w-2/3 rounded bg-[#1e293b]"></div>
+            <div class="h-3 w-16 rounded bg-[#06b6d4] mt-2"></div>
+          </div>
+        </div>
+      </div>
+      {# Label #}
+      <div class="px-4 py-3 bg-white dark:bg-sf-elevated border-t border-slate-200 dark:border-sf-border">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Operations</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Dark theme — easier on the eyes in low light.</p>
+          </div>
+          <div id="theme-dark-check"
+               class="w-5 h-5 rounded-full border-2 border-sf-accent bg-sf-accent flex items-center justify-center hidden">
+            <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L8 12.586l7.293-7.293a1 1 0 0 1 1.414 0Z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </button>
+
+    {# Analyst theme (light) #}
+    <button type="button"
+            onclick="setTheme('light')"
+            class="theme-card group relative text-left rounded-xl border-2 overflow-hidden transition-all duration-150
+                   border-transparent hover:border-sf-accent focus:outline-none focus:border-sf-accent"
+            id="theme-light-card">
+      {# Preview area #}
+      <div class="h-32 bg-slate-100 p-3 flex flex-col gap-2">
+        <div class="flex items-center gap-1.5">
+          <div class="w-2 h-2 rounded-full bg-slate-300"></div>
+          <div class="h-1.5 w-20 rounded bg-slate-300"></div>
+        </div>
+        <div class="flex gap-2 flex-1">
+          <div class="w-10 bg-white rounded shadow-sm"></div>
+          <div class="flex-1 bg-white rounded shadow-sm p-2 space-y-1.5">
+            <div class="h-1.5 w-3/4 rounded bg-slate-200"></div>
+            <div class="h-1.5 w-1/2 rounded bg-slate-100"></div>
+            <div class="h-1.5 w-2/3 rounded bg-slate-100"></div>
+            <div class="h-3 w-16 rounded bg-[#06b6d4] mt-2"></div>
+          </div>
+        </div>
+      </div>
+      {# Label #}
+      <div class="px-4 py-3 bg-white dark:bg-sf-elevated border-t border-slate-200 dark:border-sf-border">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Analyst</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Light theme — clear and readable in bright environments.</p>
+          </div>
+          <div id="theme-light-check"
+               class="w-5 h-5 rounded-full border-2 border-sf-accent bg-sf-accent flex items-center justify-center hidden">
+            <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L8 12.586l7.293-7.293a1 1 0 0 1 1.414 0Z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </button>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  function updateThemeCards() {
+    var current = localStorage.getItem('sf-theme') || 'dark';
+    var darkCheck = document.getElementById('theme-dark-check');
+    var lightCheck = document.getElementById('theme-light-check');
+    var darkCard = document.getElementById('theme-dark-card');
+    var lightCard = document.getElementById('theme-light-card');
+
+    if (!darkCheck || !lightCheck) return;
+
+    if (current === 'light') {
+      lightCheck.classList.remove('hidden');
+      darkCheck.classList.add('hidden');
+      lightCard.classList.add('border-sf-accent');
+      lightCard.classList.remove('border-transparent');
+      darkCard.classList.remove('border-sf-accent');
+      darkCard.classList.add('border-transparent');
+    } else {
+      darkCheck.classList.remove('hidden');
+      lightCheck.classList.add('hidden');
+      darkCard.classList.add('border-sf-accent');
+      darkCard.classList.remove('border-transparent');
+      lightCard.classList.remove('border-sf-accent');
+      lightCard.classList.add('border-transparent');
+    }
+  }
+
+  window.setTheme = function(theme) {
+    localStorage.setItem('sf-theme', theme);
+    if (theme === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+    updateThemeCards();
+  };
+
+  // Run on load
+  updateThemeCards();
+})();
+</script>
