@@ -1,0 +1,90 @@
+{# Collapsible sidebar -- expands on hover from 56px to 200px #}
+<aside class="sidebar fixed top-0 left-0 h-screen bg-white dark:bg-sf-surface border-r border-slate-200 dark:border-sf-border z-50 flex flex-col overflow-hidden">
+
+  {# ---- Logo / brand ---- #}
+  <div class="flex items-center h-14 px-4 border-b border-slate-200 dark:border-sf-border shrink-0">
+    {# Spider icon #}
+    <svg class="w-6 h-6 text-sf-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 9V3M12 15v6M9 12H3M15 12h6M9.5 9.5 5 5M14.5 9.5 19 5M9.5 14.5 5 19M14.5 14.5 19 19"/>
+    </svg>
+    <span class="nav-label ml-3 text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wide">SpiderFoot</span>
+  </div>
+
+  {# ---- Navigation items ---- #}
+  <nav class="flex-1 py-3 space-y-1">
+
+    {# Dashboard #}
+    <a href="{{ url_for('ui.dashboard') }}"
+       class="flex items-center h-10 px-4 rounded-r-lg transition-colors duration-150
+              {% if page_id == 'DASHBOARD' %}
+                bg-sf-accent/10 text-sf-accent border-l-2 border-sf-accent
+              {% else %}
+                text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-sf-elevated hover:text-slate-700 dark:hover:text-slate-200
+              {% endif %}">
+      {# Heroicon: home #}
+      <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955a1.126 1.126 0 0 1 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/>
+      </svg>
+      <span class="nav-label ml-3 text-sm font-medium">Dashboard</span>
+    </a>
+
+    {# New Scan #}
+    <a href="{{ url_for('ui.newscan') }}"
+       class="flex items-center h-10 px-4 rounded-r-lg transition-colors duration-150
+              {% if page_id == 'NEWSCAN' %}
+                bg-sf-accent/10 text-sf-accent border-l-2 border-sf-accent
+              {% else %}
+                text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-sf-elevated hover:text-slate-700 dark:hover:text-slate-200
+              {% endif %}">
+      {# Heroicon: plus #}
+      <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+      </svg>
+      <span class="nav-label ml-3 text-sm font-medium">New Scan</span>
+    </a>
+
+    {# Settings #}
+    <a href="{{ url_for('ui.settings') }}"
+       class="flex items-center h-10 px-4 rounded-r-lg transition-colors duration-150
+              {% if page_id == 'SETTINGS' %}
+                bg-sf-accent/10 text-sf-accent border-l-2 border-sf-accent
+              {% else %}
+                text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-sf-elevated hover:text-slate-700 dark:hover:text-slate-200
+              {% endif %}">
+      {# Heroicon: cog-6-tooth #}
+      <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+      </svg>
+      <span class="nav-label ml-3 text-sm font-medium">Settings</span>
+    </a>
+
+  </nav>
+
+  {# ---- Footer ---- #}
+  <div class="border-t border-slate-200 dark:border-sf-border py-3 px-4 space-y-2 shrink-0">
+
+    {# Theme toggle #}
+    <button data-theme-toggle
+            class="flex items-center w-full h-8 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors duration-150"
+            title="Toggle theme">
+      {# Sun icon (shown when dark mode is active -- click to switch to light) #}
+      <svg class="icon-sun w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/>
+      </svg>
+      {# Moon icon (shown when light mode is active -- click to switch to dark) #}
+      <svg class="icon-moon w-5 h-5 shrink-0 hidden" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/>
+      </svg>
+      <span class="nav-label ml-3 text-xs font-medium">Toggle Theme</span>
+    </button>
+
+    {# Version #}
+    <div class="flex items-center h-6 text-slate-400 dark:text-slate-500 text-xs">
+      <span class="shrink-0 w-5 text-center font-mono">v</span>
+      <span class="nav-label ml-3 font-mono">{{ version }}</span>
+    </div>
+  </div>
+
+</aside>

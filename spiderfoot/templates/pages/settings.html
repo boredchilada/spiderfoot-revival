@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Settings - SpiderFoot{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+
+  <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-6">Settings</h1>
+
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden">
+
+    {# Settings categories sidebar + form placeholder #}
+    <div class="flex">
+
+      {# Category list #}
+      <div class="w-48 border-r border-slate-200 dark:border-sf-border py-3 shrink-0">
+        <button class="w-full text-left px-4 py-2 text-sm font-medium text-sf-accent bg-sf-accent/10">General</button>
+        <button class="w-full text-left px-4 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-sf-elevated">Modules</button>
+        <button class="w-full text-left px-4 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-sf-elevated">API Keys</button>
+      </div>
+
+      {# Settings form area #}
+      <div class="flex-1 p-6" id="settings-form">
+        <p class="text-sm text-slate-400 dark:text-slate-500">
+          Settings form will be loaded here.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

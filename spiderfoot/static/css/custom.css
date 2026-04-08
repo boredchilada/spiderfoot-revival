@@ -1,0 +1,77 @@
+/* SpiderFoot Custom Styles
+ * Styles that go beyond Tailwind utilities.
+ */
+
+/* ---- Sidebar ---- */
+.sidebar {
+  width: 56px;
+  transition: width 200ms ease-in-out;
+}
+
+.sidebar:hover,
+.sidebar.expanded {
+  width: 200px;
+}
+
+.sidebar .nav-label {
+  opacity: 0;
+  white-space: nowrap;
+  transition: opacity 150ms ease-in-out;
+}
+
+.sidebar:hover .nav-label,
+.sidebar.expanded .nav-label {
+  opacity: 1;
+}
+
+/* ---- Scrollbar (dark theme) ---- */
+.dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0a0e17;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* ---- Status dot pulse ---- */
+@keyframes sf-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.dot-running {
+  animation: sf-pulse 1.5s ease-in-out infinite;
+}
+
+/* ---- Card hover effect ---- */
+.card-sf {
+  transition: border-color 150ms ease-in-out, box-shadow 150ms ease-in-out;
+}
+
+.card-sf:hover {
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.15);
+}
+
+/* ---- Data table rows ---- */
+.data-row {
+  transition: background-color 100ms ease-in-out;
+}
+
+.dark .data-row:hover {
+  background-color: rgba(30, 41, 59, 0.5);
+}
+
+/* ---- Font imports ---- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
