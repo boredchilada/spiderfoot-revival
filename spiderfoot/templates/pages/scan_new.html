@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import 'components/icons.html' as icons %}
 {% block title %}New Scan - SpiderFoot{% endblock %}
 
 {% block head %}
@@ -74,40 +75,49 @@
         </svg>
       </button>
       <div x-show="showHelp" x-transition class="mt-3 grid grid-cols-2 gap-2">
-        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
-          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Domain</span>
+        <div class="flex items-center gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400/70 shrink-0">{{ icons.globe_alt(class="w-3.5 h-3.5") }}</span>
+          <span class="text-cyan-400 text-xs font-mono w-20 shrink-0">Domain</span>
           <span class="text-xs text-slate-400">e.g. example.com — subdomains, DNS, whois, tech stack</span>
         </div>
-        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
-          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">IP Address</span>
+        <div class="flex items-center gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400/70 shrink-0">{{ icons.signal(class="w-3.5 h-3.5") }}</span>
+          <span class="text-cyan-400 text-xs font-mono w-20 shrink-0">IP Address</span>
           <span class="text-xs text-slate-400">e.g. 1.2.3.4 — geolocation, ASN, ports, reputation</span>
         </div>
-        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
-          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Subnet</span>
+        <div class="flex items-center gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400/70 shrink-0">{{ icons.share(class="w-3.5 h-3.5") }}</span>
+          <span class="text-cyan-400 text-xs font-mono w-20 shrink-0">Subnet</span>
           <span class="text-xs text-slate-400">e.g. 192.168.1.0/24 — scan an entire CIDR range</span>
         </div>
-        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
-          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Email</span>
+        <div class="flex items-center gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400/70 shrink-0">{{ icons.link(class="w-3.5 h-3.5") }}</span>
+          <span class="text-cyan-400 text-xs font-mono w-20 shrink-0">Email</span>
           <span class="text-xs text-slate-400">e.g. user@example.com — breaches, social profiles, domain</span>
         </div>
-        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
-          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Phone</span>
+        <div class="flex items-center gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400/70 shrink-0">{{ icons.information_circle(class="w-3.5 h-3.5") }}</span>
+          <span class="text-cyan-400 text-xs font-mono w-20 shrink-0">Phone</span>
           <span class="text-xs text-slate-400">e.g. +1234567890 — carrier, location, linked accounts</span>
         </div>
-        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
-          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Username</span>
+        <div class="flex items-center gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400/70 shrink-0">{{ icons.eye(class="w-3.5 h-3.5") }}</span>
+          <span class="text-cyan-400 text-xs font-mono w-20 shrink-0">Username</span>
           <span class="text-xs text-slate-400">e.g. johndoe — check 500+ sites for matching accounts</span>
         </div>
-        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
-          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Person</span>
+        <div class="flex items-center gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400/70 shrink-0">{{ icons.magnifying_glass(class="w-3.5 h-3.5") }}</span>
+          <span class="text-cyan-400 text-xs font-mono w-20 shrink-0">Person</span>
           <span class="text-xs text-slate-400">e.g. John Doe — name-based OSINT across public records</span>
         </div>
-        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
-          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">ASN</span>
+        <div class="flex items-center gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400/70 shrink-0">{{ icons.chart_bar(class="w-3.5 h-3.5") }}</span>
+          <span class="text-cyan-400 text-xs font-mono w-20 shrink-0">ASN</span>
           <span class="text-xs text-slate-400">e.g. AS13335 — map all prefixes and domains for an ASN</span>
         </div>
-        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50 col-span-2">
-          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Bitcoin</span>
+        <div class="flex items-center gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50 col-span-2">
+          <span class="text-cyan-400/70 shrink-0">{{ icons.link(class="w-3.5 h-3.5") }}</span>
+          <span class="text-cyan-400 text-xs font-mono w-20 shrink-0">Bitcoin</span>
           <span class="text-xs text-slate-400">e.g. 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa — blockchain address tracing</span>
         </div>
       </div>
