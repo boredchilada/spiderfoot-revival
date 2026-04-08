@@ -148,6 +148,13 @@ window.scanForm = (initialModules) => ({
         .sort(([, a], [, b]) => a.name.localeCompare(b.name));
     },
 
+    /** Count modules in a category that require an API key but don't have one configured. */
+    keysNeededCount(category) {
+      return Object.values(this.modules).filter(
+        m => m.category === category && m.requiresKey && !m.keyConfigured
+      ).length;
+    },
+
     /** Total number of enabled modules across all categories. */
     totalEnabled() {
       return Object.values(this.modules).filter(m => m.enabled).length;

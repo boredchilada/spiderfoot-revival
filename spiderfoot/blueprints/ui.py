@@ -86,7 +86,16 @@ def _build_modules_data():
             modules    — dict keyed by module name, ready for Jinja2 tojson
             categories — sorted list of unique category strings
     """
-    raw = current_app.config.get('SF_CONFIG', {}).get('__modules__', {})
+    sf_config = current_app.config.get('SF_CONFIG', {})
+    raw = sf_config.get('__modules__', {})
+
+    # Load saved config to check which API keys are configured
+    try:
+        dbh = _get_db()
+        saved_config = dbh.configGet()
+    except Exception:
+        saved_config = {}
+
     modules = {}
     category_set = set()
 
@@ -104,12 +113,30 @@ def _build_modules_data():
         # Default enabled state: module is in 'Footprint' use case
         enabled = 'Footprint' in use_cases
 
+        # Check if module requires an API key and if it's configured
+        opts = mod_cfg.get('opts', {})
+        api_key_opts = [k for k in opts if any(
+            term in k.lower() for term in ('api_key', 'apikey', 'api_id', 'accesstoken')
+        )]
+        requires_key = len(api_key_opts) > 0
+        key_configured = False
+        if requires_key:
+            # Check saved config for any of the API key options
+            for opt_name in api_key_opts:
+                config_key = f'{mod_name}:{opt_name}'
+                val = saved_config.get(config_key, '') or opts.get(opt_name, '')
+                if val:
+                    key_configured = True
+                    break
+
         modules[mod_name] = {
             'name': meta.get('name', mod_name),
             'summary': meta.get('summary', mod_cfg.get('descr', '')),
             'category': category,
             'useCases': use_cases,
             'enabled': enabled,
+            'requiresKey': requires_key,
+            'keyConfigured': key_configured,
         }
 
     categories = sorted(category_set)

@@ -31,6 +31,11 @@
                    bg-sf-accent/10 text-sf-accent border border-sf-accent/20">
         <span x-text="enabledCount('{{ cat_js }}')"></span>/<span x-text="totalCount('{{ cat_js }}')"></span> ON
       </span>
+      <span x-show="keysNeededCount('{{ cat_js }}') > 0"
+            class="text-[10px] font-mono px-1.5 py-0.5 rounded-full
+                   bg-amber-500/10 text-amber-400 border border-amber-500/20"
+            x-text="keysNeededCount('{{ cat_js }}') + ' key' + (keysNeededCount('{{ cat_js }}') > 1 ? 's' : '') + ' needed'">
+      </span>
     </div>
 
     {# Right: enable-all / disable-all + chevron #}
@@ -84,10 +89,20 @@
                       peer-checked:translate-x-4"></div>
         </div>
 
-        {# Module name + description #}
+        {# Module name + description + API key badge #}
         <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium text-slate-700 dark:text-slate-200 leading-snug"
-             x-text="mod.name"></p>
+          <div class="flex items-center gap-2">
+            <p class="text-sm font-medium text-slate-700 dark:text-slate-200 leading-snug"
+               x-text="mod.name"></p>
+            <span x-show="mod.requiresKey && mod.keyConfigured"
+                  class="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20 leading-none">
+              API
+            </span>
+            <span x-show="mod.requiresKey && !mod.keyConfigured"
+                  class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 leading-none">
+              KEY NEEDED
+            </span>
+          </div>
           <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5 leading-snug truncate"
              x-text="mod.summary"></p>
         </div>
