@@ -1,61 +1,128 @@
 {% extends "base.html" %}
 {% block title %}New Scan - SpiderFoot{% endblock %}
 
+{% block head %}
+  {# app.js must be loaded after Alpine (which is deferred in base.html).
+     Using defer here ensures it runs after DOM + Alpine are both ready. #}
+  <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-3xl mx-auto">
+
+{# Pass module data from the server into the Alpine component via tojson,
+   which produces a JS object literal that Alpine evaluates directly. #}
+<div class="max-w-4xl mx-auto"
+     x-data="scanForm({{ modules | tojson }})">
 
   <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-6">New Scan</h1>
 
-  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-6">
+  {# ================================================================ Target card #}
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-6 mb-4">
 
-    <form id="scan-form" method="POST" action="/api/startscan">
-
-      {# Scan name #}
-      <div class="mb-5">
-        <label for="scan-name" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Scan Name</label>
-        <input type="text" id="scan-name" name="scanname"
-               class="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-sf-border
+    {# Target input #}
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+        Target
+      </label>
+      <div class="relative">
+        <input type="text"
+               x-model="target"
+               class="w-full px-3 py-2.5 rounded-md border border-slate-300 dark:border-sf-border
                       bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
                       placeholder-slate-400 dark:placeholder-slate-500
                       focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
-                      text-sm"
-               placeholder="e.g. Recon - example.com">
+                      text-sm font-mono pr-28"
+               placeholder="e.g. example.com, 192.168.1.0/24, user@email.com">
+
+        {# Detected type badge — only shown when a type is detected #}
+        <span x-show="targetType"
+              x-transition
+              :class="targetTypeBadgeClass()"
+              class="absolute right-2 top-1/2 -translate-y-1/2
+                     text-xs font-semibold px-2.5 py-1 rounded-full"
+              x-text="targetType"></span>
       </div>
+    </div>
 
-      {# Scan target #}
-      <div class="mb-5">
-        <label for="scan-target" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Target</label>
-        <input type="text" id="scan-target" name="scantarget"
-               class="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-sf-border
-                      bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
-                      placeholder-slate-400 dark:placeholder-slate-500
-                      focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
-                      text-sm font-mono"
-               placeholder="e.g. example.com, 192.168.1.0/24, john@example.com">
+    {# Optional scan name #}
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+        Scan Name <span class="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+      </label>
+      <input type="text"
+             x-model="scanName"
+             class="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-sf-border
+                    bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
+                    placeholder-slate-400 dark:placeholder-slate-500
+                    focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
+                    text-sm"
+             placeholder="e.g. Recon - example.com">
+    </div>
+
+  </div>
+
+  {# ================================================================ Use-case tabs #}
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-6 mb-4">
+
+    <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Scan Type</p>
+
+    <div class="flex gap-2 flex-wrap">
+      {# Tab helper macro-style: repeated for each use case #}
+      {% for uc, label, desc in [
+          ('footprint',   'Footprint',   'Map the attack surface'),
+          ('investigate', 'Investigate', 'Dig deep on a target'),
+          ('passive',     'Passive',     'No direct contact'),
+          ('custom',      'Custom',      'Pick modules manually'),
+      ] %}
+      <button type="button"
+              @click="selectUseCase('{{ uc }}')"
+              :class="useCase === '{{ uc }}'
+                ? 'bg-sf-accent text-white border-sf-accent shadow-sm'
+                : 'bg-white dark:bg-sf-elevated text-slate-600 dark:text-slate-300 border-slate-300 dark:border-sf-border hover:border-sf-accent hover:text-sf-accent'"
+              class="px-4 py-2 rounded-md border text-sm font-medium transition-colors duration-150">
+        {{ label }}
+        <span class="block text-xs font-normal opacity-70">{{ desc }}</span>
+      </button>
+      {% endfor %}
+    </div>
+
+  </div>
+
+  {# ================================================================ Module groups #}
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-6 mb-6">
+
+    <div class="flex items-center justify-between mb-4">
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Modules</p>
+      <span class="text-xs text-slate-400 dark:text-slate-500"
+            x-text="`${totalEnabled()} module${totalEnabled() === 1 ? '' : 's'} enabled`"></span>
+    </div>
+
+    {# One accordion per category — categories list comes from Flask #}
+    <div class="space-y-2">
+      {% for cat in categories %}
+      <div x-data="{ category: {{ cat | tojson }} }">
+        {% include 'components/module_group.html' %}
       </div>
+      {% endfor %}
+    </div>
 
-      {# Use case selector placeholder #}
-      <div class="mb-6">
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Scan Type</label>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="scan-usecases">
-          <p class="col-span-full text-sm text-slate-400 dark:text-slate-500">
-            Scan type selector will be loaded here.
-          </p>
-        </div>
-      </div>
+  </div>
 
-      {# Submit #}
-      <div class="flex justify-end">
-        <button type="submit"
-                class="px-6 py-2 bg-sf-accent text-white rounded-md
-                       hover:bg-cyan-500 transition-colors duration-150
-                       font-medium text-sm">
-          Start Scan
-        </button>
-      </div>
-
-    </form>
-
+  {# ================================================================ Launch button #}
+  <div class="flex justify-end">
+    <button type="button"
+            @click="submitScan()"
+            :disabled="totalEnabled() === 0 || !target.trim()"
+            :class="totalEnabled() === 0 || !target.trim()
+              ? 'opacity-50 cursor-not-allowed bg-sf-accent'
+              : 'bg-sf-accent hover:bg-cyan-400'"
+            class="px-8 py-2.5 text-white rounded-md font-medium text-sm
+                   transition-colors duration-150 shadow-sm">
+      Launch Scan
+      <span x-show="totalEnabled() > 0"
+            x-text="`(${totalEnabled()} module${totalEnabled() === 1 ? '' : 's'})`"
+            class="ml-1.5 opacity-80 font-normal"></span>
+    </button>
   </div>
 
 </div>
