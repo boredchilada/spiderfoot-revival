@@ -33,7 +33,7 @@ class sfp_hackertarget(SpiderFootPlugin):
         'categories': ["Passive DNS"],
         'dataSource': {
             'website': "https://hackertarget.com/",
-            'model': "FREE_NOAUTH_UNLIMITED",
+            'model': "FREE_NOAUTH_LIMITED",
             'references': [
                 "https://hackertarget.com/research/",
                 "https://hackertarget.com/category/tools/"
@@ -43,8 +43,7 @@ class sfp_hackertarget(SpiderFootPlugin):
             'description': "Simplify the security assessment process with hosted vulnerability scanners. "
             "From attack surface discovery to vulnerability identification, "
             "actionable network intelligence for IT & security operations. "
-            "Proactively hunt for security weakness. "
-            "Pivot from attack surface discovery to vulnerability identification.",
+            "Free tier: 50 API calls/day, max 2 req/s, results capped at 500 lines.",
         }
     }
 

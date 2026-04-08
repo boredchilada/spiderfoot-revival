@@ -78,17 +78,13 @@ class sfp_haveibeenpwned(SpiderFootPlugin):
         return ["EMAILADDR_COMPROMISED", "PHONE_NUMBER_COMPROMISED", "LEAKSITE_CONTENT", "LEAKSITE_URL"]
 
     def query(self, qry):
-        if self.opts['api_key']:
-            version = "3"
-        else:
-            version = "2"
-
-        url = f"https://haveibeenpwned.com/api/v{version}/breachedaccount/{qry}"
-        hdrs = {"Accept": f"application/vnd.haveibeenpwned.v{version}+json"}
+        # v3 API only — v2 free tier is effectively dead (heavily rate-limited since 2023)
+        url = f"https://haveibeenpwned.com/api/v3/breachedaccount/{qry}"
+        hdrs = {
+            "Accept": "application/vnd.haveibeenpwned.v3+json",
+            "hibp-api-key": self.opts['api_key'],
+        }
         retry = 0
-
-        if self.opts['api_key']:
-            hdrs['hibp-api-key'] = self.opts['api_key']
 
         while retry < 2:
             # https://haveibeenpwned.com/API/v2#RateLimiting

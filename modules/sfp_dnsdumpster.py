@@ -22,21 +22,36 @@ class sfp_dnsdumpster(SpiderFootPlugin):
 
     meta = {
         "name": "DNSDumpster",
-        "summary": "Passive subdomain enumeration using HackerTarget's DNSDumpster",
+        "summary": "Passive subdomain enumeration using HackerTarget's DNSDumpster API.",
+        "flags": ["apikey"],
         "useCases": ["Investigate", "Footprint", "Passive"],
         "categories": ["Passive DNS"],
         "dataSource": {
             "website": "https://dnsdumpster.com/",
-            "model": "FREE_NOAUTH_UNLIMITED",
-            "description": "DNSdumpster.com is a FREE domain research tool that can discover hosts related to a domain.",
+            "model": "FREE_AUTH_LIMITED",
+            "references": [
+                "https://dnsdumpster.com/developer/",
+            ],
+            "apiKeyInstructions": [
+                "Visit https://dnsdumpster.com/",
+                "Create a free account",
+                "The API key is available in your account settings",
+                "Free accounts: 50 records/domain, 1 req per 2 seconds",
+            ],
+            "description": "DNSdumpster.com is a FREE domain research tool that can discover hosts related to a domain. "
+            "As of 2025, DNSDumpster requires an API key for access. Free accounts are limited to 50 records per domain.",
         }
     }
 
     # Default options
-    opts = {}
+    opts = {
+        "api_key": "",
+    }
 
     # Option descriptions
-    optdescs = {}
+    optdescs = {
+        "api_key": "DNSDumpster API key. Required for access (free accounts available).",
+    }
 
     def setup(self, sfc, userOpts=dict()):
         self.sf = sfc
@@ -50,66 +65,81 @@ class sfp_dnsdumpster(SpiderFootPlugin):
     def producedEvents(self):
         return ["INTERNET_NAME", "INTERNET_NAME_UNRESOLVED"]
 
+    errorState = False
+
     def query(self, domain):
         ret = []
-        # first, get the CSRF tokens
-        url = "https://dnsdumpster.com"
-        res1 = self.sf.fetchUrl(
-            url,
-            useragent=self.opts.get("_useragent", "Spiderfoot")
-        )
-        if res1["code"] not in ["200"]:
-            self.error(f"Bad response code \"{res1['code']}\" from DNSDumpster")
-        else:
-            self.debug(f"Valid response code \"{res1['code']}\" from DNSDumpster")
-        html = BeautifulSoup(str(res1["content"]), features="lxml")
-        csrftoken = None
-        csrfmiddlewaretoken = None
-        try:
-            for cookie in res1["headers"].get("set-cookie", "").split(";"):
-                k, v = cookie.split('=', 1)
-                if k == "csrftoken":
-                    csrftoken = str(v)
-            csrfmiddlewaretoken = html.find("input", {"name": "csrfmiddlewaretoken"}).attrs.get("value", None)
-        except Exception:
-            pass
 
-        # Abort if we didn't get the tokens
-        if not csrftoken or not csrfmiddlewaretoken:
-            self.error("Error obtaining CSRF tokens")
+        if not self.opts.get("api_key"):
+            self.error("You enabled sfp_dnsdumpster but did not set an API key! "
+                       "DNSDumpster now requires an API key. Visit https://dnsdumpster.com/ to get one.")
             self.errorState = True
             return ret
 
-        self.debug("Successfully obtained CSRF tokens")
+        # Use the new JSON API (requires API key)
+        import json
+        import time
 
-        # Otherwise, do the needful
-        url = "https://dnsdumpster.com/"
-        subdomains = set()
-        res2 = self.sf.fetchUrl(
+        url = f"https://api.dnsdumpster.com/domain/{domain}"
+        headers = {
+            "X-API-Key": self.opts["api_key"],
+        }
+
+        res = self.sf.fetchUrl(
             url,
-            cookies={
-                "csrftoken": csrftoken
-            },
-            postData={
-                "csrfmiddlewaretoken": csrfmiddlewaretoken,
-                "targetip": str(domain).lower(),
-                "user": "free"
-            },
-            headers={
-                "origin": "https://dnsdumpster.com",
-                "referer": "https://dnsdumpster.com/"
-            },
-            useragent=self.opts.get("_useragent", "Spiderfoot")
+            headers=headers,
+            useragent=self.opts.get("_useragent", "SpiderFoot"),
+            timeout=self.opts.get("_fetchtimeout", 30),
         )
-        if res2["code"] not in ["200"]:
-            self.error(f"Bad response code \"{res2['code']}\" from DNSDumpster")
+
+        # Rate limit: 1 req per 2 seconds for free tier
+        time.sleep(2)
+
+        if not res or not res.get("content"):
+            self.error("No response from DNSDumpster API")
             return ret
 
-        html = BeautifulSoup(str(res2["content"]), features="lxml")
-        escaped_domain = re.escape(domain)
-        match_pattern = re.compile(r"^[\w\.-]+\." + escaped_domain + r"$")
-        for subdomain in html.findAll(text=match_pattern):
-            subdomains.add(str(subdomain).strip().lower())
+        if res["code"] == "401":
+            self.error("DNSDumpster API key is invalid.")
+            self.errorState = True
+            return ret
+
+        if res["code"] == "429":
+            self.error("DNSDumpster API rate limit hit.")
+            self.errorState = True
+            return ret
+
+        if res["code"] != "200":
+            self.error(f"Bad response code \"{res['code']}\" from DNSDumpster API")
+            return ret
+
+        try:
+            data = json.loads(res["content"])
+        except (ValueError, TypeError) as e:
+            self.error(f"Error parsing DNSDumpster JSON response: {e}")
+            return ret
+
+        # Extract subdomains from the API response
+        subdomains = set()
+        for record in data.get("dns_records", {}).get("dns", []):
+            host = record.get("host", "")
+            if host and host.endswith(f".{domain}"):
+                subdomains.add(host.lower())
+
+        for record in data.get("dns_records", {}).get("mx", []):
+            host = record.get("host", "")
+            if host and host.endswith(f".{domain}"):
+                subdomains.add(host.lower())
+
+        for record in data.get("dns_records", {}).get("txt", []):
+            host = record.get("host", "")
+            if host and host.endswith(f".{domain}"):
+                subdomains.add(host.lower())
+
+        for record in data.get("dns_records", {}).get("host", []):
+            host = record.get("host", "")
+            if host and host.endswith(f".{domain}"):
+                subdomains.add(host.lower())
 
         return list(subdomains)
 

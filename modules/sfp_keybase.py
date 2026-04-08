@@ -38,7 +38,9 @@ class sfp_keybase(SpiderFootPlugin):
             'favIcon': "https://keybase.io/images/icons/icon-keybase-logo-48.png",
             'logo': "https://keybase.io/images/icons/icon-keybase-logo-48.png",
             'description': "Keybase is a key directory that maps social media identities to encryption keys "
-            "in a publicly auditable manner.",
+            "in a publicly auditable manner. NOTE: Keybase was acquired by Zoom in 2020 and is in "
+            "maintenance mode — no new features are being developed, but existing API functionality "
+            "continues to work.",
         }
     }
 
