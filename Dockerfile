@@ -81,5 +81,4 @@ USER spiderfoot
 EXPOSE 5001
 
 # Run the application.
-ENTRYPOINT ["/opt/venv/bin/python"]
-CMD ["sf.py", "-l", "0.0.0.0:5001"]
+CMD ["python", "sf.py", "-l", "0.0.0.0:5001"]

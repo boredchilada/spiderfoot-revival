@@ -131,4 +131,4 @@ db.configSet({ \
     "sfp_tool_wappalyzer:wappalyzer_path": "/tools/wappalyzer/src/drivers/npm/cli.js", \
     "sfp_tool_nbtscan:nbtscan_path": "/usr/bin/nbtscan", \
     "sfp_tool_nmap:nmappath": "DISABLED_BECAUSE_NMAP_REQUIRES_ROOT_TO_WORK" \
-})' || true && ./sf.py -l 0.0.0.0:5001
+})' || true && python sf.py -l 0.0.0.0:5001
