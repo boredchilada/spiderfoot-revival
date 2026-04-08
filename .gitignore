@@ -173,3 +173,9 @@ cover/
 # Documentation #
 #################
 docs/_build/
+
+# Tailwind standalone CLI binary
+tailwindcss-*
+
+# Superpowers brainstorming files
+.superpowers/
