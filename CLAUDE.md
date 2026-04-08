@@ -60,3 +60,21 @@ spiderfoot/
 - Add new pages or routes — extend existing ones
 - Use jQuery for new code — use Alpine.js + HTMX
 - Add Tailwind CDN warning suppressions — we'll move to PostCSS build later
+
+## Environment (Windows)
+
+- Dev runs on Windows 11 under Git Bash — use forward slashes in paths
+- `taskkill` needs `cmd.exe //c "taskkill /PID X /F"` wrapper (Git Bash mangles `/PID`)
+- **Always test via Docker** — local Python can have stale processes and missing deps
+- Docker build: `docker build -t spiderfoot-revival .` then `docker run -d --name sf-test -p 5001:5001 spiderfoot-revival`
+- Check logs: `docker logs sf-test 2>&1 | grep -i error`
+
+## Gotchas
+
+- **Alpine.js in tables**: `x-data` on a `<tr>` does NOT scope to sibling `<tr>` rows. Use `<tbody x-data="...">` to wrap row pairs (data row + detail row).
+- **Alpine.js reserved words**: Don't use `open` as a variable name — conflicts with `window.open`. Use `expanded` instead.
+- **Jinja2 dict key `items`**: A dict with key `items` collides with Python's `dict.items()` in Jinja2 templates. Use `entries` instead.
+- **Correlation tables**: `tbl_scan_correlation_results` may not exist in older databases. Always wrap `scanCorrelationList()` calls in try/except.
+- **No per-module timeout**: Modules can hang indefinitely. Only `_fetchtimeout` (5s per HTTP request) exists. A module-level timeout is a planned improvement.
+- **SpiderFoot events have no inherent severity**: Don't add artificial red/amber/green severity to events. Group by category (Attack Surface, Identities, Infrastructure, Reputation, Vulnerabilities) instead.
+- **Event categories**: Defined in `blueprints/fragments.py` as `EVENT_CATEGORIES` dict — used by both summary tab and filter chips.
