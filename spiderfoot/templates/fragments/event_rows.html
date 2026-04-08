@@ -1,15 +1,78 @@
-{# Event table rows — returned by /frag/events for HTMX search/filter #}
-{# events: list of dicts with type, type_code, data, module, confidence, risk #}
+{# Event table rows — expandable, paginated #}
+{# Returned by /frag/events for HTMX search/filter/pagination #}
+{# Uses tbody-per-row for Alpine.js scoping (x-data on tr doesn't scope to siblings) #}
 
 {% for event in events %}
-<tr class="border-t border-slate-100 dark:border-sf-border hover:bg-slate-50 dark:hover:bg-sf-elevated transition-colors">
-  <td class="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ event.type }}</td>
-  <td class="px-3 py-2 font-mono text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{{ event.data }}</td>
-  <td class="px-3 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ event.module }}</td>
-  <td class="px-3 py-2 text-right font-mono tabular-nums text-slate-600 dark:text-slate-300">{{ event.confidence }}%</td>
+<tbody x-data="{ expanded: false }">
+<tr class="border-t border-slate-100 dark:border-sf-border hover:bg-slate-50 dark:hover:bg-sf-elevated transition-colors cursor-pointer"
+    @click="expanded = !expanded">
+  <td class="px-3 py-2 w-6 text-slate-400 dark:text-slate-500">
+    <span x-text="expanded ? '\u25BE' : '\u25B8'" class="text-xs"></span>
+  </td>
+  <td class="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap text-sm">{{ event.type }}</td>
+  <td class="px-3 py-2 font-mono text-xs text-slate-600 dark:text-slate-400 max-w-md truncate">{{ event.data }}</td>
+  <td class="px-3 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">{{ event.module }}</td>
 </tr>
+{# Expandable detail row #}
+<tr x-show="expanded" x-transition x-cloak
+    class="border-t border-slate-100 dark:border-sf-border bg-slate-50 dark:bg-sf-base">
+  <td></td>
+  <td colspan="3" class="px-3 py-3 text-xs">
+    <div class="space-y-1 text-slate-500 dark:text-slate-400">
+      <div><span class="text-slate-400 dark:text-slate-500">Type:</span> <span class="font-mono text-slate-700 dark:text-slate-300">{{ event.type_code }}</span></div>
+      <div><span class="text-slate-400 dark:text-slate-500">Full data:</span></div>
+      <div class="font-mono text-slate-700 dark:text-slate-200 bg-white dark:bg-sf-surface rounded px-3 py-2 break-all text-xs border border-slate-200 dark:border-sf-border">{{ event.data }}</div>
+      <div><span class="text-slate-400 dark:text-slate-500">Source module:</span> <span class="font-mono">{{ event.module }}</span></div>
+      {% if event.generated %}
+      <div><span class="text-slate-400 dark:text-slate-500">Discovered:</span> {{ event.generated }}</div>
+      {% endif %}
+      <div><span class="text-slate-400 dark:text-slate-500">Confidence:</span> {{ event.confidence }}%</div>
+    </div>
+  </td>
+</tr>
+</tbody>
 {% else %}
+<tbody>
 <tr>
   <td colspan="4" class="px-3 py-8 text-center text-slate-400 dark:text-slate-500">No matching events found.</td>
 </tr>
+</tbody>
 {% endfor %}
+
+{# Pagination #}
+{% if total_pages is defined and total_pages > 1 %}
+<tbody>
+<tr class="border-t border-slate-200 dark:border-sf-border">
+  <td colspan="4" class="px-3 py-3">
+    <div class="flex items-center justify-between">
+      <span class="text-xs text-slate-400 dark:text-slate-500">
+        {{ "{:,}".format((page - 1) * 50 + 1) }}&ndash;{{ "{:,}".format([page * 50, total_count] | min) }} of {{ "{:,}".format(total_count) }}
+      </span>
+      <div class="flex gap-1">
+        {% for p in range(1, total_pages + 1) %}
+          {% if p <= 3 or p > total_pages - 2 or (p >= page - 1 and p <= page + 1) %}
+            <button
+              hx-get="/frag/events?id={{ scan_id }}&page={{ p }}"
+              hx-target="#event-rows"
+              hx-include="[name='q'],[name='type_filter']"
+              class="px-2.5 py-1 text-xs rounded {{ 'bg-sf-accent/20 text-sf-accent font-medium' if p == page else 'bg-slate-100 dark:bg-sf-elevated text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200' }} transition-colors">
+              {{ p }}
+            </button>
+          {% elif p == 4 or p == total_pages - 2 %}
+            <span class="px-1 text-xs text-slate-400">&hellip;</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </td>
+</tr>
+</tbody>
+{% elif total_count is defined and total_count > 0 %}
+<tbody>
+<tr class="border-t border-slate-200 dark:border-sf-border">
+  <td colspan="4" class="px-3 py-2 text-xs text-slate-400 dark:text-slate-500 text-center">
+    {{ "{:,}".format(total_count) }} events
+  </td>
+</tr>
+</tbody>
+{% endif %}
