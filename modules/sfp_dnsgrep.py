@@ -26,40 +26,39 @@ class sfp_dnsgrep(SpiderFootPlugin):
 
     meta = {
         'name': "DNSGrep",
-        'summary': "Obtain Passive DNS information from Rapid7 Sonar Project using DNSGrep API.",
-        'flags': [],
+        'summary': "Obtain Passive DNS information from BufferOver.run (formerly DNSGrep/Rapid7 Sonar).",
+        'flags': ["apikey"],
         'useCases': ["Footprint", "Investigate", "Passive"],
         'categories': ["Passive DNS"],
         'dataSource': {
-            'website': "https://opendata.rapid7.com/",
-            'model': "FREE_AUTH_UNLIMITED",
+            'website': "https://tls.bufferover.run/",
+            'model': "FREE_AUTH_LIMITED",
             'references': [
-                "https://opendata.rapid7.com/apihelp/",
-                "https://www.rapid7.com/about/research"
+                "https://tls.bufferover.run/",
             ],
             'apiKeyInstructions': [
-                "Visit https://opendata.rapid7.com/apihelp/",
-                "Submit form requesting for access",
-                "After getting access, navigate to https://insight.rapid7.com/platform#/apiKeyManagement",
-                "Create an User Key",
-                "The API key will be listed after creation"
+                "Visit https://tls.bufferover.run/",
+                "Sign up for a free API key via RapidAPI",
+                "The free tier has limited queries per month",
             ],
             'favIcon': "https://www.rapid7.com/includes/img/favicon.ico",
             'logo': "https://www.rapid7.com/includes/img/Rapid7_logo.svg",
-            'description': "Offering researchers and community members open access to data from Project Sonar, "
-            "which conducts internet-wide surveys to gain insights into global exposure "
-            "to common vulnerabilities.",
+            'description': "BufferOver.run provides DNS data derived from Rapid7 Sonar Project datasets. "
+            "The service now requires an API key (freemium model via RapidAPI). "
+            "Queries return forward DNS (FDNS) and reverse DNS (RDNS) records.",
         }
     }
 
     # Default options
     opts = {
+        'api_key': '',
         'timeout': 30,
         'dns_resolve': True
     }
 
     # Option descriptions
     optdescs = {
+        'api_key': "BufferOver.run API key (x-api-key header). Required for access.",
         'timeout': "Query timeout, in seconds.",
         'dns_resolve': "DNS resolve each identified domain."
     }
@@ -81,15 +80,25 @@ class sfp_dnsgrep(SpiderFootPlugin):
     def producedEvents(self):
         return ["INTERNET_NAME", "INTERNET_NAME_UNRESOLVED", "RAW_RIR_DATA"]
 
-    # Query the DNSGrep REST API
+    # Query the BufferOver.run API
     def query(self, qry):
+        if not self.opts.get('api_key'):
+            self.error("You enabled sfp_dnsgrep but did not set an API key! "
+                       "BufferOver.run now requires an API key.")
+            return None
+
         params = {
             'q': '.' + qry.encode('raw_unicode_escape').decode("ascii", errors='replace')
         }
 
-        res = self.sf.fetchUrl('https://dns.bufferover.run/dns?' + urllib.parse.urlencode(params),
+        headers = {
+            'x-api-key': self.opts['api_key']
+        }
+
+        res = self.sf.fetchUrl('https://tls.bufferover.run/dns?' + urllib.parse.urlencode(params),
                                timeout=self.opts['timeout'],
-                               useragent=self.opts['_useragent'])
+                               useragent=self.opts['_useragent'],
+                               headers=headers)
 
         if res['content'] is None:
             self.info("No results found for " + qry)

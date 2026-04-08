@@ -25,12 +25,12 @@ class sfp_skymem(SpiderFootPlugin):
         'useCases': ["Footprint", "Investigate", "Passive"],
         'categories': ["Search Engines"],
         'dataSource': {
-            'website': "http://www.skymem.info/",
+            'website': "https://www.skymem.com/",
             'model': "FREE_NOAUTH_UNLIMITED",
             'references': [
-                "http://www.skymem.info/faq"
+                "https://www.skymem.com/faq"
             ],
-            'favIcon': "https://www.google.com/s2/favicons?domain=http://www.skymem.info/",
+            'favIcon': "https://www.google.com/s2/favicons?domain=https://www.skymem.com/",
             'logo': "",
             'description': "Find email addresses of companies and people.",
         }
@@ -77,7 +77,7 @@ class sfp_skymem(SpiderFootPlugin):
         self.debug(f"Received event, {eventName}, from {srcModuleName}")
 
         # Get e-mail addresses on this domain
-        res = self.sf.fetchUrl("http://www.skymem.info/srch?q=" + eventData, timeout=self.opts['_fetchtimeout'], useragent=self.opts['_useragent'])
+        res = self.sf.fetchUrl("https://www.skymem.com/srch?q=" + eventData, timeout=self.opts['_fetchtimeout'], useragent=self.opts['_useragent'])
 
         if res['content'] is None:
             return
@@ -112,7 +112,7 @@ class sfp_skymem(SpiderFootPlugin):
 
         for page in range(1, 21):
             res = self.sf.fetchUrl(
-                f"http://www.skymem.info/domain/{domain_id}?p={page}",
+                f"https://www.skymem.com/domain/{domain_id}?p={page}",
                 timeout=self.opts['_fetchtimeout'],
                 useragent=self.opts['_useragent']
             )
