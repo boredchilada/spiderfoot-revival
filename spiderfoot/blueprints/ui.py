@@ -78,12 +78,53 @@ def dashboard():
     )
 
 
+def _build_modules_data():
+    """Build module metadata for the new-scan page.
+
+    Returns:
+        tuple: (modules, categories)
+            modules    — dict keyed by module name, ready for Jinja2 tojson
+            categories — sorted list of unique category strings
+    """
+    raw = current_app.config.get('SF_CONFIG', {}).get('__modules__', {})
+    modules = {}
+    category_set = set()
+
+    for mod_name, mod_cfg in raw.items():
+        # Skip internal storage modules
+        if mod_name.startswith('sfp__stor_'):
+            continue
+
+        meta = mod_cfg.get('meta', {})
+        use_cases = meta.get('useCases', [])
+        cats = meta.get('categories', [])
+        category = cats[0] if cats else 'Uncategorised'
+        category_set.add(category)
+
+        # Default enabled state: module is in 'Footprint' use case
+        enabled = 'Footprint' in use_cases
+
+        modules[mod_name] = {
+            'name': meta.get('name', mod_name),
+            'summary': meta.get('summary', mod_cfg.get('descr', '')),
+            'category': category,
+            'useCases': use_cases,
+            'enabled': enabled,
+        }
+
+    categories = sorted(category_set)
+    return modules, categories
+
+
 @ui_bp.route('/newscan')
 def newscan():
+    modules, categories = _build_modules_data()
     return render_template(
         'pages/scan_new.html',
         page_id='NEWSCAN',
         version=__version__,
+        modules=modules,
+        categories=categories,
     )
 
 

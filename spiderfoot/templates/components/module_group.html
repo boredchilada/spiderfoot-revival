@@ -1,0 +1,97 @@
+{#
+  module_group.html — Collapsible accordion for one module category.
+
+  Expected Alpine.js context (provided by the parent scanForm component):
+    category        — string, e.g. "DNS"
+    enabledCount()  — method
+    totalCount()    — method
+    modulesForCategory() — method returning [[key, moduleObj], ...]
+    toggleCategory() — method
+    modules         — reactive dict
+#}
+<div x-data="{ open: false }"
+     class="border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden">
+
+  {# --- Group header --- #}
+  <button type="button"
+          @click="open = !open"
+          class="w-full flex items-center justify-between px-4 py-3
+                 bg-slate-50 dark:bg-sf-elevated
+                 hover:bg-slate-100 dark:hover:bg-slate-700/60
+                 transition-colors duration-150 text-left">
+
+    {# Left: category name + ON/TOTAL badge #}
+    <div class="flex items-center gap-3 min-w-0">
+      <span class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate"
+            x-text="category"></span>
+
+      <span class="text-xs font-mono px-2 py-0.5 rounded-full
+                   bg-sf-accent/10 text-sf-accent border border-sf-accent/20">
+        <span x-text="enabledCount(category)"></span>/<span x-text="totalCount(category)"></span> ON
+      </span>
+    </div>
+
+    {# Right: enable-all / disable-all + chevron #}
+    <div class="flex items-center gap-2 shrink-0 ml-3">
+      <button type="button"
+              @click.stop="toggleCategory(category, true)"
+              class="text-xs px-2 py-0.5 rounded
+                     text-sf-accent hover:bg-sf-accent/10
+                     transition-colors duration-100">
+        All
+      </button>
+      <button type="button"
+              @click.stop="toggleCategory(category, false)"
+              class="text-xs px-2 py-0.5 rounded
+                     text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-600
+                     transition-colors duration-100">
+        None
+      </button>
+
+      {# Chevron — rotates when open #}
+      <svg class="w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200"
+           :class="open ? 'rotate-180' : ''"
+           fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/>
+      </svg>
+    </div>
+  </button>
+
+  {# --- Module list (expanded) --- #}
+  <div x-show="open"
+       x-collapse
+       class="divide-y divide-slate-100 dark:divide-sf-border/60">
+
+    <template x-for="[key, mod] in modulesForCategory(category)" :key="key">
+      <label class="flex items-start gap-3 px-4 py-2.5 cursor-pointer
+                    hover:bg-slate-50 dark:hover:bg-sf-elevated/60
+                    transition-colors duration-100">
+
+        {# Toggle switch #}
+        <div class="relative mt-0.5 shrink-0">
+          <input type="checkbox"
+                 :checked="mod.enabled"
+                 @change="modules[key].enabled = $event.target.checked"
+                 class="sr-only peer">
+          <div class="w-9 h-5 rounded-full border-2 transition-colors duration-200
+                      border-slate-300 dark:border-slate-600
+                      peer-checked:border-sf-accent peer-checked:bg-sf-accent
+                      bg-white dark:bg-sf-elevated"></div>
+          <div class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow
+                      transition-transform duration-200
+                      peer-checked:translate-x-4"></div>
+        </div>
+
+        {# Module name + description #}
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-slate-700 dark:text-slate-200 leading-snug"
+             x-text="mod.name"></p>
+          <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5 leading-snug truncate"
+             x-text="mod.summary"></p>
+        </div>
+
+      </label>
+    </template>
+
+  </div>
+</div>
