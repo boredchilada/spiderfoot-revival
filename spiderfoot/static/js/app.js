@@ -1,11 +1,10 @@
 /**
  * SpiderFoot — New Scan Alpine.js component
  *
- * Registered via the alpine:init event so it is available before Alpine
- * boots (Alpine is loaded with `defer`, which fires after DOMContentLoaded).
+ * Defined as a plain window function so it's available when Alpine
+ * evaluates x-data="scanForm(...)". No event registration needed.
  */
-document.addEventListener('alpine:init', () => {
-  Alpine.data('scanForm', (initialModules) => ({
+window.scanForm = (initialModules) => ({
     // ------------------------------------------------------------------ state
     target: '',
     scanName: '',
@@ -178,5 +177,4 @@ document.addEventListener('alpine:init', () => {
         alert('Failed to start scan: ' + err.message);
       }
     },
-  }));
-});
+  });
