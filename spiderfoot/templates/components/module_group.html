@@ -15,13 +15,13 @@
 <div x-data="{ isOpen: false }"
      class="border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden">
 
-  {# --- Group header --- #}
-  <button type="button"
-          @click="isOpen = !isOpen"
-          class="w-full flex items-center justify-between px-4 py-3
-                 bg-slate-50 dark:bg-sf-elevated
-                 hover:bg-slate-100 dark:hover:bg-slate-700/60
-                 transition-colors duration-150 text-left">
+  {# --- Group header (div, not button — nested buttons are invalid HTML) --- #}
+  <div @click="isOpen = !isOpen"
+       role="button"
+       class="w-full flex items-center justify-between px-4 py-3 cursor-pointer
+              bg-slate-50 dark:bg-sf-elevated
+              hover:bg-slate-100 dark:hover:bg-slate-700/60
+              transition-colors duration-150 text-left select-none">
 
     {# Left: category name + ON/TOTAL badge #}
     <div class="flex items-center gap-3 min-w-0">
@@ -57,7 +57,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/>
       </svg>
     </div>
-  </button>
+  </div>
 
   {# --- Module list (expanded) --- #}
   <div x-show="isOpen"
