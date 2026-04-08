@@ -1,0 +1,109 @@
+{# API Keys settings fragment #}
+{# cards: list of dicts {mod_name, service_name, opt_key, value, configured} #}
+{# sorted: configured first, then alphabetically #}
+
+<div x-data="{ query: '' }" class="space-y-5">
+
+  <div>
+    <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">API Keys</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400">Configure API keys for modules that require external service access.</p>
+  </div>
+
+  {# Search bar #}
+  <div class="relative">
+    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+    </svg>
+    <input type="text"
+           x-model="query"
+           x-on:input="
+             const q = query.toLowerCase();
+             document.querySelectorAll('[data-api-card]').forEach(function(el) {
+               const name = el.getAttribute('data-api-card') || '';
+               el.style.display = name.includes(q) ? '' : 'none';
+             });
+           "
+           placeholder="Filter by service name..."
+           class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
+                  text-slate-800 dark:text-slate-100 text-sm pl-9 pr-3 py-2
+                  focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent">
+  </div>
+
+  {# Card grid #}
+  <form id="apikeys-form">
+    {% if cards %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% for card in cards %}
+        {% include 'components/api_key_card.html' %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-slate-50 dark:bg-sf-elevated rounded-lg p-8 text-center">
+      <p class="text-sm text-slate-400 dark:text-slate-500">No API key modules found.</p>
+    </div>
+    {% endif %}
+  </form>
+
+  {% if cards %}
+  <div class="flex items-center gap-3 pt-2">
+    <button type="button" onclick="saveApiKeys()"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-sf-accent text-white text-sm font-medium
+                   hover:bg-cyan-400 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2">
+      Save API Keys
+    </button>
+    <span id="apikeys-save-msg" class="text-sm text-slate-400 dark:text-slate-500 hidden"></span>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+function saveApiKeys() {
+  const form = document.getElementById('apikeys-form');
+  const inputs = form.querySelectorAll('input[name]');
+  const opts = {};
+  inputs.forEach(function(el) {
+    // name is "mod_name:opt_key" — flatten to "mod_name.opt_key" for savesettings
+    const parts = el.name.split(':');
+    if (parts.length === 2) {
+      const key = parts[0] + ':' + parts[1];
+      opts[key] = el.value;
+    }
+  });
+
+  const token = window.__SF_TOKEN__ || '';
+  const body = new URLSearchParams({
+    allopts: JSON.stringify(opts),
+    token: token,
+  });
+
+  fetch('/api/savesettings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    const msg = document.getElementById('apikeys-save-msg');
+    msg.classList.remove('hidden', 'text-sf-critical', 'text-sf-success');
+    if (data[0] === 'SUCCESS') {
+      msg.textContent = 'API keys saved.';
+      msg.classList.add('text-sf-success');
+      // Reload to reflect new configured status
+      setTimeout(function() {
+        htmx.ajax('GET', '/frag/settings-section?section=apikeys', '#settings-content');
+      }, 800);
+    } else {
+      msg.textContent = data[1] || 'Error saving API keys.';
+      msg.classList.add('text-sf-critical');
+    }
+    msg.classList.remove('hidden');
+  })
+  .catch(function() {
+    const msg = document.getElementById('apikeys-save-msg');
+    msg.textContent = 'Network error.';
+    msg.classList.add('text-sf-critical');
+    msg.classList.remove('hidden');
+  });
+}
+</script>

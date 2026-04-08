@@ -1,30 +1,50 @@
 {% extends "base.html" %}
 {% block title %}Settings - SpiderFoot{% endblock %}
 
+{% block head %}
+<script>
+  window.__SF_TOKEN__ = {{ token | tojson }};
+</script>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto">
+<div class="max-w-5xl mx-auto" x-data="{ section: 'general' }">
 
   <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-6">Settings</h1>
 
-  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden">
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden flex min-h-[500px]">
 
-    {# Settings categories sidebar + form placeholder #}
-    <div class="flex">
+    {# ---- Side nav ---- #}
+    <nav class="w-40 border-r border-slate-200 dark:border-sf-border py-3 shrink-0 flex flex-col gap-0.5">
 
-      {# Category list #}
-      <div class="w-48 border-r border-slate-200 dark:border-sf-border py-3 shrink-0">
-        <button class="w-full text-left px-4 py-2 text-sm font-medium text-sf-accent bg-sf-accent/10">General</button>
-        <button class="w-full text-left px-4 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-sf-elevated">Modules</button>
-        <button class="w-full text-left px-4 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-sf-elevated">API Keys</button>
-      </div>
+      {% set nav_items = [
+        ('general',    'General'),
+        ('apikeys',    'API Keys'),
+        ('proxy',      'Proxy / TOR'),
+        ('database',   'Database'),
+        ('appearance', 'Appearance'),
+      ] %}
 
-      {# Settings form area #}
-      <div class="flex-1 p-6" id="settings-form">
-        <p class="text-sm text-slate-400 dark:text-slate-500">
-          Settings form will be loaded here.
-        </p>
-      </div>
+      {% for key, label in nav_items %}
+      <button
+        @click="section = '{{ key }}'"
+        hx-get="/frag/settings-section?section={{ key }}"
+        hx-target="#settings-content"
+        hx-swap="innerHTML"
+        :class="section === '{{ key }}'
+          ? 'bg-sf-accent/10 text-sf-accent border-l-2 border-sf-accent font-medium'
+          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-sf-elevated hover:text-slate-700 dark:hover:text-slate-200 border-l-2 border-transparent'"
+        class="w-full text-left px-4 py-2.5 text-sm transition-colors duration-150 focus:outline-none">
+        {{ label }}
+      </button>
+      {% endfor %}
 
+    </nav>
+
+    {# ---- Content area ---- #}
+    <div class="flex-1 p-6 min-w-0" id="settings-content">
+      {# Default: General section rendered inline (no round-trip needed on first load) #}
+      {% include 'fragments/settings_general.html' %}
     </div>
 
   </div>

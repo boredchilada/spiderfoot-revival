@@ -1,5 +1,6 @@
 import html
 import logging
+import os
 
 from flask import Blueprint, current_app, render_template, request
 
@@ -190,3 +191,102 @@ def events_fragment():
         'fragments/event_rows.html',
         events=events,
     )
+
+
+# ---------------------------------------------------------------------------
+# Settings sections
+# ---------------------------------------------------------------------------
+
+def _human_size(num_bytes: int) -> str:
+    """Convert a byte count to a human-readable string."""
+    for unit in ('B', 'KB', 'MB', 'GB', 'TB'):
+        if num_bytes < 1024:
+            return f"{num_bytes:.1f} {unit}"
+        num_bytes /= 1024
+    return f"{num_bytes:.1f} PB"
+
+
+def _build_api_card_data(sf_config: dict) -> list:
+    """Scan all modules for API key options and return sorted card list."""
+    modules_cfg = sf_config.get('__modules__', {})
+    cards = []
+
+    for mod_name, mod_cfg in modules_cfg.items():
+        if mod_name.startswith('sfp__stor_'):
+            continue
+
+        meta = mod_cfg.get('meta', {})
+        service_name = meta.get('name', mod_name)
+        opts = mod_cfg.get('opts', {})
+
+        for opt_key, opt_val in opts.items():
+            key_lower = opt_key.lower()
+            if 'api_key' in key_lower or 'apikey' in key_lower:
+                # Try to get the stored/live value
+                value = str(opt_val) if opt_val is not None else ''
+                configured = bool(value and value.strip())
+                cards.append({
+                    'mod_name': mod_name,
+                    'service_name': service_name,
+                    'opt_key': opt_key,
+                    'value': value,
+                    'configured': configured,
+                })
+
+    # Sort: configured first, then alphabetically by service name
+    cards.sort(key=lambda c: (0 if c['configured'] else 1, c['service_name'].lower()))
+    return cards
+
+
+@frag_bp.route('/settings-section')
+def settings_section():
+    """Return a settings section fragment (HTMX swap target)."""
+    section = request.args.get('section', 'general')
+    sf_config = current_app.config.get('SF_CONFIG', {})
+
+    # Load saved config from DB and merge
+    try:
+        dbh = _get_db()
+        saved_config = dbh.configGet()
+    except Exception as e:
+        log.warning("settings_section: could not load config: %s", e)
+        saved_config = {}
+
+    config = dict(sf_config)
+    config.update(saved_config)
+
+    if section == 'general':
+        return render_template('fragments/settings_general.html', config=config)
+
+    elif section == 'apikeys':
+        # Merge saved per-module opts into the module defaults
+        modules_cfg = sf_config.get('__modules__', {})
+        for mod_name, mod_cfg in modules_cfg.items():
+            opts = mod_cfg.get('opts', {})
+            for opt_key in list(opts.keys()):
+                db_key = f"{mod_name}:{opt_key}"
+                if db_key in saved_config:
+                    opts[opt_key] = saved_config[db_key]
+
+        cards = _build_api_card_data(sf_config)
+        return render_template('fragments/settings_apikeys.html', cards=cards)
+
+    elif section == 'proxy':
+        return render_template('fragments/settings_proxy.html', config=config)
+
+    elif section == 'database':
+        db_path = sf_config.get('__database') or os.path.expanduser('~/.spiderfoot/spiderfoot.db')
+        try:
+            db_size = _human_size(os.path.getsize(db_path))
+        except OSError:
+            db_size = 'Unknown'
+        return render_template(
+            'fragments/settings_database.html',
+            db_path=db_path,
+            db_size=db_size,
+        )
+
+    elif section == 'appearance':
+        return render_template('fragments/settings_appearance.html')
+
+    return '<p class="text-sm text-slate-400 p-6">Unknown section.</p>'

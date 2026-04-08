@@ -1,0 +1,128 @@
+{# Proxy/TOR settings fragment #}
+{# config: dict from dbh.configGet() merged with SF_CONFIG defaults #}
+
+<form id="proxy-form" class="space-y-6">
+  <div>
+    <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">Proxy / TOR</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400">Route SpiderFoot traffic through a proxy or TOR network.</p>
+  </div>
+
+  <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+
+    {# Proxy Type #}
+    <div class="sm:col-span-2">
+      <label for="p-type" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Proxy Type</label>
+      <select id="p-type" name="_socks1type"
+              class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
+                     text-slate-800 dark:text-slate-100 text-sm px-3 py-2 focus:outline-none
+                     focus:ring-2 focus:ring-sf-accent focus:border-transparent">
+        {% set current_type = config.get('_socks1type', '') %}
+        <option value="" {% if not current_type %}selected{% endif %}>None</option>
+        <option value="SOCKS4" {% if current_type == 'SOCKS4' %}selected{% endif %}>SOCKS4</option>
+        <option value="SOCKS5" {% if current_type == 'SOCKS5' %}selected{% endif %}>SOCKS5</option>
+        <option value="HTTP" {% if current_type == 'HTTP' %}selected{% endif %}>HTTP</option>
+        <option value="TOR" {% if current_type == 'TOR' %}selected{% endif %}>TOR</option>
+      </select>
+    </div>
+
+    {# Proxy Address #}
+    <div>
+      <label for="p-addr" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Proxy Address</label>
+      <input id="p-addr" name="_socks2addr" type="text"
+             value="{{ config.get('_socks2addr', '') }}"
+             placeholder="127.0.0.1"
+             class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
+                    text-slate-800 dark:text-slate-100 text-sm font-mono px-3 py-2 focus:outline-none
+                    focus:ring-2 focus:ring-sf-accent focus:border-transparent">
+    </div>
+
+    {# Proxy Port #}
+    <div>
+      <label for="p-port" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Proxy Port</label>
+      <input id="p-port" name="_socks3port" type="number" min="1" max="65535"
+             value="{{ config.get('_socks3port', '') }}"
+             placeholder="9050"
+             class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
+                    text-slate-800 dark:text-slate-100 text-sm px-3 py-2 focus:outline-none
+                    focus:ring-2 focus:ring-sf-accent focus:border-transparent">
+    </div>
+
+    {# Username (optional) #}
+    <div>
+      <label for="p-user" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+        Username <span class="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>
+      </label>
+      <input id="p-user" name="_socks4user" type="text"
+             value="{{ config.get('_socks4user', '') }}"
+             autocomplete="username"
+             class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
+                    text-slate-800 dark:text-slate-100 text-sm font-mono px-3 py-2 focus:outline-none
+                    focus:ring-2 focus:ring-sf-accent focus:border-transparent">
+    </div>
+
+    {# Password (optional) #}
+    <div>
+      <label for="p-pwd" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+        Password <span class="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>
+      </label>
+      <input id="p-pwd" name="_socks5pwd" type="password"
+             value="{{ config.get('_socks5pwd', '') }}"
+             autocomplete="new-password"
+             class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
+                    text-slate-800 dark:text-slate-100 text-sm font-mono px-3 py-2 focus:outline-none
+                    focus:ring-2 focus:ring-sf-accent focus:border-transparent">
+    </div>
+
+  </div>
+
+  <div class="flex items-center gap-3 pt-2">
+    <button type="button" onclick="saveProxySettings()"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-sf-accent text-white text-sm font-medium
+                   hover:bg-cyan-400 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2">
+      Save Proxy Settings
+    </button>
+    <span id="proxy-save-msg" class="text-sm text-slate-400 dark:text-slate-500 hidden"></span>
+  </div>
+</form>
+
+<script>
+function saveProxySettings() {
+  const form = document.getElementById('proxy-form');
+  const opts = {};
+  form.querySelectorAll('input[name], select[name]').forEach(function(el) {
+    opts[el.name] = el.value;
+  });
+
+  const token = window.__SF_TOKEN__ || '';
+  const body = new URLSearchParams({
+    allopts: JSON.stringify(opts),
+    token: token,
+  });
+
+  fetch('/api/savesettings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    const msg = document.getElementById('proxy-save-msg');
+    msg.classList.remove('hidden', 'text-sf-critical', 'text-sf-success');
+    if (data[0] === 'SUCCESS') {
+      msg.textContent = 'Saved.';
+      msg.classList.add('text-sf-success');
+    } else {
+      msg.textContent = data[1] || 'Error saving proxy settings.';
+      msg.classList.add('text-sf-critical');
+    }
+    msg.classList.remove('hidden');
+    setTimeout(function() { msg.classList.add('hidden'); }, 3000);
+  })
+  .catch(function() {
+    const msg = document.getElementById('proxy-save-msg');
+    msg.textContent = 'Network error.';
+    msg.classList.add('text-sf-critical');
+    msg.classList.remove('hidden');
+  });
+}
+</script>
