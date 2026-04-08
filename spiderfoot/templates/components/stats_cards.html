@@ -1,0 +1,19 @@
+{# Stats Cards — Running / Completed / Findings #}
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-5">
+    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Running</p>
+    <p class="text-4xl font-mono font-bold text-sf-accent">{{ stats.running }}</p>
+  </div>
+
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-5">
+    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Completed</p>
+    <p class="text-4xl font-mono font-bold text-sf-success">{{ stats.completed }}</p>
+  </div>
+
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-5">
+    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Findings</p>
+    <p class="text-4xl font-mono font-bold text-sf-warning">{{ stats.findings }}</p>
+  </div>
+
+</div>

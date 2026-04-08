@@ -1,6 +1,7 @@
 import os
 import multiprocessing as mp
 from copy import deepcopy
+from datetime import datetime, timezone
 
 from flask import Flask
 from flask_cors import CORS
@@ -38,6 +39,19 @@ def create_app(config=None):
 
     # CSRF-style token for settings endpoints
     app.config.setdefault('SF_TOKEN', None)
+
+    # Jinja2 custom filters
+    @app.template_filter('datetimeformat')
+    def datetimeformat(ts):
+        """Format a Unix timestamp (seconds) as a human-readable string."""
+        try:
+            ts = int(ts)
+            if ts <= 0:
+                return '—'
+            dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+            return dt.strftime('%Y-%m-%d %H:%M')
+        except (TypeError, ValueError, OSError):
+            return '—'
 
     # CORS
     CORS(app)
