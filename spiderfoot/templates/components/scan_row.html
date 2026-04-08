@@ -1,18 +1,22 @@
-{# Single scan table row — used by scan_table.html and the HTMX fragment #}
-{# scan keys: id, name, target, created, started, ended, status, num_results #}
+{# Single scan table row with event breakdown + progress bar #}
 {% set s = scan.status | upper %}
 
 {# Status dot #}
 {% if s == 'RUNNING' %}
-  {% set dot_class = 'bg-sf-accent animate-pulse' %}
+  {% set dot_class = 'bg-sf-accent' %}
+  {% set dot_extra = 'box-shadow:0 0 6px #06b6d4;' %}
 {% elif s == 'FINISHED' %}
   {% set dot_class = 'bg-sf-success' %}
+  {% set dot_extra = '' %}
 {% elif s in ['ERROR-FAILED', 'FAILED'] %}
   {% set dot_class = 'bg-sf-critical' %}
+  {% set dot_extra = '' %}
 {% elif s in ['ABORTED', 'ABORT-REQUESTED'] %}
   {% set dot_class = 'bg-sf-warning' %}
+  {% set dot_extra = '' %}
 {% else %}
   {% set dot_class = 'bg-slate-400' %}
+  {% set dot_extra = '' %}
 {% endif %}
 
 {# Status badge #}
@@ -34,67 +38,51 @@
 {% endif %}
 
 <tr class="border-t border-slate-100 dark:border-sf-border hover:bg-slate-50 dark:hover:bg-sf-elevated transition-colors">
+  <td class="px-4 py-3" colspan="6">
+    <div class="flex items-center justify-between mb-1">
+      <div class="flex items-center gap-3">
+        <span class="inline-block w-2 h-2 rounded-full {{ dot_class }}" style="{{ dot_extra }}"></span>
+        <span class="font-mono text-sm text-slate-800 dark:text-slate-100">{{ scan.target }}</span>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ badge_class }}">
+          {{ badge_label }}
+        </span>
+      </div>
+      <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+        {# Event count + type breakdown #}
+        <span class="font-mono tabular-nums">{{ "{:,}".format(scan.num_results) }} events</span>
+        {% for tc in scan.type_counts %}
+        <span class="text-slate-400 dark:text-slate-500">&middot;</span>
+        <span>{{ "{:,}".format(tc.count) }} {{ tc.label }}</span>
+        {% endfor %}
 
-  {# Status dot #}
-  <td class="px-4 py-3 w-8">
-    <span class="inline-block w-2.5 h-2.5 rounded-full {{ dot_class }}"></span>
-  </td>
+        {# Time #}
+        <span class="text-slate-400 dark:text-slate-500">&middot;</span>
+        {% if scan.started %}
+        <span class="whitespace-nowrap">{{ scan.started | int | datetimeformat }}</span>
+        {% else %}
+        <span>&mdash;</span>
+        {% endif %}
 
-  {# Target + scan name #}
-  <td class="px-4 py-3">
-    <span class="font-mono text-sm text-slate-800 dark:text-slate-100">{{ scan.target }}</span>
-    <span class="block text-xs text-slate-400 dark:text-slate-500 mt-0.5">{{ scan.name }}</span>
-  </td>
-
-  {# Status badge #}
-  <td class="px-4 py-3">
-    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ badge_class }}">
-      {{ badge_label }}
-    </span>
-  </td>
-
-  {# Events count #}
-  <td class="px-4 py-3 text-sm font-mono text-slate-600 dark:text-slate-300 tabular-nums">
-    {{ scan.num_results }}
-  </td>
-
-  {# Started time #}
-  <td class="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-    {% if scan.started %}
-      {{ scan.started | int | datetimeformat }}
-    {% else %}
-      —
+        {# Actions #}
+        <a href="/scaninfo?id={{ scan.id }}"
+           class="text-sf-accent hover:text-cyan-300 font-medium ml-2">View &rarr;</a>
+        {% if s == 'RUNNING' %}
+        <button hx-post="/api/stopscan?id={{ scan.id }}" hx-confirm="Stop this scan?"
+                class="text-sf-warning hover:text-amber-300 font-medium">Stop</button>
+        {% endif %}
+        <button hx-delete="/api/scandelete?id={{ scan.id }}" hx-confirm="Delete this scan and all its data?"
+                hx-target="closest tr" hx-swap="outerHTML swap:0.3s"
+                class="text-sf-critical hover:text-red-300 font-medium">Delete</button>
+      </div>
+    </div>
+    {# Progress bar for running scans #}
+    {% if scan.progress is not none and s == 'RUNNING' %}
+    <div class="flex items-center gap-2 mt-1">
+      <div class="flex-1 h-[3px] bg-slate-200 dark:bg-sf-elevated rounded-full overflow-hidden">
+        <div class="h-full bg-sf-accent rounded-full transition-all duration-500" style="width:{{ scan.progress }}%"></div>
+      </div>
+      <span class="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums min-w-[28px] text-right">{{ scan.progress }}%</span>
+    </div>
     {% endif %}
   </td>
-
-  {# Actions #}
-  <td class="px-4 py-3 text-right whitespace-nowrap">
-    <a href="/scaninfo?id={{ scan.id }}"
-       class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded
-              text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-sf-border
-              hover:bg-slate-100 dark:hover:bg-sf-elevated transition-colors mr-1">
-      View
-    </a>
-    {% if s == 'RUNNING' %}
-    <button
-      hx-post="/api/stopscan?id={{ scan.id }}"
-      hx-confirm="Stop this scan?"
-      class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded
-             text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50
-             hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors mr-1">
-      Stop
-    </button>
-    {% endif %}
-    <button
-      hx-delete="/api/scandelete?id={{ scan.id }}"
-      hx-confirm="Delete this scan and all its data?"
-      hx-target="closest tr"
-      hx-swap="outerHTML swap:0.3s"
-      class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded
-             text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700/50
-             hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-      Delete
-    </button>
-  </td>
-
 </tr>

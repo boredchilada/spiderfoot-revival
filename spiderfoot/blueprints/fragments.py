@@ -10,6 +10,129 @@ frag_bp = Blueprint('frag', __name__)
 
 log = logging.getLogger(f"spiderfoot.{__name__}")
 
+# Event type → category mapping for summary tab and filter chips
+EVENT_CATEGORIES = {
+    'attack_surface': {
+        'label': 'Attack Surface',
+        'types': {
+            'INTERNET_NAME': 'subdomains',
+            'INTERNET_NAME_UNRESOLVED': 'unresolved hosts',
+            'IP_ADDRESS': 'IPs',
+            'TCP_PORT_OPEN': 'open ports',
+            'UDP_PORT_OPEN': 'UDP ports',
+            'DOMAIN_NAME': 'domains',
+        },
+    },
+    'identities': {
+        'label': 'Identities & Exposure',
+        'types': {
+            'EMAILADDR': 'emails',
+            'EMAILADDR_GENERIC': 'generic emails',
+            'EMAILADDR_COMPROMISED': 'breached emails',
+            'USERNAME': 'usernames',
+            'PHONE_NUMBER': 'phone numbers',
+            'HUMAN_NAME': 'names',
+            'ACCOUNT_EXTERNAL_OWNED': 'accounts',
+            'SOCIAL_MEDIA': 'social profiles',
+            'LEAKSITE_CONTENT': 'leak mentions',
+            'DARKNET_MENTION_CONTENT': 'darknet mentions',
+            'PHONE_NUMBER_COMPROMISED': 'compromised phones',
+        },
+    },
+    'infrastructure': {
+        'label': 'Infrastructure',
+        'types': {
+            'WEBSERVER_TECHNOLOGY': 'technologies',
+            'WEBSERVER_BANNER': 'banners',
+            'WEBSERVER_HTTPHEADERS': 'HTTP headers',
+            'OPERATING_SYSTEM': 'OS detections',
+            'SOFTWARE_USED': 'software',
+            'SSL_CERTIFICATE_ISSUED': 'SSL certs',
+            'SSL_CERTIFICATE_ISSUER': 'cert issuers',
+            'BGP_AS_MEMBER': 'ASNs',
+            'COMPANY_NAME': 'companies',
+            'PROVIDER_HOSTING': 'hosting providers',
+            'GEOINFO': 'locations',
+            'DOMAIN_WHOIS': 'WHOIS records',
+            'DOMAIN_REGISTRAR': 'registrars',
+            'CO_HOSTED_SITE': 'co-hosted sites',
+        },
+    },
+    'reputation': {
+        'label': 'Reputation',
+        'types': {
+            'MALICIOUS_IPADDR': 'flagged IPs',
+            'MALICIOUS_INTERNET_NAME': 'flagged domains',
+            'MALICIOUS_AFFILIATE_IPADDR': 'flagged affiliates',
+            'MALICIOUS_NETBLOCK': 'flagged netblocks',
+            'MALICIOUS_SUBNET': 'flagged subnets',
+            'BLACKLISTED_IPADDR': 'blacklisted IPs',
+            'BLACKLISTED_INTERNET_NAME': 'blacklisted domains',
+            'BLACKLISTED_AFFILIATE_IPADDR': 'blacklisted affiliates',
+        },
+    },
+    'vulnerabilities': {
+        'label': 'Vulnerabilities',
+        'types': {
+            'VULNERABILITY_CVE_CRITICAL': 'critical CVEs',
+            'VULNERABILITY_CVE_HIGH': 'high CVEs',
+            'VULNERABILITY_CVE_MEDIUM': 'medium CVEs',
+            'VULNERABILITY_CVE_LOW': 'low CVEs',
+            'VULNERABILITY_GENERAL': 'findings',
+        },
+    },
+}
+
+
+def _categorize_event_summary(event_summary):
+    """Group event_summary tuples into categories.
+
+    Args:
+        event_summary: list of tuples (type, event_descr, last_in, total, utotal)
+
+    Returns:
+        list of dicts with key, label, items
+    """
+    type_lookup = {}
+    for cat_key, cat_info in EVENT_CATEGORIES.items():
+        for etype, friendly in cat_info['types'].items():
+            type_lookup[etype] = (friendly, cat_key)
+
+    cat_items = {k: [] for k in EVENT_CATEGORIES}
+    uncategorized_items = []
+
+    for row in event_summary:
+        etype = row[0]
+        count = int(row[3] or 0)
+        if count == 0:
+            continue
+
+        if etype in type_lookup:
+            friendly, cat_key = type_lookup[etype]
+            cat_items[cat_key].append({'label': friendly, 'count': count})
+        else:
+            descr = row[1] or etype
+            uncategorized_items.append({'label': descr, 'count': count})
+
+    result = []
+    for cat_key, cat_info in EVENT_CATEGORIES.items():
+        items = cat_items[cat_key]
+        if items:
+            result.append({
+                'key': cat_key,
+                'label': cat_info['label'],
+                'entries': sorted(items, key=lambda x: -x['count']),
+            })
+
+    if uncategorized_items:
+        result.append({
+            'key': 'other',
+            'label': 'Other',
+            'entries': sorted(uncategorized_items, key=lambda x: -x['count']),
+        })
+
+    return result
+
 
 def _get_db():
     """Create a SpiderFootDb handle using the current app config."""
@@ -17,7 +140,7 @@ def _get_db():
 
 
 def _load_scans():
-    """Return a list of scan dicts for rendering."""
+    """Return a list of scan dicts with summary counts for rendering."""
     try:
         dbh = _get_db()
         rows = dbh.scanInstanceList()
@@ -25,9 +148,16 @@ def _load_scans():
         log.warning("Fragment: could not load scan list: %s", e)
         return []
 
+    INLINE_TYPES = {
+        'INTERNET_NAME': 'hosts',
+        'IP_ADDRESS': 'IPs',
+        'EMAILADDR': 'emails',
+        'TCP_PORT_OPEN': 'ports',
+    }
+
     scans = []
     for row in rows:
-        scans.append({
+        scan = {
             'id': row[0],
             'name': row[1],
             'target': row[2],
@@ -36,7 +166,31 @@ def _load_scans():
             'ended': row[5],
             'status': row[6],
             'num_results': int(row[7] or 0),
-        })
+            'type_counts': [],
+            'progress': None,
+        }
+
+        try:
+            summary = dbh.scanResultSummary(scan['id'], 'type')
+            counts = []
+            for s in summary:
+                etype = s[0]
+                total = int(s[3] or 0)
+                if etype in INLINE_TYPES and total > 0:
+                    counts.append({'label': INLINE_TYPES[etype], 'count': total})
+            scan['type_counts'] = sorted(counts, key=lambda x: -x['count'])[:3]
+        except Exception:
+            pass
+
+        status = (scan['status'] or '').upper()
+        if status == 'RUNNING':
+            try:
+                mod_summary = dbh.scanResultSummary(scan['id'], 'module')
+                scan['progress'] = min(95, max(5, len(mod_summary) * 3))
+            except Exception:
+                pass
+
+        scans.append(scan)
     return scans
 
 
@@ -65,28 +219,30 @@ def results_tab():
         except Exception:
             event_summary = []
 
-        # Build findings from correlations
+        # Build findings from correlations (table may not exist in older DBs)
+        findings = []
         try:
             correlations = dbh.scanCorrelationList(scan_id)
-        except Exception:
-            correlations = []
+            for c in correlations:
+                findings.append({
+                    'id': c[0],
+                    'title': c[1],
+                    'rule_id': c[2],
+                    'risk': c[3] or 'INFO',
+                    'rule_name': c[4],
+                    'description': c[5] or '',
+                    'event_count': c[7] if len(c) > 7 else 0,
+                })
+        except Exception as e:
+            log.debug("Could not load correlations for %s: %s", scan_id, e)
 
-        findings = []
-        for c in correlations:
-            findings.append({
-                'id': c[0],
-                'title': c[1],
-                'rule_id': c[2],
-                'risk': c[3] or 'INFO',
-                'rule_name': c[4],
-                'description': c[5] or '',
-                'event_count': c[7] if len(c) > 7 else 0,
-            })
+        categories = _categorize_event_summary(event_summary)
 
         return render_template(
             'fragments/results_summary.html',
             findings=findings,
             event_summary=event_summary,
+            categories=categories,
         )
 
     elif tab == 'data':
@@ -96,18 +252,16 @@ def results_tab():
             raw_events = []
 
         # Build event dicts for the template
-        # Columns: generated, data, source_data, module, type, confidence,
-        #          visibility, risk, hash, source_event_hash, event_descr,
-        #          event_type, scan_instance_id, fp, parent_fp
         events = []
         for e in raw_events:
             events.append({
-                'type': e[10] or e[4],  # event_descr or type code
+                'type': e[10] or e[4],
                 'type_code': e[4],
                 'data': html.escape(str(e[1] or '')),
                 'module': e[3],
                 'confidence': e[5],
                 'risk': e[7],
+                'generated': e[0] if e[0] else '',
             })
 
         # Get event types for the filter dropdown
@@ -116,11 +270,25 @@ def results_tab():
         except Exception:
             event_types = []
 
+        # Build category chip counts
+        type_count_map = {}
+        for et in event_types:
+            type_count_map[et[0]] = int(et[3] or 0)
+
+        cat_chips = []
+        total_all = sum(type_count_map.values())
+        cat_chips.append({'key': '', 'label': 'All', 'count': total_all})
+        for cat_key, cat_info in EVENT_CATEGORIES.items():
+            count = sum(type_count_map.get(t, 0) for t in cat_info['types'])
+            if count > 0:
+                cat_chips.append({'key': cat_key, 'label': cat_info['label'], 'count': count})
+
         return render_template(
             'components/event_table.html',
             events=events,
             event_types=event_types,
             scan_id=scan_id,
+            cat_chips=cat_chips,
         )
 
     elif tab == 'graph':
@@ -214,36 +382,63 @@ def events_fragment():
     """Return filtered event table rows (HTMX swap target for search/filter)."""
     scan_id = request.args.get('id', '')
     type_filter = request.args.get('type_filter', 'ALL')
+    category_filter = request.args.get('category', '')
     query = request.args.get('q', '').strip().lower()
+    page = int(request.args.get('page', 1))
+    per_page = 50
 
     if not scan_id:
         return ''
 
     dbh = _get_db()
 
+    # If category filter is set, expand to type codes
+    if category_filter and category_filter in EVENT_CATEGORIES:
+        allowed_types = set(EVENT_CATEGORIES[category_filter]['types'].keys())
+    else:
+        allowed_types = None
+
     try:
-        raw_events = dbh.scanResultEvent(scan_id, type_filter or 'ALL')[:500]
+        raw_events = dbh.scanResultEvent(scan_id, type_filter or 'ALL')
     except Exception:
         raw_events = []
 
     events = []
     for e in raw_events:
+        etype = e[4]
         data_str = str(e[1] or '')
-        # Apply search filter
-        if query and query not in data_str.lower() and query not in (e[3] or '').lower() and query not in (e[10] or e[4] or '').lower():
+
+        # Apply category filter
+        if allowed_types and etype not in allowed_types:
             continue
+
+        # Apply search filter
+        if query and query not in data_str.lower() and query not in (e[3] or '').lower() and query not in (e[10] or etype or '').lower():
+            continue
+
         events.append({
-            'type': e[10] or e[4],
-            'type_code': e[4],
+            'type': e[10] or etype,
+            'type_code': etype,
             'data': html.escape(data_str),
             'module': e[3],
             'confidence': e[5],
             'risk': e[7],
+            'generated': e[0] if e[0] else '',
         })
+
+    total_count = len(events)
+    total_pages = max(1, (total_count + per_page - 1) // per_page)
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * per_page
+    paged_events = events[start:start + per_page]
 
     return render_template(
         'fragments/event_rows.html',
-        events=events,
+        events=paged_events,
+        page=page,
+        total_pages=total_pages,
+        total_count=total_count,
+        scan_id=scan_id,
     )
 
 

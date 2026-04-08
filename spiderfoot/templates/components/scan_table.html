@@ -10,37 +10,25 @@
     </a>
   </div>
 
-  <div class="overflow-x-auto">
-    <table class="w-full text-left">
-      <thead>
-        <tr class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-sf-elevated">
-          <th class="px-4 py-3 w-8"></th>
-          <th class="px-4 py-3">Target</th>
-          <th class="px-4 py-3">Status</th>
-          <th class="px-4 py-3">Events</th>
-          <th class="px-4 py-3">Started</th>
-          <th class="px-4 py-3 text-right">Actions</th>
+  <table class="w-full">
+    <tbody
+      id="scan-tbody"
+      hx-get="/frag/scan-table"
+      hx-trigger="every 5s"
+      hx-swap="innerHTML">
+      {% if scans %}
+        {% for scan in scans %}
+          {% include 'components/scan_row.html' %}
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td class="px-4 py-12 text-center text-slate-400 dark:text-slate-500 text-sm">
+            No scans yet —
+            <a href="/newscan" class="text-sf-accent hover:underline ml-1">start a new scan</a>
+          </td>
         </tr>
-      </thead>
-      <tbody
-        id="scan-tbody"
-        hx-get="/frag/scan-table"
-        hx-trigger="every 5s"
-        hx-swap="innerHTML">
-        {% if scans %}
-          {% for scan in scans %}
-            {% include 'components/scan_row.html' %}
-          {% endfor %}
-        {% else %}
-          <tr>
-            <td colspan="6" class="px-4 py-12 text-center text-slate-400 dark:text-slate-500 text-sm">
-              No scans yet —
-              <a href="/newscan" class="text-sf-accent hover:underline ml-1">start a new scan</a>
-            </td>
-          </tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
+      {% endif %}
+    </tbody>
+  </table>
 
 </div>
