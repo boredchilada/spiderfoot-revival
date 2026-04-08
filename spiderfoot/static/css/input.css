@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  /* SpiderFoot custom component classes */
+
+  .card-sf {
+    @apply bg-sf-surface border border-sf-border rounded-lg p-4;
+  }
+
+  .dot-running {
+    @apply inline-block w-2 h-2 rounded-full bg-sf-success animate-pulse;
+  }
+
+  .dot-stopped {
+    @apply inline-block w-2 h-2 rounded-full bg-sf-border;
+  }
+
+  .dot-error {
+    @apply inline-block w-2 h-2 rounded-full bg-sf-critical;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 bg-sf-accent text-white rounded-md
+           hover:bg-cyan-500 transition-colors duration-150
+           font-medium text-sm;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-sf-elevated text-slate-300 rounded-md
+           border border-sf-border hover:bg-sf-surface
+           transition-colors duration-150 font-medium text-sm;
+  }
+}

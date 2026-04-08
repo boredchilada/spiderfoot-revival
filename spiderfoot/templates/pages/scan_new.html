@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}New Scan - SpiderFoot{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+
+  <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-6">New Scan</h1>
+
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-6">
+
+    <form id="scan-form" method="POST" action="/api/startscan">
+
+      {# Scan name #}
+      <div class="mb-5">
+        <label for="scan-name" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Scan Name</label>
+        <input type="text" id="scan-name" name="scanname"
+               class="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-sf-border
+                      bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
+                      placeholder-slate-400 dark:placeholder-slate-500
+                      focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
+                      text-sm"
+               placeholder="e.g. Recon - example.com">
+      </div>
+
+      {# Scan target #}
+      <div class="mb-5">
+        <label for="scan-target" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Target</label>
+        <input type="text" id="scan-target" name="scantarget"
+               class="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-sf-border
+                      bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
+                      placeholder-slate-400 dark:placeholder-slate-500
+                      focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
+                      text-sm font-mono"
+               placeholder="e.g. example.com, 192.168.1.0/24, john@example.com">
+      </div>
+
+      {# Use case selector placeholder #}
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Scan Type</label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="scan-usecases">
+          <p class="col-span-full text-sm text-slate-400 dark:text-slate-500">
+            Scan type selector will be loaded here.
+          </p>
+        </div>
+      </div>
+
+      {# Submit #}
+      <div class="flex justify-end">
+        <button type="submit"
+                class="px-6 py-2 bg-sf-accent text-white rounded-md
+                       hover:bg-cyan-500 transition-colors duration-150
+                       font-medium text-sm">
+          Start Scan
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+{% endblock %}

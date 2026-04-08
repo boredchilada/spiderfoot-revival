@@ -1,0 +1,11 @@
+/*
+ * SpiderFoot - Tailwind CSS compiled output placeholder
+ *
+ * During development we use the Tailwind CDN (<script src="https://cdn.tailwindcss.com">)
+ * in base.html so the full utility class set is available without a build step.
+ *
+ * For production, run:
+ *   npx tailwindcss -i ./static/css/input.css -o ./static/css/tailwind.css --minify
+ *
+ * This file intentionally left minimal; the CDN handles class generation.
+ */
