@@ -1,0 +1,35 @@
+{# Timeline tab — event history with timestamps #}
+{# history: list of tuples (hourmin, type, count) #}
+
+<div class="p-6">
+  <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Event Timeline</h3>
+
+  {% if history %}
+  <div class="space-y-0">
+    {% for row in history %}
+    {# row: (hourmin, type, count) #}
+    <div class="flex items-start gap-4 py-2.5 border-b border-slate-100 dark:border-sf-border last:border-b-0">
+      {# Timestamp #}
+      <span class="font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap w-16 flex-shrink-0 pt-0.5">
+        {{ row[0] }}
+      </span>
+      {# Timeline dot #}
+      <div class="flex flex-col items-center flex-shrink-0 pt-1">
+        <span class="inline-block w-2 h-2 rounded-full bg-sf-accent"></span>
+      </div>
+      {# Event info #}
+      <div class="flex-1 min-w-0">
+        <span class="text-sm text-slate-700 dark:text-slate-300">{{ row[1] }}</span>
+        <span class="text-xs text-slate-400 dark:text-slate-500 ml-2">
+          ({{ row[2] }} event{{ 's' if row[2] != 1 else '' }})
+        </span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-slate-50 dark:bg-sf-elevated rounded-lg p-8 text-center">
+    <p class="text-sm text-slate-400 dark:text-slate-500">No timeline data available.</p>
+  </div>
+  {% endif %}
+</div>

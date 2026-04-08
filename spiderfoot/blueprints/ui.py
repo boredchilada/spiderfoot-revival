@@ -1,6 +1,6 @@
 import logging
 
-from flask import Blueprint, current_app, render_template
+from flask import Blueprint, current_app, render_template, request
 
 from spiderfoot import SpiderFootDb
 from spiderfoot.__version__ import __version__
@@ -130,10 +130,104 @@ def newscan():
 
 @ui_bp.route('/scaninfo')
 def scaninfo():
+    scan_id = request.args.get('id', '')
+    if not scan_id:
+        return render_template(
+            'pages/scan_results.html',
+            page_id='SCANINFO',
+            version=__version__,
+            scan=None,
+            event_summary=[],
+            correlations=[],
+            findings=[],
+            total_events=0,
+            critical_count=0,
+            warning_count=0,
+            module_count=0,
+        )
+
+    try:
+        dbh = _get_db()
+        row = dbh.scanInstanceGet(scan_id)
+    except Exception as e:
+        log.warning("Could not load scan instance %s: %s", scan_id, e)
+        row = None
+
+    if not row:
+        return render_template(
+            'pages/scan_results.html',
+            page_id='SCANINFO',
+            version=__version__,
+            scan=None,
+            event_summary=[],
+            correlations=[],
+            findings=[],
+            total_events=0,
+            critical_count=0,
+            warning_count=0,
+            module_count=0,
+        )
+
+    # row: (name, seed_target, created, started, ended, status)
+    scan = {
+        'id': scan_id,
+        'name': row[0],
+        'target': row[1],
+        'created': row[2],
+        'started': row[3],
+        'ended': row[4],
+        'status': row[5],
+    }
+
+    # Event summary by type: (type, event_descr, last_in, total, utotal)
+    try:
+        event_summary = dbh.scanResultSummary(scan_id, 'type')
+    except Exception:
+        event_summary = []
+
+    # Correlations: (id, title, rule_id, rule_risk, rule_name, rule_descr, rule_logic, event_count)
+    try:
+        correlations = dbh.scanCorrelationList(scan_id)
+    except Exception:
+        correlations = []
+
+    # Build findings from correlations
+    findings = []
+    for c in correlations:
+        findings.append({
+            'id': c[0],
+            'title': c[1],
+            'rule_id': c[2],
+            'risk': c[3] or 'INFO',
+            'rule_name': c[4],
+            'description': c[5] or '',
+            'event_count': c[7] if len(c) > 7 else 0,
+        })
+
+    # Counts
+    total_events = sum(int(row[3] or 0) for row in event_summary)
+    critical_count = sum(1 for f in findings if (f['risk'] or '').upper() == 'HIGH')
+    warning_count = sum(1 for f in findings if (f['risk'] or '').upper() == 'MEDIUM')
+
+    # Module count from summary by module
+    try:
+        mod_summary = dbh.scanResultSummary(scan_id, 'module')
+        module_count = len(mod_summary)
+    except Exception:
+        module_count = 0
+
     return render_template(
         'pages/scan_results.html',
         page_id='SCANINFO',
         version=__version__,
+        scan=scan,
+        event_summary=event_summary,
+        correlations=correlations,
+        findings=findings,
+        total_events=total_events,
+        critical_count=critical_count,
+        warning_count=warning_count,
+        module_count=module_count,
     )
 
 
