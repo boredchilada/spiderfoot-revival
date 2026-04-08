@@ -1,14 +1,17 @@
 {#
   module_group.html — Collapsible accordion for one module category.
 
+  Expected Jinja2 context (set via {% with category_name=cat %}):
+    category_name   — string, e.g. "DNS" or "Content Analysis"
+
   Expected Alpine.js context (provided by the parent scanForm component):
-    category        — string, e.g. "DNS"
     enabledCount()  — method
     totalCount()    — method
     modulesForCategory() — method returning [[key, moduleObj], ...]
     toggleCategory() — method
     modules         — reactive dict
 #}
+{% set cat_js = category_name | replace("\\", "\\\\") | replace("'", "\\'") %}
 <div x-data="{ open: false }"
      class="border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden">
 
@@ -22,26 +25,25 @@
 
     {# Left: category name + ON/TOTAL badge #}
     <div class="flex items-center gap-3 min-w-0">
-      <span class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate"
-            x-text="category"></span>
+      <span class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{{ category_name }}</span>
 
       <span class="text-xs font-mono px-2 py-0.5 rounded-full
                    bg-sf-accent/10 text-sf-accent border border-sf-accent/20">
-        <span x-text="enabledCount(category)"></span>/<span x-text="totalCount(category)"></span> ON
+        <span x-text="enabledCount('{{ cat_js }}')"></span>/<span x-text="totalCount('{{ cat_js }}')"></span> ON
       </span>
     </div>
 
     {# Right: enable-all / disable-all + chevron #}
     <div class="flex items-center gap-2 shrink-0 ml-3">
       <button type="button"
-              @click.stop="toggleCategory(category, true)"
+              @click.stop="toggleCategory('{{ cat_js }}', true)"
               class="text-xs px-2 py-0.5 rounded
                      text-sf-accent hover:bg-sf-accent/10
                      transition-colors duration-100">
         All
       </button>
       <button type="button"
-              @click.stop="toggleCategory(category, false)"
+              @click.stop="toggleCategory('{{ cat_js }}', false)"
               class="text-xs px-2 py-0.5 rounded
                      text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-600
                      transition-colors duration-100">
@@ -59,10 +61,10 @@
 
   {# --- Module list (expanded) --- #}
   <div x-show="open"
-       x-collapse
+       x-transition
        class="divide-y divide-slate-100 dark:divide-sf-border/60">
 
-    <template x-for="[key, mod] in modulesForCategory(category)" :key="key">
+    <template x-for="[key, mod] in modulesForCategory('{{ cat_js }}')" :key="key">
       <label class="flex items-start gap-3 px-4 py-2.5 cursor-pointer
                     hover:bg-slate-50 dark:hover:bg-sf-elevated/60
                     transition-colors duration-100">

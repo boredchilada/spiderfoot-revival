@@ -9,10 +9,12 @@
 
 {% block content %}
 
-{# Pass module data from the server into the Alpine component via tojson,
-   which produces a JS object literal that Alpine evaluates directly. #}
+{# Pass module data via a script tag to avoid HTML attribute escaping issues #}
+<script>
+  window.__SF_MODULES__ = {{ modules | tojson }};
+</script>
 <div class="max-w-4xl mx-auto"
-     x-data="scanForm({{ modules | tojson }})">
+     x-data="scanForm(window.__SF_MODULES__)">
 
   <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-6">New Scan</h1>
 
@@ -100,9 +102,9 @@
     {# One accordion per category — categories list comes from Flask #}
     <div class="space-y-2">
       {% for cat in categories %}
-      <div x-data="{ category: {{ cat | tojson }} }">
-        {% include 'components/module_group.html' %}
-      </div>
+        {% with category_name=cat %}
+          {% include 'components/module_group.html' %}
+        {% endwith %}
       {% endfor %}
     </div>
 
