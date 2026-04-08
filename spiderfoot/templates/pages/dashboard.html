@@ -6,44 +6,9 @@
 
   <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-6">Dashboard</h1>
 
-  {# Scan summary cards #}
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  {% include 'components/stats_cards.html' %}
 
-    <div class="card-sf bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-4">
-      <p class="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Running</p>
-      <p class="text-3xl font-mono font-semibold text-sf-accent" id="stat-running">0</p>
-    </div>
-
-    <div class="card-sf bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-4">
-      <p class="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Completed</p>
-      <p class="text-3xl font-mono font-semibold text-sf-success" id="stat-completed">0</p>
-    </div>
-
-    <div class="card-sf bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-4">
-      <p class="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Failed</p>
-      <p class="text-3xl font-mono font-semibold text-sf-critical" id="stat-failed">0</p>
-    </div>
-
-    <div class="card-sf bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-4">
-      <p class="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Total Scans</p>
-      <p class="text-3xl font-mono font-semibold text-slate-700 dark:text-slate-200" id="stat-total">0</p>
-    </div>
-
-  </div>
-
-  {# Scan list placeholder #}
-  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden">
-    <div class="px-4 py-3 border-b border-slate-200 dark:border-sf-border">
-      <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Recent Scans</h2>
-    </div>
-    <div class="p-8 text-center text-slate-400 dark:text-slate-500 text-sm"
-         id="scan-list"
-         hx-get="/frag/scanlist"
-         hx-trigger="load"
-         hx-swap="innerHTML">
-      Loading scans...
-    </div>
-  </div>
+  {% include 'components/scan_table.html' %}
 
 </div>
 {% endblock %}

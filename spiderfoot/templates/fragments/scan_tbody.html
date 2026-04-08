@@ -1,0 +1,12 @@
+{% if scans %}
+  {% for scan in scans %}
+    {% include 'components/scan_row.html' %}
+  {% endfor %}
+{% else %}
+<tr>
+  <td colspan="6" class="px-4 py-12 text-center text-slate-400 dark:text-slate-500 text-sm">
+    No scans yet —
+    <a href="/newscan" class="text-sf-accent hover:underline ml-1">start a new scan</a>
+  </td>
+</tr>
+{% endif %}
