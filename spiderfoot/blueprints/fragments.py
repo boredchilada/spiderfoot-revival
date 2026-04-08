@@ -186,6 +186,29 @@ def results_tab():
     return '<p class="text-sm text-slate-400 p-8 text-center">Unknown tab.</p>'
 
 
+@frag_bp.route('/log-lines')
+def log_lines():
+    """Return just the log line divs for HTMX polling (no wrapper)."""
+    scan_id = request.args.get('id', '')
+    dbh = _get_db()
+
+    try:
+        logs_raw = dbh.scanLogs(scan_id, limit=200, reverse=True)
+    except Exception:
+        logs_raw = []
+
+    logs = []
+    for row in logs_raw:
+        logs.append({
+            'time': row[0] if row else '',
+            'component': row[1] if len(row) > 1 else '',
+            'type': row[2] if len(row) > 2 else 'INFO',
+            'message': row[3] if len(row) > 3 else '',
+        })
+
+    return render_template('fragments/log_lines.html', logs=logs)
+
+
 @frag_bp.route('/events')
 def events_fragment():
     """Return filtered event table rows (HTMX swap target for search/filter)."""

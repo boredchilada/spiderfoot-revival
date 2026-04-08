@@ -1,0 +1,17 @@
+{% for log in logs %}
+<div class="flex gap-3 py-0.5 hover:bg-white/[0.02]">
+  <span class="text-slate-600 shrink-0 w-36">{{ log.time }}</span>
+  <span class="text-cyan-500 shrink-0 w-40 truncate" title="{{ log.component }}">{{ log.component }}</span>
+  {% if log.type == 'ERROR' %}
+    <span class="text-red-400 font-medium">{{ log.message }}</span>
+  {% elif log.type == 'WARNING' %}
+    <span class="text-amber-400">{{ log.message }}</span>
+  {% elif log.type == 'DEBUG' %}
+    <span class="text-slate-600">{{ log.message }}</span>
+  {% else %}
+    <span class="text-slate-400">{{ log.message }}</span>
+  {% endif %}
+</div>
+{% else %}
+<div class="text-slate-600 py-4 text-center">No log entries yet.</div>
+{% endfor %}
