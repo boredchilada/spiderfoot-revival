@@ -25,6 +25,12 @@
     <div class="mb-4">
       <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
         Target
+        <span class="relative group inline-block ml-1 cursor-help">
+          <span class="text-slate-400 dark:text-slate-500 text-xs">&#9432;</span>
+          <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-3 py-1.5 text-xs text-slate-200 bg-slate-800 dark:bg-slate-700 rounded-md shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+            Domain, IP, subnet, email, phone, username, or person name
+          </span>
+        </span>
       </label>
       <div class="relative">
         <input type="text"
@@ -50,6 +56,12 @@
     <div>
       <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
         Scan Name <span class="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+        <span class="relative group inline-block ml-1 cursor-help">
+          <span class="text-slate-400 dark:text-slate-500 text-xs">&#9432;</span>
+          <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-3 py-1.5 text-xs text-slate-200 bg-slate-800 dark:bg-slate-700 rounded-md shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+            A label for this scan — defaults to the target if left blank
+          </span>
+        </span>
       </label>
       <input type="text"
              x-model="scanName"
@@ -66,7 +78,15 @@
   {# ================================================================ Use-case tabs #}
   <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-6 mb-4">
 
-    <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Scan Type</p>
+    <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+      Scan Type
+      <span class="relative group inline-block ml-1 cursor-help">
+        <span class="text-slate-400 dark:text-slate-500 text-xs">&#9432;</span>
+        <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-3 py-1.5 text-xs text-slate-200 bg-slate-800 dark:bg-slate-700 rounded-md shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+          Presets that auto-select relevant modules — choose Custom to pick manually
+        </span>
+      </span>
+    </p>
 
     <div class="flex gap-2 flex-wrap">
       {# Tab helper macro-style: repeated for each use case #}
@@ -94,7 +114,15 @@
   <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-6 mb-6">
 
     <div class="flex items-center justify-between mb-4">
-      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Modules</p>
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+        Modules
+        <span class="relative group inline-block ml-1 cursor-help">
+          <span class="text-slate-400 dark:text-slate-500 text-xs">&#9432;</span>
+          <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-3 py-1.5 text-xs text-slate-200 bg-slate-800 dark:bg-slate-700 rounded-md shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+            Expand a category to enable/disable individual modules — some require API keys
+          </span>
+        </span>
+      </p>
       <span class="text-xs text-slate-400 dark:text-slate-500"
             x-text="`${totalEnabled()} module${totalEnabled() === 1 ? '' : 's'} enabled`"></span>
     </div>
