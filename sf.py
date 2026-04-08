@@ -489,6 +489,7 @@ def start_web_server(sfWebUiConfig: dict, sfConfig: dict, loggingQueue=None) -> 
     print("")
 
     app = create_app(config=sfConfig)
+    app.config['SF_LOGGING_QUEUE'] = loggingQueue
     app.run(host=web_host, port=int(web_port), debug=sfConfig.get('_debug', False), use_reloader=False)
 
 
