@@ -2,7 +2,7 @@
 {% block title %}Scan Results - SpiderFoot{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto">
+<div class="max-w-7xl mx-auto" x-data="{ activeTab: 'summary' }">
 
   <div class="flex items-center justify-between mb-6">
     <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100">Scan Results</h1>
@@ -12,26 +12,109 @@
     </a>
   </div>
 
-  {# Scan info header placeholder #}
-  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-6 mb-6"
-       id="scan-header">
+  {% if scan %}
+  {# ── Scan Header ── #}
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-6 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-3 mb-1">
+          <span class="font-mono text-lg text-slate-800 dark:text-slate-100">{{ scan.target }}</span>
+          {# Status badge #}
+          {% set s = (scan.status or '') | upper %}
+          {% if s == 'RUNNING' %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300">Running</span>
+          {% elif s == 'FINISHED' %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">Complete</span>
+          {% elif s in ['ERROR-FAILED', 'FAILED'] %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Failed</span>
+          {% elif s in ['ABORTED', 'ABORT-REQUESTED'] %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">Aborted</span>
+          {% else %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">{{ scan.status }}</span>
+          {% endif %}
+        </div>
+        <p class="text-sm text-slate-500 dark:text-slate-400">{{ scan.name }}</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="/scaneventresultexportmulti?ids={{ scan.id }}"
+           class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded
+                  text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-sf-border
+                  hover:bg-slate-100 dark:hover:bg-sf-elevated transition-colors">
+          <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          Export CSV
+        </a>
+        <a href="/newscan?target={{ scan.target }}"
+           class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded
+                  text-sf-accent border border-cyan-200 dark:border-cyan-700/50
+                  hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors">
+          <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Re-scan
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ── Stat Cards ── #}
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-4">
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Events</p>
+      <p class="text-3xl font-mono font-bold text-slate-800 dark:text-slate-100">{{ total_events }}</p>
+    </div>
+    <div class="bg-white dark:bg-sf-surface border-2 border-red-200 dark:border-red-700/50 rounded-lg p-4">
+      <p class="text-xs font-semibold uppercase tracking-wider text-red-500 dark:text-red-400 mb-1">Critical</p>
+      <p class="text-3xl font-mono font-bold text-sf-critical">{{ critical_count }}</p>
+    </div>
+    <div class="bg-white dark:bg-sf-surface border-2 border-amber-200 dark:border-amber-700/50 rounded-lg p-4">
+      <p class="text-xs font-semibold uppercase tracking-wider text-amber-500 dark:text-amber-400 mb-1">Warnings</p>
+      <p class="text-3xl font-mono font-bold text-sf-warning">{{ warning_count }}</p>
+    </div>
+    <div class="bg-white dark:bg-sf-surface border-2 border-cyan-200 dark:border-cyan-700/50 rounded-lg p-4">
+      <p class="text-xs font-semibold uppercase tracking-wider text-cyan-500 dark:text-cyan-400 mb-1">Modules</p>
+      <p class="text-3xl font-mono font-bold text-sf-accent">{{ module_count }}</p>
+    </div>
+  </div>
+
+  {# ── Tabs ── #}
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden">
+    <div class="flex border-b border-slate-200 dark:border-sf-border overflow-x-auto">
+      {% set tabs = [('summary', 'Summary'), ('data', 'Data'), ('graph', 'Graph'), ('timeline', 'Timeline'), ('correlations', 'Correlations')] %}
+      {% for tab_id, tab_label in tabs %}
+      <button
+        @click="activeTab = '{{ tab_id }}'"
+        hx-get="/frag/results-tab?id={{ scan.id }}&tab={{ tab_id }}"
+        hx-target="#tab-content"
+        hx-swap="innerHTML"
+        :class="activeTab === '{{ tab_id }}'
+          ? 'border-b-2 border-sf-accent text-sf-accent'
+          : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+        class="px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors">
+        {{ tab_label }}
+      </button>
+      {% endfor %}
+    </div>
+
+    <div id="tab-content"
+         hx-get="/frag/results-tab?id={{ scan.id }}&tab=summary"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+      <div class="p-8 text-center text-slate-400 dark:text-slate-500 text-sm">
+        Loading...
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  {# No scan selected #}
+  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-6">
     <p class="text-sm text-slate-400 dark:text-slate-500">
       Select a scan from the dashboard to view results.
     </p>
   </div>
-
-  {# Results tabs placeholder #}
-  <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden">
-    <div class="flex border-b border-slate-200 dark:border-sf-border">
-      <button class="px-4 py-2 text-sm font-medium text-sf-accent border-b-2 border-sf-accent">Data</button>
-      <button class="px-4 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">Correlation</button>
-      <button class="px-4 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">Graph</button>
-      <button class="px-4 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">Log</button>
-    </div>
-    <div class="p-8 text-center text-slate-400 dark:text-slate-500 text-sm" id="scan-results">
-      Scan results will appear here.
-    </div>
-  </div>
+  {% endif %}
 
 </div>
 {% endblock %}

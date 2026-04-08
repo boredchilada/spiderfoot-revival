@@ -1,0 +1,15 @@
+{# Event table rows — returned by /frag/events for HTMX search/filter #}
+{# events: list of dicts with type, type_code, data, module, confidence, risk #}
+
+{% for event in events %}
+<tr class="border-t border-slate-100 dark:border-sf-border hover:bg-slate-50 dark:hover:bg-sf-elevated transition-colors">
+  <td class="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ event.type }}</td>
+  <td class="px-3 py-2 font-mono text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{{ event.data }}</td>
+  <td class="px-3 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ event.module }}</td>
+  <td class="px-3 py-2 text-right font-mono tabular-nums text-slate-600 dark:text-slate-300">{{ event.confidence }}%</td>
+</tr>
+{% else %}
+<tr>
+  <td colspan="4" class="px-3 py-8 text-center text-slate-400 dark:text-slate-500">No matching events found.</td>
+</tr>
+{% endfor %}

@@ -1,0 +1,35 @@
+{# Single finding row — used in results_summary.html #}
+{# finding keys: id, title, risk, rule_name, description, event_count #}
+
+{% set r = (finding.risk or 'INFO') | upper %}
+{% if r == 'HIGH' %}
+  {% set dot_color = 'bg-red-500' %}
+  {% set label_color = 'text-red-600 dark:text-red-400' %}
+  {% set label_text = 'Critical' %}
+{% elif r == 'MEDIUM' %}
+  {% set dot_color = 'bg-amber-500' %}
+  {% set label_color = 'text-amber-600 dark:text-amber-400' %}
+  {% set label_text = 'Warning' %}
+{% elif r == 'LOW' %}
+  {% set dot_color = 'bg-cyan-500' %}
+  {% set label_color = 'text-cyan-600 dark:text-cyan-400' %}
+  {% set label_text = 'Low' %}
+{% else %}
+  {% set dot_color = 'bg-slate-400' %}
+  {% set label_color = 'text-slate-500 dark:text-slate-400' %}
+  {% set label_text = 'Info' %}
+{% endif %}
+
+<div class="flex items-start gap-3 py-3 border-b border-slate-100 dark:border-sf-border last:border-b-0">
+  <span class="inline-block w-2.5 h-2.5 rounded-full {{ dot_color }} mt-1.5 flex-shrink-0"></span>
+  <div class="flex-1 min-w-0">
+    <div class="flex items-center gap-2 mb-0.5">
+      <span class="text-xs font-semibold uppercase tracking-wider {{ label_color }}">{{ label_text }}</span>
+      <span class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{{ finding.title }}</span>
+    </div>
+    <p class="text-xs text-slate-500 dark:text-slate-400 truncate">{{ finding.description }}</p>
+  </div>
+  <span class="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap flex-shrink-0">
+    {{ finding.rule_name }}
+  </span>
+</div>
