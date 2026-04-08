@@ -23,10 +23,36 @@ window.scanForm = (initialModules) => ({
       // Apply default footprint selection on load
       this.selectUseCase('footprint');
 
-      // Watch target for auto-detection
+      // Watch target for auto-detection (first line for single-target badge compat)
       this.$watch('target', () => {
-        this.targetType = this.detectTargetType(this.target);
+        const targets = this.parsedTargets();
+        this.targetType = targets.length === 1 ? targets[0].type : '';
       });
+    },
+
+    // --------------------------------------------------------- textarea resize
+    autoResizeTextarea(el) {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    },
+
+    // --------------------------------------------------------- multi-target parsing
+    /**
+     * Parse the target textarea into an array of { value, type } objects.
+     * Splits on newlines and commas, trims whitespace, deduplicates.
+     */
+    parsedTargets() {
+      const raw = (this.target || '').trim();
+      if (!raw) return [];
+      const items = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+      const seen = new Set();
+      const results = [];
+      for (const item of items) {
+        if (seen.has(item.toLowerCase())) continue;
+        seen.add(item.toLowerCase());
+        results.push({ value: item, type: this.detectTargetType(item) });
+      }
+      return results;
     },
 
     // --------------------------------------------------------- target detection
@@ -138,11 +164,16 @@ window.scanForm = (initialModules) => ({
 
     // ------------------------------------------------------------ submission
     async submitScan() {
-      const scanname  = this.scanName.trim() || this.target.trim();
-      const scantarget = this.target.trim();
+      const targets = this.parsedTargets();
 
-      if (!scantarget) {
+      if (targets.length === 0) {
         alert('Please enter a scan target.');
+        return;
+      }
+
+      const unknowns = targets.filter(t => !t.type);
+      if (unknowns.length > 0) {
+        alert('Unrecognized target type: ' + unknowns.map(t => t.value).join(', '));
         return;
       }
 
@@ -152,29 +183,46 @@ window.scanForm = (initialModules) => ({
         return;
       }
 
-      const body = new URLSearchParams({
-        scanname,
-        scantarget,
-        modulelist: enabledMods.join(','),
-      });
+      const baseName = this.scanName.trim();
+      const errors = [];
+      let launched = 0;
 
-      try {
-        const resp = await fetch('/api/startscan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: body.toString(),
+      for (const t of targets) {
+        const scanname = baseName
+          ? (targets.length > 1 ? baseName + ' - ' + t.value : baseName)
+          : t.value;
+
+        const body = new URLSearchParams({
+          scanname,
+          scantarget: t.value,
+          modulelist: enabledMods.join(','),
         });
-        const data = await resp.json();
 
-        if (Array.isArray(data) && data[0] === 'SUCCESS') {
-          // Redirect to dashboard (or scan detail page when it exists)
-          window.location.href = '/';
-        } else {
-          const msg = Array.isArray(data) ? data[1] : JSON.stringify(data);
-          alert('Error: ' + msg);
+        try {
+          const resp = await fetch('/api/startscan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+          });
+          const data = await resp.json();
+
+          if (Array.isArray(data) && data[0] === 'SUCCESS') {
+            launched++;
+          } else {
+            const msg = Array.isArray(data) ? data[1] : JSON.stringify(data);
+            errors.push(t.value + ': ' + msg);
+          }
+        } catch (err) {
+          errors.push(t.value + ': ' + err.message);
         }
-      } catch (err) {
-        alert('Failed to start scan: ' + err.message);
+      }
+
+      if (errors.length > 0) {
+        alert('Launched ' + launched + '/' + targets.length + ' scans.\nErrors:\n' + errors.join('\n'));
+      }
+
+      if (launched > 0) {
+        window.location.href = '/';
       }
     },
   });
