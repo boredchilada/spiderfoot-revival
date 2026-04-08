@@ -1,0 +1,31 @@
+<div>
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-xs text-slate-500 uppercase tracking-wider">Scan Log</h2>
+    <span class="text-xs text-slate-500" x-data x-text="'Last updated: ' + new Date().toLocaleTimeString()"></span>
+  </div>
+  <div class="rounded-lg bg-[#0a0e14] border border-sf-border overflow-hidden"
+       id="log-container"
+       hx-get="/frag/results-tab?id={{ scan_id }}&tab=log"
+       hx-trigger="{{ 'every 3s' if is_running else 'none' }}"
+       hx-swap="outerHTML">
+    <div class="p-4 font-mono text-xs space-y-0.5 max-h-[500px] overflow-y-auto" id="log-lines">
+      {% for log in logs %}
+      <div class="flex gap-3 py-0.5 hover:bg-white/[0.02]">
+        <span class="text-slate-600 shrink-0 w-36">{{ log.time }}</span>
+        <span class="text-cyan-500 shrink-0 w-40 truncate" title="{{ log.component }}">{{ log.component }}</span>
+        {% if log.type == 'ERROR' %}
+          <span class="text-red-400 font-medium">{{ log.message }}</span>
+        {% elif log.type == 'WARNING' %}
+          <span class="text-amber-400">{{ log.message }}</span>
+        {% elif log.type == 'DEBUG' %}
+          <span class="text-slate-600">{{ log.message }}</span>
+        {% else %}
+          <span class="text-slate-400">{{ log.message }}</span>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="text-slate-600 py-4 text-center">No log entries yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>

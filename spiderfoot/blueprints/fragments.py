@@ -152,6 +152,37 @@ def results_tab():
             correlations=correlations,
         )
 
+    elif tab == 'log':
+        try:
+            logs_raw = dbh.scanLogs(scan_id, limit=200, reverse=True)
+        except Exception:
+            logs_raw = []
+
+        logs = []
+        for row in logs_raw:
+            logs.append({
+                'time': row[0] if row else '',
+                'component': row[1] if len(row) > 1 else '',
+                'type': row[2] if len(row) > 2 else 'INFO',
+                'message': row[3] if len(row) > 3 else '',
+            })
+
+        # Check if scan is still running — scanInstanceGet returns
+        # (name, target, created, started, ended, status)
+        scan_data = dbh.scanInstanceGet(scan_id)
+        is_running = (
+            scan_data
+            and len(scan_data) > 5
+            and scan_data[5] in ('RUNNING', 'STARTING', 'STARTED')
+        )
+
+        return render_template(
+            'fragments/results_log.html',
+            logs=logs,
+            scan_id=scan_id,
+            is_running=is_running,
+        )
+
     return '<p class="text-sm text-slate-400 p-8 text-center">Unknown tab.</p>'
 
 
