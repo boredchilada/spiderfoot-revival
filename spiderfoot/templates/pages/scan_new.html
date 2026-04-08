@@ -52,6 +52,59 @@
       </div>
     </div>
 
+    {# Collapsible help: supported target types #}
+    <div x-data="{ showHelp: false }" class="mb-4">
+      <button type="button" @click="showHelp = !showHelp"
+              class="text-xs text-sf-accent hover:text-cyan-300 transition-colors flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span x-text="showHelp ? 'Hide supported targets' : 'What can I scan?'"></span>
+        <svg class="w-3 h-3 transition-transform" :class="showHelp && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+        </svg>
+      </button>
+      <div x-show="showHelp" x-transition class="mt-3 grid grid-cols-2 gap-2">
+        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Domain</span>
+          <span class="text-xs text-slate-400">e.g. example.com — subdomains, DNS, whois, tech stack</span>
+        </div>
+        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">IP Address</span>
+          <span class="text-xs text-slate-400">e.g. 1.2.3.4 — geolocation, ASN, ports, reputation</span>
+        </div>
+        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Subnet</span>
+          <span class="text-xs text-slate-400">e.g. 192.168.1.0/24 — scan an entire CIDR range</span>
+        </div>
+        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Email</span>
+          <span class="text-xs text-slate-400">e.g. user@example.com — breaches, social profiles, domain</span>
+        </div>
+        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Phone</span>
+          <span class="text-xs text-slate-400">e.g. +1234567890 — carrier, location, linked accounts</span>
+        </div>
+        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Username</span>
+          <span class="text-xs text-slate-400">e.g. johndoe — check 500+ sites for matching accounts</span>
+        </div>
+        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Person</span>
+          <span class="text-xs text-slate-400">e.g. John Doe — name-based OSINT across public records</span>
+        </div>
+        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50">
+          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">ASN</span>
+          <span class="text-xs text-slate-400">e.g. AS13335 — map all prefixes and domains for an ASN</span>
+        </div>
+        <div class="flex items-start gap-2 px-3 py-2 rounded-md bg-slate-800/40 border border-sf-border/50 col-span-2">
+          <span class="text-cyan-400 text-xs font-mono mt-0.5 w-20 shrink-0">Bitcoin</span>
+          <span class="text-xs text-slate-400">e.g. 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa — blockchain address tracing</span>
+        </div>
+      </div>
+    </div>
+
     {# Optional scan name #}
     <div>
       <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
