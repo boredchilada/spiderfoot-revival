@@ -199,10 +199,13 @@ def scanlist():
     for row in data:
         created = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(row[3]))
         riskmatrix = {"HIGH": 0, "MEDIUM": 0, "LOW": 0, "INFO": 0}
-        correlations = dbh.scanCorrelationSummary(row[0], by="risk")
-        if correlations:
-            for c in correlations:
-                riskmatrix[c[0]] = c[1]
+        try:
+            correlations = dbh.scanCorrelationSummary(row[0], by="risk")
+            if correlations:
+                for c in correlations:
+                    riskmatrix[c[0]] = c[1]
+        except Exception:
+            pass
 
         if row[4] == 0:
             started = "Not yet"
@@ -235,10 +238,13 @@ def scanstatus():
     started = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(data[3]))
     ended = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(data[4]))
     riskmatrix = {"HIGH": 0, "MEDIUM": 0, "LOW": 0, "INFO": 0}
-    correlations = dbh.scanCorrelationSummary(id, by="risk")
-    if correlations:
-        for c in correlations:
-            riskmatrix[c[0]] = c[1]
+    try:
+        correlations = dbh.scanCorrelationSummary(id, by="risk")
+        if correlations:
+            for c in correlations:
+                riskmatrix[c[0]] = c[1]
+    except Exception:
+        pass
 
     return jsonify([data[0], data[1], created, started, ended, data[5], riskmatrix])
 
@@ -600,10 +606,14 @@ def startscan():
         log.error(f"[-] Scan [{scanId}] failed: {e}")
         return jsonify(["ERROR", f"[-] Scan [{scanId}] failed: {e}"])
 
-    # Wait until the scan has initialized
+    # Wait until the scan has initialized (timeout after 30s)
+    wait = 0
     while dbh.scanInstanceGet(scanId) is None:
         log.info("Waiting for the scan to initialize...")
         time.sleep(1)
+        wait += 1
+        if wait >= 30:
+            return jsonify(["ERROR", f"Scan [{scanId}] failed to initialize within 30 seconds."])
 
     return jsonify(["SUCCESS", scanId])
 
@@ -654,9 +664,13 @@ def rerunscan():
         log.error(f"[-] Scan [{scanId}] failed: {e}")
         return jsonify(["ERROR", f"[-] Scan [{scanId}] failed: {e}"])
 
+    wait = 0
     while dbh.scanInstanceGet(scanId) is None:
         log.info("Waiting for the scan to initialize...")
         time.sleep(1)
+        wait += 1
+        if wait >= 30:
+            return jsonify(["ERROR", f"Scan [{scanId}] failed to initialize within 30 seconds."])
 
     return jsonify(["SUCCESS", scanId])
 
@@ -706,9 +720,13 @@ def rerunscanmulti():
             log.error(f"[-] Scan [{scanId}] failed: {e}")
             return jsonify(["ERROR", f"[-] Scan [{scanId}] failed: {e}"])
 
+        wait = 0
         while dbh.scanInstanceGet(scanId) is None:
             log.info("Waiting for the scan to initialize...")
             time.sleep(1)
+            wait += 1
+            if wait >= 30:
+                return jsonify(["ERROR", f"Scan [{scanId}] failed to initialize within 30 seconds."])
 
         scan_ids.append(scanId)
 
@@ -767,7 +785,7 @@ def scanelementtypediscovery():
     except Exception:
         return jsonify(retdata)
 
-    del pc['ROOT']
+    pc.pop('ROOT', None)
     retdata['tree'] = SpiderFootHelpers.dataParentChildToTree(pc)
     retdata['data'] = datamap
 
@@ -1130,7 +1148,7 @@ def scancorrelationsexport():
             rule_description = row[5]
             rows.append([rule_name, correlation, rule_risk, rule_description])
 
-        fname = f"{scan_name}-SpiderFoot-correlations.xlxs" if scan_name else "SpiderFoot-correlations.xlxs"
+        fname = f"{scan_name}-SpiderFoot-correlations.xlsx" if scan_name else "SpiderFoot-correlations.xlsx"
 
         return Response(
             build_excel(rows, headings, sheet_name_index=0),

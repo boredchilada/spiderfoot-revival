@@ -15,11 +15,14 @@ pygexf>=0.2.2,<0.3
 PyPDF2>=1.28.6,<2
 python-whois>=0.7.3,<0.8
 secure>=0.3.0,<0.4.0
-pyOpenSSL>=21.0.0,<22
+pyOpenSSL>=21.0.0,<24
 python-docx>=0.8.11,<0.9
 python-pptx>=0.6.21,<0.7
-networkx>=2.6.3,<2.7
-cryptography>=3.4.8,<4
+networkx>=2.6.3,<4
+cryptography>=3.4.8,<44
 publicsuffixlist>=0.9.3,<0.10
 openpyxl>=3.1.1,<4
 pyyaml>=6.0.0,<7
+user-scanner>=1.0.0
+# Optional heavy deps (require Python 3.9+ / newer Alpine):
+# bbot>=2.0.0  # needed for sfp_tool_bbot_* modules

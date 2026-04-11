@@ -92,6 +92,10 @@ class sfp_haveibeenpwned(SpiderFootPlugin):
             res = self.sf.fetchUrl(url, timeout=self.opts['_fetchtimeout'],
                                    useragent="SpiderFoot", headers=hdrs)
 
+            if not res:
+                retry += 1
+                continue
+
             if res['code'] == "200":
                 break
 
@@ -107,6 +111,9 @@ class sfp_haveibeenpwned(SpiderFootPlugin):
                 self.error("Failed to authenticate key with HaveIBeenPwned.com.")
                 self.errorState = True
                 return None
+
+        if not res or not res.get('content'):
+            return None
 
         try:
             return json.loads(res['content'])
@@ -130,6 +137,10 @@ class sfp_haveibeenpwned(SpiderFootPlugin):
             res = self.sf.fetchUrl(url, timeout=self.opts['_fetchtimeout'],
                                    useragent="SpiderFoot", headers=headers)
 
+            if not res:
+                retry += 1
+                continue
+
             if res['code'] == "200":
                 break
 
@@ -145,6 +156,9 @@ class sfp_haveibeenpwned(SpiderFootPlugin):
                 self.error("Failed to authenticate key with HaveIBeenPwned.com.")
                 self.errorState = True
                 return None
+
+        if not res or not res.get('content'):
+            return None
 
         try:
             return json.loads(res['content'])

@@ -2,6 +2,53 @@
 
 All notable changes to the SpiderFoot Revival project.
 
+## [5.0.1] - 2026-04-10
+
+### Bug Fixes — Critical
+- Fixed `Popen(timeout=)` TypeError crash in `sfp_userscanner` and `sfp_tool_whatweb` — timeout arg moved to `.communicate()`
+- Fixed wrong event type constants in `sfp_tool_bbot_cloud` and `sfp_bevigil` — `CLOUD_STORAGE_OPEN` → `CLOUD_STORAGE_BUCKET_OPEN`, `CODE_REPOSITORY` → `PUBLIC_CODE_REPO`
+- Fixed `sfp_postman` using non-existent `CODE_REPOSITORY` event type → `PUBLIC_CODE_REPO`
+- Fixed scan delete button 405 error — changed `hx-delete` to `hx-post` (route only accepts GET/POST)
+- Fixed scan delete DOM breakage — `hx-swap="delete"` instead of injecting raw JSON into table
+- Fixed MISP module mapping EMAILADDR → `MALICIOUS_INTERNET_NAME` (now correctly → `MALICIOUS_EMAILADDR`)
+- Fixed `sfp_opensanctions` emitting semantically wrong `MALICIOUS_AFFILIATE_INTERNET_NAME` for sanctions/PEP matches
+- Fixed null reference crashes in `sfp_haveibeenpwned` and `sfp_skymem` when `fetchUrl()` returns None
+- Fixed settings save broken on first use — CSRF token was `None` until `/api/optsraw` was called
+- Fixed `del pc['ROOT']` KeyError crash in `/api/scanelementtypediscovery` when scan has no events
+- Fixed scan start/rerun infinite loop — added 30s timeout so Flask workers don't hang if subprocess fails
+
+### Bug Fixes — Data Correctness
+- Fixed `scanInstanceDelete` not cleaning correlation tables — orphaned rows in `tbl_scan_correlation_results`
+- Fixed log timestamps displayed as raw milliseconds in Log tab fragments
+- Fixed `scanLogs` reverse parameter logic (was inverted — `reverse=True` returned oldest instead of newest)
+- Fixed JSON and GEXF export buttons calling wrong API endpoints (now use `/scanexportjsonmulti` and `/scanviz?gexf=1`)
+- Fixed correlation export filename typo `.xlxs` → `.xlsx`
+- Wrapped `scanCorrelationSummary` calls in `/api/scanlist` and `/api/scanstatus` with try/except for older databases
+- Fixed DB schema FK typo `tbl_scan_instances` → `tbl_scan_instance`
+
+### Bug Fixes — UX
+- Added `[x-cloak]` CSS rule — expandable rows no longer flash visible before Alpine.js initializes
+- Fixed stop button replacing its own text with JSON response — added `hx-swap="none"`
+- Fixed `sfp_c2tracker` not setting `errorState` on fetch failure (caused repeated retry flood)
+- Fixed `sfp_dnsgrep` missing `errorState` class var and guard in `handleEvent()`
+- Fixed `sfp_postman` not setting `errorState` on 429 rate limit (caused retry storm)
+- Fixed `sfp_tool_bbot_vuln` and `sfp_tool_bbot_cloud` emitting `RAW_RIR_DATA` for every BBOT output line (now only for relevant events)
+- Fixed `sfp_fofa` emitting duplicate `WEBSERVER_BANNER` events
+
+### Cleanup
+- Removed unused `SpiderFootHelpers` import from `sfp_tool_bbot_scan`
+- Moved inline `import json`/`import time` to module level in `sfp_dnsdumpster`
+- Removed dead `re` and `BeautifulSoup` imports from `sfp_dnsdumpster` (left over from old HTML scraping version)
+- Removed false `COMPANY_NAME`/`HUMAN_NAME` declarations from `sfp_opensanctions` producedEvents (were never emitted)
+- Removed duplicate scrollbar CSS rules and 5 unused CSS classes from `custom.css`
+- Moved `@import` font rules to top of `custom.css` (CSS spec requirement)
+
+### Infrastructure
+- Added `user-scanner` to `requirements.txt`
+- Relaxed `pyOpenSSL`, `cryptography`, and `networkx` version bounds for compatibility
+- Bumped Dockerfile Alpine from 3.12/3.13 to 3.18 (Python 3.11 support, needed for modern dependencies)
+- `bbot` documented as optional dependency (too heavy for default install, modules degrade gracefully)
+
 ## [5.0.0] - 2026-04-08
 
 ### Phase 1: UI/UX Overhaul (completed prior)

@@ -65,7 +65,7 @@ class sfp_postman(SpiderFootPlugin):
 
     def producedEvents(self):
         return [
-            "CODE_REPOSITORY",
+            "PUBLIC_CODE_REPO",
             "RAW_RIR_DATA",
         ]
 
@@ -112,6 +112,7 @@ class sfp_postman(SpiderFootPlugin):
 
         if res["code"] == "429":
             self.error("Postman search rate limit hit.")
+            self.errorState = True
             return None
 
         if res["code"] != "200":
@@ -175,7 +176,7 @@ class sfp_postman(SpiderFootPlugin):
                 descr += f" - Publisher: {publisher_handle}\n"
                 descr += f"<SFURL>{workspace_url}</SFURL>"
 
-                e = SpiderFootEvent("CODE_REPOSITORY", descr, self.__name__, event)
+                e = SpiderFootEvent("PUBLIC_CODE_REPO", descr, self.__name__, event)
                 self.notifyListeners(e)
 
                 e = SpiderFootEvent("RAW_RIR_DATA", json.dumps(item), self.__name__, event)

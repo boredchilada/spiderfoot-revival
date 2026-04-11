@@ -130,7 +130,7 @@ class sfp_userscanner(SpiderFootPlugin):
                 for cat in self.opts["categories"].split(","):
                     args.extend(["-c", cat.strip()])
 
-            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=300)
+            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = p.communicate(timeout=300)
 
             if not stdout:

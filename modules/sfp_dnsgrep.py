@@ -64,10 +64,12 @@ class sfp_dnsgrep(SpiderFootPlugin):
     }
 
     results = None
+    errorState = False
 
     def setup(self, sfc, userOpts=dict()):
         self.sf = sfc
         self.results = self.tempStorage()
+        self.errorState = False
 
         for opt in userOpts.keys():
             self.opts[opt] = userOpts[opt]
@@ -85,6 +87,7 @@ class sfp_dnsgrep(SpiderFootPlugin):
         if not self.opts.get('api_key'):
             self.error("You enabled sfp_dnsgrep but did not set an API key! "
                        "BufferOver.run now requires an API key.")
+            self.errorState = True
             return None
 
         params = {
@@ -100,7 +103,7 @@ class sfp_dnsgrep(SpiderFootPlugin):
                                useragent=self.opts['_useragent'],
                                headers=headers)
 
-        if res['content'] is None:
+        if not res or res['content'] is None:
             self.info("No results found for " + qry)
             return None
 
@@ -120,6 +123,9 @@ class sfp_dnsgrep(SpiderFootPlugin):
         eventName = event.eventType
         srcModuleName = event.module
         eventData = event.data
+
+        if self.errorState:
+            return
 
         if eventData in self.results:
             return

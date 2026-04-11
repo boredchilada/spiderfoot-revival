@@ -103,6 +103,7 @@ class sfp_c2tracker(SpiderFootPlugin):
 
         if not res or not res.get("content"):
             self.error("Unable to fetch C2-Tracker IP list.")
+            self.errorState = True
             return set()
 
         if res["code"] != "200":

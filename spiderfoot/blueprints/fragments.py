@@ -328,8 +328,13 @@ def results_tab():
 
         logs = []
         for row in logs_raw:
+            raw_ts = row[0] if row else 0
+            if raw_ts and raw_ts > 9999999999:
+                raw_ts = raw_ts / 1000
+            import time as _time
+            ts = _time.strftime("%Y-%m-%d %H:%M:%S", _time.localtime(raw_ts)) if raw_ts else ''
             logs.append({
-                'time': row[0] if row else '',
+                'time': ts,
                 'component': row[1] if len(row) > 1 else '',
                 'type': row[2] if len(row) > 2 else 'INFO',
                 'message': row[3] if len(row) > 3 else '',
@@ -367,8 +372,13 @@ def log_lines():
 
     logs = []
     for row in logs_raw:
+        raw_ts = row[0] if row else 0
+        if raw_ts and raw_ts > 9999999999:
+            raw_ts = raw_ts / 1000
+        import time as _time
+        ts = _time.strftime("%Y-%m-%d %H:%M:%S", _time.localtime(raw_ts)) if raw_ts else ''
         logs.append({
-            'time': row[0] if row else '',
+            'time': ts,
             'component': row[1] if len(row) > 1 else '',
             'type': row[2] if len(row) > 2 else 'INFO',
             'message': row[3] if len(row) > 3 else '',

@@ -199,8 +199,9 @@ class sfp_fofa(SpiderFootPlugin):
                         e = SpiderFootEvent("INTERNET_NAME_UNRESOLVED", domain, self.__name__, event)
                     self.notifyListeners(e)
 
-                # Server banner
-                if server:
+                # Server banner (deduplicated)
+                if server and server not in self.results:
+                    self.results[server] = True
                     e = SpiderFootEvent("WEBSERVER_BANNER", server, self.__name__, event)
                     self.notifyListeners(e)
 

@@ -11,9 +11,8 @@
 # Licence:     MIT
 # -------------------------------------------------------------------------------
 
-import re
-
-from bs4 import BeautifulSoup
+import json
+import time
 
 from spiderfoot import SpiderFootEvent, SpiderFootPlugin
 
@@ -77,9 +76,6 @@ class sfp_dnsdumpster(SpiderFootPlugin):
             return ret
 
         # Use the new JSON API (requires API key)
-        import json
-        import time
-
         url = f"https://api.dnsdumpster.com/domain/{domain}"
         headers = {
             "X-API-Key": self.opts["api_key"],

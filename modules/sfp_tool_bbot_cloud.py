@@ -64,9 +64,9 @@ class sfp_tool_bbot_cloud(SpiderFootPlugin):
 
     def producedEvents(self):
         return [
-            "CLOUD_STORAGE_OPEN",
-            "CLOUD_STORAGE_OPEN_S3_BUCKET",
-            "CODE_REPOSITORY",
+            "CLOUD_STORAGE_BUCKET",
+            "CLOUD_STORAGE_BUCKET_OPEN",
+            "PUBLIC_CODE_REPO",
             "VULNERABILITY_GENERAL",
             "RAW_RIR_DATA",
         ]
@@ -140,16 +140,12 @@ class sfp_tool_bbot_cloud(SpiderFootPlugin):
 
             if evt_type == "STORAGE_BUCKET":
                 bucket_url = str(evt_data) if not isinstance(evt_data, dict) else evt_data.get("url", str(evt_data))
-
-                if "s3" in bucket_url.lower() or "amazonaws" in bucket_url.lower():
-                    e = SpiderFootEvent("CLOUD_STORAGE_OPEN_S3_BUCKET", bucket_url, self.__name__, event)
-                else:
-                    e = SpiderFootEvent("CLOUD_STORAGE_OPEN", bucket_url, self.__name__, event)
+                e = SpiderFootEvent("CLOUD_STORAGE_BUCKET_OPEN", bucket_url, self.__name__, event)
                 self.notifyListeners(e)
 
             elif evt_type == "CODE_REPOSITORY":
                 repo_url = str(evt_data) if not isinstance(evt_data, dict) else evt_data.get("url", str(evt_data))
-                e = SpiderFootEvent("CODE_REPOSITORY", repo_url, self.__name__, event)
+                e = SpiderFootEvent("PUBLIC_CODE_REPO", repo_url, self.__name__, event)
                 self.notifyListeners(e)
 
             elif evt_type == "FINDING":
@@ -165,9 +161,9 @@ class sfp_tool_bbot_cloud(SpiderFootPlugin):
                 e = SpiderFootEvent("VULNERABILITY_GENERAL", descr, self.__name__, event)
                 self.notifyListeners(e)
 
-            # Store raw data
-            e = SpiderFootEvent("RAW_RIR_DATA", json.dumps(data), self.__name__, event)
-            self.notifyListeners(e)
+            if evt_type in ("STORAGE_BUCKET", "CODE_REPOSITORY", "FINDING"):
+                e = SpiderFootEvent("RAW_RIR_DATA", json.dumps(data), self.__name__, event)
+                self.notifyListeners(e)
 
 
 # End of sfp_tool_bbot_cloud class

@@ -86,7 +86,7 @@ class SpiderFootDb:
         )",
         "CREATE TABLE tbl_scan_correlation_results ( \
             id                  VARCHAR NOT NULL PRIMARY KEY, \
-            scan_instance_id    VARCHAR NOT NULL REFERENCES tbl_scan_instances(guid), \
+            scan_instance_id    VARCHAR NOT NULL REFERENCES tbl_scan_instance(guid), \
             title               VARCHAR NOT NULL, \
             rule_risk           VARCHAR NOT NULL, \
             rule_id             VARCHAR NOT NULL, \
@@ -1043,9 +1043,9 @@ class SpiderFootDb:
 
         qry += " ORDER BY generated "
         if reverse:
-            qry += "ASC"
-        else:
             qry += "DESC"
+        else:
+            qry += "ASC"
         qvars = [instanceId]
 
         if fromRowId:
@@ -1120,14 +1120,22 @@ class SpiderFootDb:
         qry2 = "DELETE FROM tbl_scan_config WHERE scan_instance_id = ?"
         qry3 = "DELETE FROM tbl_scan_results WHERE scan_instance_id = ?"
         qry4 = "DELETE FROM tbl_scan_log WHERE scan_instance_id = ?"
+        qry5 = "DELETE FROM tbl_scan_correlation_results_events WHERE correlation_id IN (SELECT id FROM tbl_scan_correlation_results WHERE scan_instance_id = ?)"
+        qry6 = "DELETE FROM tbl_scan_correlation_results WHERE scan_instance_id = ?"
         qvars = [instanceId]
 
         with self.dbhLock:
             try:
-                self.dbh.execute(qry1, qvars)
-                self.dbh.execute(qry2, qvars)
+                # Delete correlation data first (child tables)
+                try:
+                    self.dbh.execute(qry5, qvars)
+                    self.dbh.execute(qry6, qvars)
+                except sqlite3.Error:
+                    pass  # Correlation tables may not exist in older databases
                 self.dbh.execute(qry3, qvars)
                 self.dbh.execute(qry4, qvars)
+                self.dbh.execute(qry2, qvars)
+                self.dbh.execute(qry1, qvars)
                 self.conn.commit()
             except sqlite3.Error as e:
                 raise IOError("SQL error encountered when deleting scan") from e

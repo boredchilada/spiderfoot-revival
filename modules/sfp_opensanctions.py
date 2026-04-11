@@ -72,7 +72,6 @@ class sfp_opensanctions(SpiderFootPlugin):
     def producedEvents(self):
         return [
             "RAW_RIR_DATA",
-            "MALICIOUS_AFFILIATE_INTERNET_NAME",
         ]
 
     def queryMatch(self, name, schema="Thing"):
@@ -178,7 +177,8 @@ class sfp_opensanctions(SpiderFootPlugin):
                 descr += f" - Countries: {', '.join(countries)}\n"
             descr += f"<SFURL>https://www.opensanctions.org/entities/{result.get('id', '')}/</SFURL>"
 
-            e = SpiderFootEvent("MALICIOUS_AFFILIATE_INTERNET_NAME", descr, self.__name__, event)
+            evt_type = "RAW_RIR_DATA"
+            e = SpiderFootEvent(evt_type, descr, self.__name__, event)
             self.notifyListeners(e)
 
 

@@ -2,6 +2,13 @@
  * Styles that go beyond Tailwind utilities.
  */
 
+/* ---- Font imports (must be first) ---- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* Alpine.js cloak — hide elements until Alpine initializes */
+[x-cloak] { display: none !important; }
+
 /* ---- Sidebar ---- */
 .sidebar {
   width: 56px;
@@ -49,77 +56,18 @@
   50% { opacity: 0.4; }
 }
 
-.dot-running {
-  animation: sf-pulse 1.5s ease-in-out infinite;
-}
-
-/* ---- Card hover effect ---- */
-.card-sf {
-  transition: border-color 150ms ease-in-out, box-shadow 150ms ease-in-out;
-}
-
-.card-sf:hover {
-  border-color: #06b6d4;
-  box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.15);
-}
-
-/* ---- Data table rows ---- */
-.data-row {
-  transition: background-color 100ms ease-in-out;
-}
-
-.dark .data-row:hover {
-  background-color: rgba(30, 41, 59, 0.5);
-}
-
-/* ---- Font imports ---- */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
-
-/* Pulse animation for running scan dots */
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-/* Scan progress bar animation */
-.progress-bar {
-  transition: width 0.5s ease;
-}
-
-/* Smooth tab transitions */
+/* ---- Smooth tab transitions ---- */
 [hx-swap] {
   transition: opacity 0.15s ease;
 }
 
-/* Graph container */
+/* ---- Graph container ---- */
 #graph-container canvas {
   width: 100% !important;
   height: 100% !important;
 }
 
-/* Scrollbar styling for dark theme */
-html.dark ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-html.dark ::-webkit-scrollbar-track {
-  background: #0a0e17;
-}
-html.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
-}
-html.dark ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
-
-/* Table row hover effect */
-.hover-row:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-/* Focus ring for inputs */
+/* ---- Focus ring for inputs ---- */
 input:focus, select:focus, textarea:focus {
   outline: none;
   box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.3);

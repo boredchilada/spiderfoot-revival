@@ -18,7 +18,7 @@ from subprocess import PIPE, Popen, TimeoutExpired
 
 from netaddr import IPNetwork
 
-from spiderfoot import SpiderFootEvent, SpiderFootPlugin, SpiderFootHelpers
+from spiderfoot import SpiderFootEvent, SpiderFootPlugin
 
 
 class sfp_tool_bbot_scan(SpiderFootPlugin):

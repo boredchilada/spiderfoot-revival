@@ -72,7 +72,7 @@ class sfp_bevigil(SpiderFootPlugin):
         return [
             "INTERNET_NAME",
             "INTERNET_NAME_UNRESOLVED",
-            "CLOUD_STORAGE_OPEN_S3_BUCKET",
+            "CLOUD_STORAGE_BUCKET_OPEN",
             "LINKED_URL_INTERNAL",
             "RAW_RIR_DATA",
         ]
@@ -156,7 +156,7 @@ class sfp_bevigil(SpiderFootPlugin):
             for bucket in data.get("s3_buckets", []):
                 if bucket and bucket not in self.results:
                     self.results[bucket] = True
-                    e = SpiderFootEvent("CLOUD_STORAGE_OPEN_S3_BUCKET", bucket, self.__name__, event)
+                    e = SpiderFootEvent("CLOUD_STORAGE_BUCKET_OPEN", bucket, self.__name__, event)
                     self.notifyListeners(e)
 
         if self.checkForStop():
