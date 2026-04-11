@@ -165,7 +165,7 @@ def ping():
     return jsonify(["SUCCESS", __version__])
 
 
-@api_bp.route('/query', methods=['GET', 'POST'])
+@api_bp.route('/query', methods=['POST'])
 def query():
     """Run a SELECT query against the database (CLI)."""
     q = request.values.get('query', '')
@@ -455,7 +455,7 @@ def scanerrors():
 
 # -- Scan delete -------------------------------------------------------------
 
-@api_bp.route('/scandelete', methods=['GET', 'POST'])
+@api_bp.route('/scandelete', methods=['POST'])
 def scandelete():
     """Delete scan(s)."""
     id = request.values.get('id', '')
@@ -481,7 +481,7 @@ def scandelete():
 
 # -- Stop scan ---------------------------------------------------------------
 
-@api_bp.route('/stopscan', methods=['GET', 'POST'])
+@api_bp.route('/stopscan', methods=['POST'])
 def stopscan():
     """Stop a running scan."""
     id = request.values.get('id', '')
@@ -514,7 +514,7 @@ def stopscan():
 
 # -- Start scan --------------------------------------------------------------
 
-@api_bp.route('/startscan', methods=['GET', 'POST'])
+@api_bp.route('/startscan', methods=['POST'])
 def startscan():
     """Initiate a new scan."""
     from sflib import SpiderFoot
@@ -627,7 +627,7 @@ def startscan():
 
 # -- Rerun scan --------------------------------------------------------------
 
-@api_bp.route('/rerunscan', methods=['GET', 'POST'])
+@api_bp.route('/rerunscan', methods=['POST'])
 def rerunscan():
     """Rerun a scan."""
     from sflib import SpiderFoot
@@ -684,7 +684,7 @@ def rerunscan():
 
 # -- Rerun scan multi --------------------------------------------------------
 
-@api_bp.route('/rerunscanmulti', methods=['GET', 'POST'])
+@api_bp.route('/rerunscanmulti', methods=['POST'])
 def rerunscanmulti():
     """Rerun multiple scans."""
     from sflib import SpiderFoot
@@ -914,7 +914,7 @@ def optsexport():
 
 # -- Save settings raw ------------------------------------------------------
 
-@api_bp.route('/savesettingsraw', methods=['GET', 'POST'])
+@api_bp.route('/savesettingsraw', methods=['POST'])
 def savesettingsraw():
     """Save settings (raw/JSON), also used for reset to default."""
     from sflib import SpiderFoot
@@ -1015,7 +1015,7 @@ def savesettings():
 
 # -- Result set false positive -----------------------------------------------
 
-@api_bp.route('/resultsetfp', methods=['GET', 'POST'])
+@api_bp.route('/resultsetfp', methods=['POST'])
 def resultsetfp():
     """Set results as false positive."""
     id = request.values.get('id', '')
@@ -1057,7 +1057,7 @@ def resultsetfp():
 
 # -- Vacuum ------------------------------------------------------------------
 
-@api_bp.route('/vacuum', methods=['GET', 'POST'])
+@api_bp.route('/vacuum', methods=['POST'])
 def vacuum():
     """Vacuum the database."""
     dbh = get_db()
