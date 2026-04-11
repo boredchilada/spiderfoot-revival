@@ -1,84 +1,8 @@
-{# Event rows — expandable, paginated #}
+{# Event rows — flat view, paginated #}
 {# Returned by /frag/events for HTMX search/filter/pagination #}
-{# Matches the div-based layout in event_table.html #}
 
 {% for event in events %}
-<div x-data="{ expanded: false }"
-     class="border-b border-slate-100 dark:border-sf-border/60 last:border-b-0">
-
-  {# Collapsed row #}
-  <div @click="expanded = !expanded"
-       class="flex items-center gap-3 px-3 py-2.5 cursor-pointer
-              hover:bg-slate-50 dark:hover:bg-sf-elevated/40 transition-colors group">
-
-    {# Expand indicator #}
-    <span class="text-slate-400 dark:text-slate-500 text-xs shrink-0 w-4 text-center transition-transform"
-          :class="expanded ? 'rotate-90' : ''">&rsaquo;</span>
-
-    {# Type badge — color computed server-side #}
-    <span class="inline-flex items-center shrink-0 text-[11px] font-medium px-2 py-0.5 rounded
-                 {{ event.badge_color }}
-                 whitespace-nowrap max-w-[180px] truncate"
-          title="{{ event.type }}">
-      {{ event.type }}
-    </span>
-
-    {# Data preview #}
-    <span class="flex-1 min-w-0 text-sm text-slate-600 dark:text-slate-300 truncate font-mono"
-          title="{{ event.data[:200] if event.data|length > 200 else event.data }}">
-      {%- if event.type_code == 'TARGET_WEB_CONTENT' -%}
-        <span class="text-slate-400 dark:text-slate-500 italic font-sans text-xs">HTML document &middot; {{ "{:,}".format(event.data | length) }} chars</span>
-      {%- elif event.type_code == 'RAW_RIR_DATA' -%}
-        <span class="text-slate-400 dark:text-slate-500 italic font-sans text-xs">Raw data &middot; {{ "{:,}".format(event.data | length) }} chars</span>
-      {%- elif event.data | length > 200 -%}
-        {{ event.data[:120] }}
-      {%- else -%}
-        {{ event.data }}
-      {%- endif -%}
-    </span>
-
-    {# Module #}
-    <span class="text-xs text-slate-400 dark:text-slate-500 shrink-0 hidden sm:inline whitespace-nowrap">{{ event.module }}</span>
-  </div>
-
-  {# Expanded detail panel #}
-  <div x-show="expanded" x-transition x-cloak
-       class="px-3 pb-3 ml-7">
-    <div class="rounded-lg border border-slate-200 dark:border-sf-border bg-slate-50 dark:bg-sf-base overflow-hidden">
-
-      {# Detail header #}
-      <div class="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-sf-border bg-white/50 dark:bg-sf-surface/50">
-        <div class="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500">
-          <span class="font-mono text-slate-600 dark:text-slate-300">{{ event.type_code }}</span>
-          <span>&middot;</span>
-          <span>{{ event.module }}</span>
-          {% if event.generated %}
-          <span>&middot;</span>
-          <span>{{ event.generated }}</span>
-          {% endif %}
-          {% if event.confidence %}
-          <span>&middot;</span>
-          <span>{{ event.confidence }}% confidence</span>
-          {% endif %}
-        </div>
-        <button type="button"
-                onclick="navigator.clipboard.writeText(this.closest('.rounded-lg').querySelector('[data-event-data]').textContent).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 1500); })"
-                class="text-xs px-2.5 py-1 rounded bg-slate-200 dark:bg-sf-border text-slate-600 dark:text-slate-300
-                       hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors font-medium">
-          Copy
-        </button>
-      </div>
-
-      {# Data content #}
-      <div data-event-data
-           class="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-200 break-all select-all
-                  {% if event.data | length > 500 %}max-h-48 overflow-y-auto{% endif %}">
-        {{- event.data -}}
-      </div>
-
-    </div>
-  </div>
-</div>
+  {% include 'components/event_row.html' %}
 {% else %}
 <div class="px-3 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">No matching events found.</div>
 {% endfor %}
@@ -88,6 +12,9 @@
 <div class="flex items-center justify-between px-3 py-3 border-t border-slate-200 dark:border-sf-border">
   <span class="text-xs text-slate-400 dark:text-slate-500">
     {{ "{:,}".format((page - 1) * 50 + 1) }}&ndash;{{ "{:,}".format([page * 50, total_count] | min) }} of {{ "{:,}".format(total_count) }}
+    {% if dedup is defined and dedup == '1' and raw_count is defined and raw_count != total_count %}
+      <span class="text-slate-500 dark:text-slate-600">({{ "{:,}".format(raw_count) }} total)</span>
+    {% endif %}
   </span>
   <div class="flex gap-1">
     {% for p in range(1, total_pages + 1) %}
@@ -95,7 +22,7 @@
         <button
           hx-get="/frag/events?id={{ scan_id }}&page={{ p }}"
           hx-target="#event-rows"
-          hx-include="[name='q'],[name='type_filter']"
+          hx-include="[name='q'],[name='type_filter'],[name='sort'],[name='group_by'],[name='dedup']"
           class="px-2.5 py-1 text-xs rounded {{ 'bg-sf-accent/20 text-sf-accent font-medium' if p == page else 'bg-slate-100 dark:bg-sf-elevated text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200' }} transition-colors">
           {{ p }}
         </button>
@@ -108,5 +35,8 @@
 {% elif total_count is defined and total_count > 0 %}
 <div class="px-3 py-2 text-xs text-slate-400 dark:text-slate-500 text-center border-t border-slate-200 dark:border-sf-border">
   {{ "{:,}".format(total_count) }} events
+  {% if dedup is defined and dedup == '1' and raw_count is defined and raw_count != total_count %}
+    <span class="text-slate-500 dark:text-slate-600">({{ "{:,}".format(raw_count) }} total)</span>
+  {% endif %}
 </div>
 {% endif %}
