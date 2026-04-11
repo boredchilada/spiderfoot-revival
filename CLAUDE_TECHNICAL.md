@@ -152,6 +152,85 @@ class sfp_example(SpiderFootPlugin):
 ### New in v5.0.0 (22 modules)
 Shodan InternetDB, LeakCheck, Hudson Rock, Criminal IP, Netlas.io, Validin, OpenSanctions, WhoisXML API, BeVigil, Postman, ZoomEye, FOFA, Snusbase, BBOT (4 wrappers), User Scanner, MISP, RansomLook, C2-Tracker, Vulners
 
+## Scan Lifecycle
+
+### Status Flow
+```
+STARTING → RUNNING → FINISHED
+                   → ABORT-REQUESTED → ABORTED
+                   → ERROR-FAILED
+```
+
+### How Scans Run
+1. `POST /api/startscan` creates a scan instance in SQLite, spawns a `Process` (not thread)
+2. The scan process loads selected modules, creates event queues
+3. Root event is injected, modules consume/produce events via `handleEvent()`
+4. Each module has its own `incomingEventQueue` and `outgoingEventQueue`
+5. Modules call `self.checkForStop()` to poll for abort requests
+6. When all queues are empty, scan transitions to `FINISHED`
+
+### Known Limitation: No Per-Module Timeout
+- `_fetchtimeout` (default 5s) only applies to individual HTTP requests via `fetchUrl()`
+- There is NO timeout on module execution itself — a module iterating a /16 netblock or running BBOT can run for hours
+- Stuck scans: if the scan process crashes (Docker restart, OOM), the DB status stays `RUNNING` forever
+- Workaround: manually `POST /api/stopscan?id=X` to set `ABORT-REQUESTED`
+
+### Config Import/Export
+- `GET /api/optsexport` → text/plain CFG file, format: `modulename:optionname=value` per line
+- `POST /api/savesettings` → accepts JSON (`allopts` param) or CFG file upload (`configFile` param)
+- Requires CSRF token from `GET /api/optsraw` (returned in response)
+- `configSerialize()` and `configUnserialize()` in `sflib.py` handle the conversion
+- Both methods iterate `__modules__` dynamically — new modules are auto-included
+
+## Template Patterns
+
+### Alpine.js in Tables
+Tables don't allow wrapper elements between `<tr>` rows. For expandable row pairs:
+```html
+<!-- WRONG: x-data on <tr> doesn't scope to sibling <tr> -->
+<tr x-data="{ expanded: false }">...</tr>
+<tr x-show="expanded">...</tr>  <!-- Can't see 'expanded'! -->
+
+<!-- RIGHT: wrap both rows in <tbody> -->
+<tbody x-data="{ expanded: false }">
+  <tr @click="expanded = !expanded">...</tr>
+  <tr x-show="expanded" x-cloak>...</tr>
+</tbody>
+```
+
+### HTMX Fragment Swap Target
+The data tab uses a `<table id="event-rows">` as the HTMX swap target. The fragment response contains `<tbody>` elements (one per expandable row pair). HTMX's default `innerHTML` swap replaces the table's children correctly.
+
+### Jinja2 Pitfalls
+- Dict key `items` → collides with `dict.items()`. Use `entries` instead.
+- `{{ "{:,}".format(number) }}` for comma-formatted numbers
+- `{{ [a, b] | min }}` for inline min in templates
+
+## Database Schema (Key Queries)
+
+```sql
+-- Scan list with event counts
+SELECT s.guid, s.name, s.seed_target, s.created, s.started, s.ended,
+       s.status, COUNT(r.type) FROM tbl_scan_instance s
+LEFT JOIN tbl_scan_results r ON s.guid = r.scan_instance_id
+GROUP BY s.guid ORDER BY s.started DESC
+
+-- Event summary by type
+SELECT r.type, e.event_descr, MAX(r.generated) AS last_in,
+       COUNT(r.type) AS total, COUNT(DISTINCT r.data) AS utotal
+FROM tbl_scan_results r, tbl_event_types e
+WHERE r.scan_instance_id = ? AND r.type = e.event
+GROUP BY r.type ORDER BY e.event_descr
+
+-- Events for a scan (used by data tab)
+SELECT r.generated, r.data, r.source_data, r.module, r.type,
+       r.confidence, r.visibility, r.risk, r.hash, r.source_event_hash,
+       e.event_descr, e.event_type, r.scan_instance_id, r.false_positive
+FROM tbl_scan_results r, tbl_event_types e
+WHERE r.scan_instance_id = ? AND r.type = e.event
+ORDER BY r.generated DESC
+```
+
 ## Docker
 
 ```bash
@@ -160,3 +239,14 @@ docker run -p 5001:5001 -v /my/data:/var/lib/spiderfoot spiderfoot-revival
 ```
 
 The Dockerfile uses Alpine Linux with a multi-stage build. The app runs as non-root user `spiderfoot`.
+
+### Testing Workflow
+```bash
+docker stop sf-test 2>/dev/null; docker rm sf-test 2>/dev/null
+docker build -t spiderfoot-revival .
+docker run -d --name sf-test -p 5001:5001 spiderfoot-revival
+sleep 5
+curl -s -o /dev/null -w "%{http_code}" http://localhost:5001/       # Dashboard
+curl -s -o /dev/null -w "%{http_code}" http://localhost:5001/newscan # New scan
+docker logs sf-test 2>&1 | grep -i error                            # Check errors
+```
