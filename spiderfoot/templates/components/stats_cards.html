@@ -13,15 +13,15 @@
     <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Completed</p>
     <p class="text-4xl font-mono font-bold text-sf-success">{{ stats.completed }}</p>
     <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
-      {{ "{:,}".format(stats.total_events) }} events total
+      {{ "{:,}".format(stats.total_events) }} events collected
     </p>
   </div>
 
   <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-5">
-    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Correlations</p>
+    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Findings</p>
     <p class="text-4xl font-mono font-bold text-sf-warning">{{ stats.findings }}</p>
     <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
-      across {{ stats.scans_with_findings }} scan{{ 's' if stats.scans_with_findings != 1 }}
+      from {{ stats.scans_with_findings }} scan{{ 's' if stats.scans_with_findings != 1 }}
     </p>
   </div>
 
@@ -30,7 +30,7 @@
     <p class="text-4xl font-mono font-bold text-slate-600 dark:text-slate-300">{{ stats.modules_total }}</p>
     <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
       {% if stats.modules_needing_keys > 0 %}
-        {{ stats.modules_needing_keys }} need API keys
+        <a href="/opts" class="text-sf-accent hover:underline">{{ stats.modules_needing_keys }} need API keys</a>
       {% else %}
         all keys configured
       {% endif %}

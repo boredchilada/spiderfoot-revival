@@ -98,13 +98,15 @@
                   class="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20 leading-none">
               API
             </span>
-            <span x-show="mod.requiresKey && !mod.keyConfigured"
-                  class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 leading-none">
-              KEY NEEDED
-            </span>
+            <a x-show="mod.requiresKey && !mod.keyConfigured"
+               href="/opts" @click.stop
+               class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 leading-none hover:bg-amber-500/20 transition-colors"
+               title="Go to Settings to configure this API key">
+              KEY NEEDED &rarr;
+            </a>
           </div>
           <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5 leading-snug truncate"
-             x-text="mod.summary"></p>
+             x-text="mod.summary" :title="mod.summary"></p>
         </div>
 
       </label>

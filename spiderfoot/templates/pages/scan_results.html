@@ -96,14 +96,14 @@
     <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-4">
       <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Modules</p>
       <p class="text-3xl font-mono font-bold text-sf-accent">{{ module_count }}</p>
-      <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-        {% if scan_duration %}ran in {{ scan_duration }}{% else %}running...{% endif %}
-      </p>
+      <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">data sources queried</p>
     </div>
     <div class="bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border rounded-lg p-4">
-      <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Sources</p>
-      <p class="text-3xl font-mono font-bold text-slate-600 dark:text-slate-300">{{ module_count }}</p>
-      <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">of 244 available</p>
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Duration</p>
+      <p class="text-3xl font-mono font-bold text-slate-600 dark:text-slate-300">
+        {% if scan_duration %}{{ scan_duration }}{% else %}&mdash;{% endif %}
+      </p>
+      <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{{ module_count }} modules used</p>
     </div>
   </div>
 
@@ -148,6 +148,7 @@
         class="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors">
         {{ icons.share(class="w-4 h-4") }}
         Graph
+        <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-500/20 text-slate-400 leading-none">Soon</span>
       </button>
       {# Tab: Timeline #}
       <button

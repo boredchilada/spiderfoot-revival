@@ -41,6 +41,17 @@
   {# Category filter chips #}
   {% if cat_chips %}
   <div class="flex flex-wrap gap-2 mb-4">
+    <button
+      @click="activeCat = ''"
+      hx-get="/frag/events?id={{ scan_id }}"
+      hx-target="#event-rows"
+      hx-include="[name='q'],[name='type_filter']"
+      :class="activeCat === ''
+        ? 'bg-sf-accent/20 border-sf-accent/40 text-sf-accent'
+        : 'bg-slate-100 dark:bg-sf-elevated border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+      class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full border transition-colors">
+      All
+    </button>
     {% for chip in cat_chips %}
     <button
       @click="activeCat = '{{ chip.key }}'"
@@ -89,8 +100,15 @@
         <td colspan="3" class="px-3 py-3 text-xs">
           <div class="space-y-1 text-slate-500 dark:text-slate-400">
             <div><span class="text-slate-400 dark:text-slate-500">Type:</span> <span class="font-mono text-slate-700 dark:text-slate-300">{{ event.type_code }}</span></div>
-            <div><span class="text-slate-400 dark:text-slate-500">Full data:</span></div>
-            <div class="font-mono text-slate-700 dark:text-slate-200 bg-white dark:bg-sf-surface rounded px-3 py-2 break-all text-xs border border-slate-200 dark:border-sf-border">{{ event.data }}</div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400 dark:text-slate-500">Full data:</span>
+              <button type="button"
+                      onclick="navigator.clipboard.writeText(this.closest('td').querySelector('[data-event-data]').textContent).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 1500); })"
+                      class="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-sf-border text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                Copy
+              </button>
+            </div>
+            <div data-event-data class="font-mono text-slate-700 dark:text-slate-200 bg-white dark:bg-sf-surface rounded px-3 py-2 break-all text-xs border border-slate-200 dark:border-sf-border select-all">{{ event.data }}</div>
             <div><span class="text-slate-400 dark:text-slate-500">Source module:</span> <span class="font-mono">{{ event.module }}</span></div>
             {% if event.generated %}
             <div><span class="text-slate-400 dark:text-slate-500">Discovered:</span> {{ event.generated }}</div>
