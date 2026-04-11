@@ -167,23 +167,40 @@ def ping():
 
 @api_bp.route('/query', methods=['POST'])
 def query():
-    """Run a SELECT query against the database (CLI)."""
-    q = request.values.get('query', '')
-    dbh = get_db()
+    """Run a SELECT query against the database (CLI).
+
+    Uses a read-only SQLite connection. Rejects semicolons and non-SELECTs.
+    """
+    import sqlite3
+
+    q = request.values.get('query', '').strip()
 
     if not q:
         return jsonify_error('400', "Invalid query.")
 
     if not q.lower().startswith("select"):
-        return jsonify_error('400', "Non-SELECTs are unpredictable and not recommended.")
+        return jsonify_error('400', "Only SELECT queries are allowed.")
+
+    if ';' in q:
+        return jsonify_error('400', "Semicolons are not allowed in queries.")
+
+    # Use the same database path as the main connection
+    db_path = current_app.config.get('SF_CONFIG', {}).get('__database', '')
+    if not db_path:
+        return jsonify_error('500', "Database not configured.")
 
     try:
-        ret = dbh.dbh.execute(q)
-        data = ret.fetchall()
-        column_names = [c[0] for c in dbh.dbh.description]
-        return jsonify([dict(zip(column_names, row)) for row in data])
-    except Exception as e:
-        return jsonify_error('500', str(e))
+        conn = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)
+        try:
+            cursor = conn.execute(q)
+            data = cursor.fetchall()
+            column_names = [c[0] for c in cursor.description]
+            return jsonify([dict(zip(column_names, row)) for row in data])
+        finally:
+            conn.close()
+    except Exception:
+        current_app.logger.warning(f"Query endpoint error for query: {q}", exc_info=True)
+        return jsonify_error('500', "Query failed.")
 
 
 # -- Scan list ---------------------------------------------------------------
