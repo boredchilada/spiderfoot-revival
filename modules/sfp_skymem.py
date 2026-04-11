@@ -79,7 +79,7 @@ class sfp_skymem(SpiderFootPlugin):
         # Get e-mail addresses on this domain
         res = self.sf.fetchUrl("https://www.skymem.com/srch?q=" + eventData, timeout=self.opts['_fetchtimeout'], useragent=self.opts['_useragent'])
 
-        if res['content'] is None:
+        if not res or res['content'] is None:
             return
 
         # Extract emails from results page
@@ -117,7 +117,7 @@ class sfp_skymem(SpiderFootPlugin):
                 useragent=self.opts['_useragent']
             )
 
-            if res['content'] is None:
+            if not res or res['content'] is None:
                 break
 
             emails = SpiderFootHelpers.extractEmailsFromText(res['content'])

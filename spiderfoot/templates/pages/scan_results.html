@@ -53,11 +53,11 @@
                class="block px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-sf-surface transition-colors">
               Export CSV
             </a>
-            <a href="/scaneventresultexport?id={{ scan.id }}&type=json"
+            <a href="/scanexportjsonmulti?ids={{ scan.id }}"
                class="block px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-sf-surface transition-colors">
               Export JSON
             </a>
-            <a href="/scaneventresultexport?id={{ scan.id }}&type=gexf"
+            <a href="/scanviz?id={{ scan.id }}&gexf=1"
                class="block px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-sf-surface transition-colors">
               Export GEXF
             </a>

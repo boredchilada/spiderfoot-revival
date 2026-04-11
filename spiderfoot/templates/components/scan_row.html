@@ -68,10 +68,11 @@
            class="text-sf-accent hover:text-cyan-300 font-medium ml-2">View &rarr;</a>
         {% if s == 'RUNNING' %}
         <button hx-post="/api/stopscan?id={{ scan.id }}" hx-confirm="Stop this scan?"
+                hx-swap="none"
                 class="text-sf-warning hover:text-amber-300 font-medium">Stop</button>
         {% endif %}
-        <button hx-delete="/api/scandelete?id={{ scan.id }}" hx-confirm="Delete this scan and all its data?"
-                hx-target="closest tr" hx-swap="outerHTML swap:0.3s"
+        <button hx-post="/api/scandelete?id={{ scan.id }}" hx-confirm="Delete this scan and all its data?"
+                hx-target="closest tr" hx-swap="delete swap:0.3s"
                 class="text-sf-critical hover:text-red-300 font-medium">Delete</button>
       </div>
     </div>

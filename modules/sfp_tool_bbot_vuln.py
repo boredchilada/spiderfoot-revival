@@ -180,9 +180,9 @@ class sfp_tool_bbot_vuln(SpiderFootPlugin):
                 e = SpiderFootEvent("VULNERABILITY_GENERAL", descr, self.__name__, event)
                 self.notifyListeners(e)
 
-            # Store raw data for all events
-            e = SpiderFootEvent("RAW_RIR_DATA", json.dumps(data), self.__name__, event)
-            self.notifyListeners(e)
+            if evt_type in ("VULNERABILITY", "FINDING"):
+                e = SpiderFootEvent("RAW_RIR_DATA", json.dumps(data), self.__name__, event)
+                self.notifyListeners(e)
 
 
 # End of sfp_tool_bbot_vuln class

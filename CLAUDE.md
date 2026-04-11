@@ -1,6 +1,6 @@
 # SpiderFoot Revival
 
-Self-hosted OSINT automation platform forked from [SpiderFoot](https://github.com/smicallef/spiderfoot). This is a major overhaul — new UI, new modules, modernized stack.
+Self-hosted OSINT automation platform forked from [SpiderFoot](https://github.com/smicallef/spiderfoot). Major overhaul — new UI, new modules, modernized stack. Current version: **5.0.1**.
 
 ## Quick Start
 

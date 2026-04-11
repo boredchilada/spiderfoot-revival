@@ -87,6 +87,7 @@ class sfp_misp(SpiderFootPlugin):
             "MALICIOUS_AFFILIATE_IPADDR",
             "MALICIOUS_INTERNET_NAME",
             "MALICIOUS_AFFILIATE_INTERNET_NAME",
+            "MALICIOUS_EMAILADDR",
             "RAW_RIR_DATA",
         ]
 
@@ -168,7 +169,7 @@ class sfp_misp(SpiderFootPlugin):
             "AFFILIATE_IPADDR": "MALICIOUS_AFFILIATE_IPADDR",
             "INTERNET_NAME": "MALICIOUS_INTERNET_NAME",
             "DOMAIN_NAME": "MALICIOUS_INTERNET_NAME",
-            "EMAILADDR": "MALICIOUS_INTERNET_NAME",
+            "EMAILADDR": "MALICIOUS_EMAILADDR",
             "HASH": "MALICIOUS_INTERNET_NAME",
             "LINKED_URL_EXTERNAL": "MALICIOUS_INTERNET_NAME",
         }

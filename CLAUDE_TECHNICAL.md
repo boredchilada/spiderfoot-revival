@@ -138,7 +138,7 @@ class sfp_example(SpiderFootPlugin):
 | POST | `/api/savesettings` | Import config (JSON or CFG file) |
 | GET | `/api/modules` | List all available modules |
 
-## Current Module Count: 244
+## Current Module Count: 244 (v5.0.1)
 
 ### By API Model
 - FREE_NOAUTH_UNLIMITED: ~35 modules
@@ -238,7 +238,16 @@ docker build -t spiderfoot-revival .
 docker run -p 5001:5001 -v /my/data:/var/lib/spiderfoot spiderfoot-revival
 ```
 
-The Dockerfile uses Alpine Linux with a multi-stage build. The app runs as non-root user `spiderfoot`.
+The Dockerfile uses Alpine 3.18 with a multi-stage build. The app runs as non-root user `spiderfoot`.
+
+### Optional Dependencies
+- **bbot**: Required for `sfp_tool_bbot_*` modules. Too heavy for default install (~500MB+ with deps). Install manually: `pip install bbot`. Modules degrade gracefully if bbot is missing (set `errorState = True` and skip).
+- **user-scanner**: Included in `requirements.txt`. Used by `sfp_userscanner` for email registration + username checking.
+
+### Event Type Reference (common mistakes)
+- Cloud buckets: `CLOUD_STORAGE_BUCKET` (exists) / `CLOUD_STORAGE_BUCKET_OPEN` (open). NOT `CLOUD_STORAGE_OPEN`.
+- Code repos: `PUBLIC_CODE_REPO`. NOT `CODE_REPOSITORY`.
+- Malicious emails: `MALICIOUS_EMAILADDR`. NOT `MALICIOUS_INTERNET_NAME` for email indicators.
 
 ### Testing Workflow
 ```bash
