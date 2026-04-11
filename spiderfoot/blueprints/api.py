@@ -545,6 +545,21 @@ def startscan():
 
     config = get_config()
 
+    # Rate limit: reject if too many scans are already running
+    max_scans = config.get('_maxscans', 10)
+    dbh = get_db()
+    running_scans = dbh.scanInstanceList()
+    running_count = sum(
+        1 for scan in running_scans
+        if scan[5] in ('RUNNING', 'STARTED', 'STARTING')
+    )
+    if running_count >= max_scans:
+        return jsonify_error(
+            '429',
+            f"Maximum concurrent scans ({max_scans}) reached. "
+            f"Please wait for a running scan to complete."
+        )
+
     scanname = clean_user_input([scanname])[0]
     scantarget = clean_user_input([scantarget])[0]
 
