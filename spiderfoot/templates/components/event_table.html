@@ -1,158 +1,153 @@
-{# Event table with search/filter/chips — rendered for the Data tab #}
-{# events: list of dicts with type, type_code, data, module, confidence, risk, generated #}
+{# Event table with search/filter/sort/group — rendered for the Data tab #}
+{# events: list of event dicts #}
 {# event_types: list of tuples for filter dropdown #}
 {# cat_chips: list of dicts with key, label, count for category filter chips #}
 {# scan_id: current scan ID #}
 
-<div class="p-5" x-data="{ activeCat: '' }">
+<div class="p-5" x-data="{
+  activeCat: '',
+  viewMode: '',
+  activeSort: 'data',
+  dedupOn: localStorage.getItem('sf_dedup') !== '0',
+  setDedup(val) {
+    this.dedupOn = val;
+    localStorage.setItem('sf_dedup', val ? '1' : '0');
+  }
+}">
 
-  {# Search and filter controls #}
-  <div class="flex flex-col sm:flex-row gap-3 mb-3">
-    <div class="flex-1 relative">
-      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
-      </svg>
-      <input type="text"
-             name="q"
-             placeholder="Search events..."
-             hx-get="/frag/events?id={{ scan_id }}"
-             hx-trigger="keyup changed delay:300ms"
-             hx-target="#event-rows"
-             hx-include="[name='type_filter']"
-             class="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-slate-200 dark:border-sf-border
-                    bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
-                    placeholder-slate-400 dark:placeholder-slate-500
-                    focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
-                    transition-colors" />
-    </div>
-    <select name="type_filter"
-            hx-get="/frag/events?id={{ scan_id }}"
-            hx-trigger="change"
-            hx-target="#event-rows"
-            hx-include="[name='q']"
-            class="px-3 py-2 text-sm rounded-md border border-slate-200 dark:border-sf-border
-                   bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
-                   focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
-                   transition-colors min-w-[160px]">
-      <option value="ALL">All Types</option>
-      {% for et in event_types %}
-      <option value="{{ et[0] }}">{{ et[1] }} ({{ et[3] }})</option>
-      {% endfor %}
-    </select>
-  </div>
+  {# Hidden state inputs — ALL buttons read these via hx-include #}
+  <input type="hidden" name="dedup" :value="dedupOn ? '1' : '0'">
+  <input type="hidden" name="category" x-model="activeCat">
+  <input type="hidden" name="group_by" x-model="viewMode">
 
-  {# Category filter chips #}
-  {% if cat_chips %}
-  <div class="flex flex-wrap gap-1.5 mb-4">
-    <button
-      @click="activeCat = ''"
-      hx-get="/frag/events?id={{ scan_id }}"
-      hx-target="#event-rows"
-      hx-include="[name='q'],[name='type_filter']"
-      :class="activeCat === ''
-        ? 'bg-sf-accent/20 border-sf-accent/40 text-sf-accent'
-        : 'bg-slate-100 dark:bg-sf-elevated border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
-      class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full border transition-colors">
-      All
-    </button>
-    {% for chip in cat_chips %}
-    {% if chip.key %}
-    <button
-      @click="activeCat = '{{ chip.key }}'"
-      hx-get="/frag/events?id={{ scan_id }}&category={{ chip.key }}"
-      hx-target="#event-rows"
-      hx-include="[name='q'],[name='type_filter']"
-      :class="activeCat === '{{ chip.key }}'
-        ? 'bg-sf-accent/20 border-sf-accent/40 text-sf-accent'
-        : 'bg-slate-100 dark:bg-sf-elevated border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
-      class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full border transition-colors">
-      {{ chip.label }}
-      <span class="ml-1.5 text-[10px] opacity-70">({{ "{:,}".format(chip.count) }})</span>
-    </button>
-    {% endif %}
-    {% endfor %}
-  </div>
-  {% endif %}
+  {# Search, filter, sort, and view controls #}
+  <div class="flex flex-col gap-3 mb-3">
 
-  {# Event list — card-style rows #}
-  <div id="event-rows" class="space-y-0">
-    {% for event in events %}
-    <div x-data="{ expanded: false }"
-         class="border-b border-slate-100 dark:border-sf-border/60 last:border-b-0">
-
-      {# Collapsed row #}
-      <div @click="expanded = !expanded"
-           class="flex items-center gap-3 px-3 py-2.5 cursor-pointer
-                  hover:bg-slate-50 dark:hover:bg-sf-elevated/40 transition-colors group">
-
-        {# Expand indicator #}
-        <span class="text-slate-400 dark:text-slate-500 text-xs shrink-0 w-4 text-center transition-transform"
-              :class="expanded ? 'rotate-90' : ''">&rsaquo;</span>
-
-        {# Type badge — color computed server-side #}
-        <span class="inline-flex items-center shrink-0 text-[11px] font-medium px-2 py-0.5 rounded
-                     {{ event.badge_color }}
-                     whitespace-nowrap max-w-[180px] truncate"
-              title="{{ event.type }}">
-          {{ event.type }}
-        </span>
-
-        {# Data preview — cleaned up #}
-        <span class="flex-1 min-w-0 text-sm text-slate-600 dark:text-slate-300 truncate font-mono"
-              title="{{ event.data[:200] if event.data|length > 200 else event.data }}">
-          {%- if event.type_code == 'TARGET_WEB_CONTENT' -%}
-            <span class="text-slate-400 dark:text-slate-500 italic font-sans text-xs">HTML document &middot; {{ "{:,}".format(event.data | length) }} chars</span>
-          {%- elif event.type_code == 'RAW_RIR_DATA' -%}
-            <span class="text-slate-400 dark:text-slate-500 italic font-sans text-xs">Raw data &middot; {{ "{:,}".format(event.data | length) }} chars</span>
-          {%- elif event.data | length > 200 -%}
-            {{ event.data[:120] }}
-          {%- else -%}
-            {{ event.data }}
-          {%- endif -%}
-        </span>
-
-        {# Module + source #}
-        <span class="text-xs text-slate-400 dark:text-slate-500 shrink-0 hidden sm:inline whitespace-nowrap">{{ event.module }}</span>
+    {# Row 1: Search + Type filter + Sort #}
+    <div class="flex flex-col sm:flex-row gap-3">
+      <div class="flex-1 relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+        </svg>
+        <input type="text"
+               name="q"
+               placeholder="Search events..."
+               hx-get="/frag/events?id={{ scan_id }}"
+               hx-trigger="keyup changed delay:300ms"
+               hx-target="#event-rows"
+               hx-include="[name='type_filter'],[name='sort'],[name='group_by'],[name='dedup'],[name='category']"
+               class="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-slate-200 dark:border-sf-border
+                      bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
+                      placeholder-slate-400 dark:placeholder-slate-500
+                      focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
+                      transition-colors" />
       </div>
+      <select name="type_filter"
+              hx-get="/frag/events?id={{ scan_id }}"
+              hx-trigger="change"
+              hx-target="#event-rows"
+              hx-include="[name='q'],[name='sort'],[name='group_by'],[name='dedup'],[name='category']"
+              class="px-3 py-2 text-sm rounded-md border border-slate-200 dark:border-sf-border
+                     bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
+                     focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
+                     transition-colors min-w-[140px]">
+        <option value="ALL">All Types</option>
+        {% for et in event_types %}
+        <option value="{{ et[0] }}">{{ et[1] }} ({{ et[3] }})</option>
+        {% endfor %}
+      </select>
+      <select name="sort"
+              hx-get="/frag/events?id={{ scan_id }}"
+              hx-trigger="change"
+              hx-target="#event-rows"
+              hx-include="[name='q'],[name='type_filter'],[name='group_by'],[name='dedup'],[name='category']"
+              @change="activeSort = $el.value"
+              class="px-3 py-2 text-sm rounded-md border border-slate-200 dark:border-sf-border
+                     bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
+                     focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
+                     transition-colors min-w-[130px]">
+        <option value="data">Sort: A-Z</option>
+        <option value="date">Sort: Newest</option>
+        <option value="module">Sort: Module</option>
+        <option value="type">Sort: Type</option>
+        <option value="confidence">Sort: Confidence</option>
+      </select>
+    </div>
 
-      {# Expanded detail panel #}
-      <div x-show="expanded" x-transition x-cloak
-           class="px-3 pb-3 ml-7">
-        <div class="rounded-lg border border-slate-200 dark:border-sf-border bg-slate-50 dark:bg-sf-base overflow-hidden">
+    {# Row 2: Category chips + Dedup toggle + View mode toggle #}
+    <div class="flex items-center justify-between gap-3 flex-wrap">
 
-          {# Detail header with copy button #}
-          <div class="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-sf-border bg-white/50 dark:bg-sf-surface/50">
-            <div class="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500">
-              <span class="font-mono text-slate-600 dark:text-slate-300">{{ event.type_code }}</span>
-              <span>&middot;</span>
-              <span>{{ event.module }}</span>
-              {% if event.generated %}
-              <span>&middot;</span>
-              <span>{{ event.generated }}</span>
-              {% endif %}
-              {% if event.confidence %}
-              <span>&middot;</span>
-              <span>{{ event.confidence }}% confidence</span>
-              {% endif %}
-            </div>
-            <button type="button"
-                    onclick="navigator.clipboard.writeText(this.closest('.rounded-lg').querySelector('[data-event-data]').textContent).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 1500); })"
-                    class="text-xs px-2.5 py-1 rounded bg-slate-200 dark:bg-sf-border text-slate-600 dark:text-slate-300
-                           hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors font-medium">
-              Copy
-            </button>
-          </div>
+      {# Category filter chips #}
+      {% if cat_chips %}
+      <div class="flex flex-wrap gap-1.5">
+        {% for chip in cat_chips %}
+        <button
+          @click="activeCat = '{{ chip.key }}'; $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') })"
+          :class="activeCat === '{{ chip.key }}'
+            ? 'bg-sf-accent/20 border-sf-accent/40 text-sf-accent'
+            : 'bg-slate-100 dark:bg-sf-elevated border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full border transition-colors">
+          {{ chip.label }}
+          {% if chip.key %}
+          <span class="ml-1.5 text-[10px] opacity-70">({{ "{:,}".format(chip.count) }})</span>
+          {% endif %}
+        </button>
+        {% endfor %}
+      </div>
+      {% endif %}
 
-          {# Data content #}
-          <div data-event-data
-               class="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-200 break-all select-all
-                      {% if event.data | length > 500 %}max-h-48 overflow-y-auto{% endif %}">
-            {{- event.data -}}
-          </div>
+      {# Invisible trigger element — fires HTMX after Alpine updates the hidden inputs #}
+      <span x-ref="catTrigger" class="hidden"
+            hx-get="/frag/events?id={{ scan_id }}"
+            hx-trigger="do-filter"
+            hx-target="#event-rows"
+            hx-include="[name='q'],[name='type_filter'],[name='sort'],[name='group_by'],[name='dedup'],[name='category']">
+      </span>
 
+      <div class="flex items-center gap-2 shrink-0">
+
+        {# Dedup toggle #}
+        <div class="flex items-center gap-0.5 bg-slate-100 dark:bg-sf-elevated rounded-md p-0.5">
+          <button @click="setDedup(true); $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') })"
+                  :class="dedupOn ? 'bg-white dark:bg-sf-surface text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'"
+                  class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
+                  title="Combine duplicate entries into one row">
+            Unique
+          </button>
+          <button @click="setDedup(false); $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') })"
+                  :class="!dedupOn ? 'bg-white dark:bg-sf-surface text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'"
+                  class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
+                  title="Show every event individually">
+            All
+          </button>
+        </div>
+
+        {# View mode toggle #}
+        <div class="flex items-center gap-0.5 bg-slate-100 dark:bg-sf-elevated rounded-md p-0.5">
+          <button @click="viewMode = ''; $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') })"
+                  :class="viewMode === '' ? 'bg-white dark:bg-sf-surface text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'"
+                  class="px-2.5 py-1 text-xs font-medium rounded transition-colors">
+            Flat
+          </button>
+          <button @click="viewMode = 'module'; $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') })"
+                  :class="viewMode === 'module' ? 'bg-white dark:bg-sf-surface text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'"
+                  class="px-2.5 py-1 text-xs font-medium rounded transition-colors">
+            By Module
+          </button>
+          <button @click="viewMode = 'type'; $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') })"
+                  :class="viewMode === 'type' ? 'bg-white dark:bg-sf-surface text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'"
+                  class="px-2.5 py-1 text-xs font-medium rounded transition-colors">
+            By Type
+          </button>
         </div>
       </div>
     </div>
+  </div>
+
+  {# Event list #}
+  <div id="event-rows" class="space-y-0">
+    {% for event in events %}
+      {% include 'components/event_row.html' %}
     {% else %}
     <div class="px-3 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">No events found.</div>
     {% endfor %}

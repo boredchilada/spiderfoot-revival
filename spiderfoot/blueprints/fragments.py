@@ -1,8 +1,11 @@
 import html
 import logging
 import os
+import re
+from collections import OrderedDict
 
 from flask import Blueprint, current_app, render_template, request
+from markupsafe import Markup
 
 from spiderfoot import SpiderFootDb
 
@@ -254,16 +257,10 @@ def results_tab():
         # Build event dicts for the template
         events = []
         for e in raw_events:
-            events.append({
-                'type': e[10] or e[4],
-                'type_code': e[4],
-                'data': html.escape(str(e[1] or '')),
-                'module': e[3],
-                'confidence': e[5],
-                'risk': e[7],
-                'generated': e[0] if e[0] else '',
-                'badge_color': _event_badge_color(e[4]),
-            })
+            events.append(_build_event_dict(e))
+
+        # Default to deduped view on initial load
+        events = _dedup_events(events)
 
         # Get event types for the filter dropdown
         try:
@@ -395,6 +392,9 @@ def events_fragment():
     type_filter = request.args.get('type_filter', 'ALL')
     category_filter = request.args.get('category', '')
     query = request.args.get('q', '').strip().lower()
+    sort_by = request.args.get('sort', 'data')
+    group_by = request.args.get('group_by', '')
+    dedup = request.args.get('dedup', '1')  # Default: deduplicated
     page = int(request.args.get('page', 1))
     per_page = 50
 
@@ -418,27 +418,67 @@ def events_fragment():
     for e in raw_events:
         etype = e[4]
         data_str = str(e[1] or '')
+        source_str = str(e[2] or '')
 
         # Apply category filter
         if allowed_types and etype not in allowed_types:
             continue
 
-        # Apply search filter
-        if query and query not in data_str.lower() and query not in (e[3] or '').lower() and query not in (e[10] or etype or '').lower():
-            continue
+        # Apply search filter (also searches source_data for URL context)
+        if query:
+            searchable = f"{data_str} {e[3] or ''} {e[10] or etype} {source_str}".lower()
+            if query not in searchable:
+                continue
 
-        events.append({
-            'type': e[10] or etype,
-            'type_code': etype,
-            'data': html.escape(data_str),
-            'module': e[3],
-            'confidence': e[5],
-            'risk': e[7],
-            'generated': e[0] if e[0] else '',
-            'badge_color': _event_badge_color(etype),
-        })
+        events.append(_build_event_dict(e))
+
+    # Sorting
+    _SORT_KEYS = {
+        'data': lambda ev: (ev['data'] or '').lower(),
+        'date': lambda ev: ev['generated'] or 0,
+        'module': lambda ev: (ev['module'] or '').lower(),
+        'type': lambda ev: (ev['type'] or '').lower(),
+        'confidence': lambda ev: ev['confidence'] or 0,
+    }
+    sort_fn = _SORT_KEYS.get(sort_by, _SORT_KEYS['data'])
+    reverse = sort_by in ('date', 'confidence')
+    events.sort(key=sort_fn, reverse=reverse)
+
+    raw_count = len(events)
+
+    # Deduplicate: aggregate identical (type, data) into single rows
+    if dedup == '1':
+        events = _dedup_events(events)
 
     total_count = len(events)
+
+    # Grouped view
+    if group_by in ('module', 'type'):
+        groups = OrderedDict()
+        for evt in events:
+            key = evt[group_by]
+            if key not in groups:
+                groups[key] = []
+            groups[key].append(evt)
+
+        grouped = []
+        for key, items in groups.items():
+            grouped.append({
+                'label': key,
+                'count': len(items),
+                'events': items[:50],
+                'total': len(items),
+            })
+
+        return render_template(
+            'fragments/event_rows_grouped.html',
+            groups=grouped,
+            scan_id=scan_id,
+            group_by=group_by,
+            total_count=total_count,
+        )
+
+    # Flat view with pagination
     total_pages = max(1, (total_count + per_page - 1) // per_page)
     page = max(1, min(page, total_pages))
     start = (page - 1) * per_page
@@ -450,6 +490,8 @@ def events_fragment():
         page=page,
         total_pages=total_pages,
         total_count=total_count,
+        raw_count=raw_count,
+        dedup=dedup,
         scan_id=scan_id,
     )
 
@@ -507,6 +549,244 @@ def _event_badge_color(type_code: str) -> str:
 
     # Default — neutral
     return 'bg-slate-700/40 text-slate-400 border border-slate-500/30'
+
+
+_WEB_CONTENT_TYPES = ('TARGET_WEB_CONTENT', 'SEARCH_ENGINE_WEB_CONTENT')
+_RAW_DATA_TYPES = ('RAW_RIR_DATA', 'RAW_DNS_RECORDS', 'RAW_FILE_META')
+
+_TITLE_RE = re.compile(r'<title[^>]*>(.*?)</title>', re.IGNORECASE | re.DOTALL)
+_TAG_RE = re.compile(r'<[^>]+>')
+
+# Common port → service name mapping
+_PORT_SERVICES = {
+    20: 'FTP-data', 21: 'FTP', 22: 'SSH', 23: 'Telnet', 25: 'SMTP',
+    53: 'DNS', 67: 'DHCP', 68: 'DHCP', 69: 'TFTP', 80: 'HTTP',
+    88: 'Kerberos', 110: 'POP3', 111: 'RPC', 119: 'NNTP', 123: 'NTP',
+    135: 'MSRPC', 137: 'NetBIOS', 138: 'NetBIOS', 139: 'NetBIOS',
+    143: 'IMAP', 161: 'SNMP', 162: 'SNMP-trap', 179: 'BGP',
+    389: 'LDAP', 443: 'HTTPS', 445: 'SMB', 465: 'SMTPS',
+    514: 'Syslog', 515: 'LPD', 587: 'SMTP-submit', 636: 'LDAPS',
+    993: 'IMAPS', 995: 'POP3S', 1080: 'SOCKS', 1433: 'MSSQL',
+    1434: 'MSSQL-browser', 1521: 'Oracle', 1723: 'PPTP',
+    2049: 'NFS', 2082: 'cPanel', 2083: 'cPanel-SSL',
+    3306: 'MySQL', 3389: 'RDP', 3690: 'SVN',
+    5432: 'PostgreSQL', 5900: 'VNC', 5985: 'WinRM', 5986: 'WinRM-SSL',
+    6379: 'Redis', 6443: 'K8s-API', 8080: 'HTTP-alt', 8443: 'HTTPS-alt',
+    8888: 'HTTP-alt', 9090: 'HTTP-alt', 9200: 'Elasticsearch',
+    9300: 'Elasticsearch', 11211: 'Memcached', 27017: 'MongoDB',
+}
+
+# Certificate field extraction patterns
+_CERT_FIELD_RE = re.compile(
+    r'(?:Issuer:\s*(.+?)(?:\n|$))'
+    r'|(?:Subject:\s*(.+?)(?:\n|$))'
+    r'|(?:Not Before\s*:\s*(.+?)(?:\n|$))'
+    r'|(?:Not After\s*:\s*(.+?)(?:\n|$))'
+    r'|(?:Serial Number:\s*\n?\s*(.+?)(?:\n|$))'
+    r'|(?:Signature Algorithm:\s*(.+?)(?:\n|$))',
+    re.IGNORECASE
+)
+
+# Detect if source_data looks like HTML
+_HTML_SOURCE_RE = re.compile(r'^\s*<(?:!DOCTYPE|html|head|body)', re.IGNORECASE)
+
+
+def _clean_source_data(source_data):
+    """Clean source_data for display — extract URL or title from HTML sources."""
+    if not source_data:
+        return ''
+
+    # If it looks like a URL already, return as-is
+    if source_data.startswith(('http://', 'https://', 'ftp://')):
+        return source_data
+
+    # If it looks like HTML, try to extract a useful label
+    if _HTML_SOURCE_RE.match(source_data):
+        # Try to extract <title>
+        title_match = _TITLE_RE.search(source_data)
+        if title_match:
+            title = title_match.group(1).strip()
+            if title:
+                return f"[page: {title[:80]}]"
+        return '[HTML document]'
+
+    return source_data
+
+
+def _parse_cert_fields(raw_data):
+    """Extract structured fields from OpenSSL certificate text dumps.
+
+    Returns a list of (label, value) tuples, or empty list if not cert data.
+    """
+    # Check if this looks like cert data
+    if not ('Certificate:' in raw_data or 'Issuer:' in raw_data
+            or 'Serial Number:' in raw_data or 'issuer_ca_id' in raw_data):
+        return []
+
+    # Handle Python-dict-style cert data (from crt.sh / CT logs)
+    if 'issuer_ca_id' in raw_data or 'common_name' in raw_data:
+        fields = []
+        # Extract key fields from dict-like strings
+        for key, label in [
+            ('common_name', 'Common Name'),
+            ('name_value', 'Name'),
+            ('issuer_name', 'Issuer'),
+            ('serial_number', 'Serial'),
+            ('not_before', 'Not Before'),
+            ('not_after', 'Not After'),
+            ('entry_timestamp', 'CT Log Entry'),
+        ]:
+            # Match both 'key': 'value' and "key": "value" patterns
+            m = re.search(
+                rf"""['\"]?{key}['\"]?\s*:\s*['\"]([^'\"]+)['\"]""",
+                raw_data
+            )
+            if m:
+                fields.append((label, m.group(1).strip()))
+        return fields
+
+    # Handle OpenSSL text dump format
+    fields = []
+    for label, pattern in [
+        ('Subject', r'Subject:\s*(.+?)(?:\n|$)'),
+        ('Issuer', r'Issuer:\s*(.+?)(?:\n|$)'),
+        ('Not Before', r'Not Before\s*:\s*(.+?)(?:\n|$)'),
+        ('Not After', r'Not After\s*:\s*(.+?)(?:\n|$)'),
+        ('Serial', r'Serial Number:\s*\n?\s*([0-9a-fA-F:]+)'),
+        ('Algorithm', r'Signature Algorithm:\s*(.+?)(?:\n|$)'),
+    ]:
+        m = re.search(pattern, raw_data, re.IGNORECASE)
+        if m:
+            fields.append((label, m.group(1).strip()))
+
+    return fields
+
+
+def _extract_port_service(data, type_code):
+    """For TCP_PORT_OPEN events, extract port number and return service name."""
+    if type_code != 'TCP_PORT_OPEN':
+        return ''
+    # Data format is "IP:port"
+    if ':' in data:
+        try:
+            port = int(data.rsplit(':', 1)[1])
+            return _PORT_SERVICES.get(port, '')
+        except (ValueError, IndexError):
+            pass
+    return ''
+
+
+def _build_event_dict(e):
+    """Build a template-ready event dict from a DB result tuple.
+
+    Tuple layout: (generated, data, source_data, module, type, confidence,
+                    visibility, risk, hash, source_event_hash, event_descr,
+                    event_type, scan_instance_id, false_positive, parent_fp)
+
+    All user-facing strings are html.escape()'d and wrapped in Markup() so
+    Jinja2 won't double-escape them.
+    """
+    type_code = e[4]
+    raw_data = str(e[1] or '')
+    raw_source = str(e[2] or '')
+
+    # Clean source for display (URL extraction from HTML sources)
+    cleaned_source = _clean_source_data(raw_source)
+
+    # Port → service name
+    service_name = _extract_port_service(raw_data, type_code)
+
+    # Certificate structured fields (event data)
+    cert_fields = []
+    if type_code in ('SSL_CERTIFICATE_RAW', 'SSL_CERTIFICATE_ISSUED',
+                     'SSL_CERTIFICATE_ISSUER'):
+        cert_fields = _parse_cert_fields(raw_data)
+
+    # Certificate structured fields (source data — parent was a cert)
+    source_cert_fields = _parse_cert_fields(raw_source) if raw_source else []
+
+    evt = {
+        'type': e[10] or type_code,
+        'type_code': type_code,
+        'data': Markup(html.escape(raw_data)),
+        'module': e[3],
+        'confidence': e[5],
+        'risk': e[7],
+        'generated': e[0] if e[0] else '',
+        'badge_color': _event_badge_color(type_code),
+        'source_data': Markup(html.escape(cleaned_source)),
+        'source_data_raw': Markup(html.escape(raw_source[:500])),
+        'is_web_content': type_code in _WEB_CONTENT_TYPES,
+        'data_title': '',
+        'data_plaintext': '',
+        'service_name': service_name,
+        'cert_fields': cert_fields,
+        'source_cert_fields': source_cert_fields,
+        # Dedup fields — populated later by _dedup_events()
+        'dupe_count': 1,
+        'dupe_sources': [],
+    }
+
+    # For web content, extract page title and plaintext excerpt
+    if type_code in _WEB_CONTENT_TYPES:
+        title_match = _TITLE_RE.search(raw_data)
+        if title_match:
+            evt['data_title'] = Markup(html.escape(title_match.group(1).strip()))
+        plaintext = _TAG_RE.sub(' ', raw_data)
+        plaintext = re.sub(r'\s+', ' ', plaintext).strip()
+        evt['data_plaintext'] = Markup(html.escape(plaintext[:2000]))
+
+    return evt
+
+
+def _dedup_events(events):
+    """Aggregate duplicate events into single rows.
+
+    Grouping key depends on event type:
+      - Web content: (type_code, data_title) — same page title = same page,
+        even if the HTML body differs slightly (CSRF tokens, timestamps).
+      - Everything else: (type_code, data) — exact data match.
+
+    The primary event keeps its own source/module and gains:
+      - dupe_count: total occurrences
+      - dupe_sources: list of {source_data, module} from the other instances
+    """
+    seen = OrderedDict()  # key → index into deduped list
+    deduped = []
+
+    for evt in events:
+        if evt.get('is_web_content') and evt.get('data_title'):
+            # Web content: group by page title (not raw HTML body)
+            key = (evt['type_code'], evt['data_title'])
+        else:
+            key = (evt['type_code'], evt['data'])
+
+        if key not in seen:
+            seen[key] = len(deduped)
+            deduped.append(evt)
+        else:
+            primary = deduped[seen[key]]
+            primary['dupe_count'] += 1
+            # Collect source info from the duplicate
+            src = evt.get('source_data', '')
+            mod = evt.get('module', '')
+            src_cert = evt.get('source_cert_fields', [])
+            # Avoid adding identical source entries (compare src+mod only)
+            if not any(d['source_data'] == src and d['module'] == mod
+                       for d in primary['dupe_sources']):
+                entry = {
+                    'source_data': src,
+                    'module': mod,
+                    'source_cert_fields': src_cert,
+                }
+                # For web content, preserve each URL's body so users
+                # can compare content across URLs.
+                if evt.get('is_web_content'):
+                    entry['data'] = evt.get('data', '')
+                    entry['data_plaintext'] = evt.get('data_plaintext', '')
+                primary['dupe_sources'].append(entry)
+
+    return deduped
 
 
 def _build_api_card_data(sf_config: dict) -> list:
