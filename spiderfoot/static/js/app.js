@@ -332,7 +332,10 @@ window.scanForm = (initialModules) => ({
         try {
           const resp = await fetch('/api/startscan', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            },
             body: body.toString(),
           });
           const data = await resp.json();
