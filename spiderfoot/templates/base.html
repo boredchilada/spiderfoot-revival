@@ -38,6 +38,12 @@
 
   <!-- HTMX -->
   <script defer src="{{ url_for('static', filename='vendor/htmx.min.js') }}"></script>
+  <script>
+  document.addEventListener('htmx:configRequest', function(e) {
+      var token = document.querySelector('meta[name="csrf-token"]');
+      if (token) { e.detail.headers['X-CSRF-Token'] = token.content; }
+  });
+  </script>
   <!-- Theme manager -->
   <script defer src="{{ url_for('static', filename='js/theme.js') }}"></script>
 
