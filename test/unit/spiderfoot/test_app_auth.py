@@ -1,17 +1,12 @@
 # test/unit/spiderfoot/test_app_auth.py
 import pytest
-import sys
-import os
-
-# Add project root to path so imports work
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 from spiderfoot.app import create_app
 
 
 @pytest.fixture
 def app():
-    """Create a test Flask app with no auth."""
+    """Create a minimal test Flask app."""
     app = create_app(config={'__database': ':memory:', '__modules__': {}})
     app.config['TESTING'] = True
     return app
