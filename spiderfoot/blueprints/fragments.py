@@ -262,6 +262,7 @@ def results_tab():
                 'confidence': e[5],
                 'risk': e[7],
                 'generated': e[0] if e[0] else '',
+                'badge_color': _event_badge_color(e[4]),
             })
 
         # Get event types for the filter dropdown
@@ -434,6 +435,7 @@ def events_fragment():
             'confidence': e[5],
             'risk': e[7],
             'generated': e[0] if e[0] else '',
+            'badge_color': _event_badge_color(etype),
         })
 
     total_count = len(events)
@@ -463,6 +465,48 @@ def _human_size(num_bytes: int) -> str:
             return f"{num_bytes:.1f} {unit}"
         num_bytes /= 1024
     return f"{num_bytes:.1f} PB"
+
+
+def _event_badge_color(type_code: str) -> str:
+    """Return Tailwind CSS classes for an event type badge color."""
+    tc = type_code or ''
+
+    # Red — malicious / blacklisted / compromised
+    if 'MALICIOUS' in tc or 'BLACKLISTED' in tc or 'COMPROMISED' in tc:
+        return 'bg-red-900/40 text-red-300 border border-red-500/30'
+
+    # Orange — vulnerabilities, findings
+    if 'VULNERABILITY' in tc or 'CVE' in tc:
+        return 'bg-orange-900/40 text-orange-300 border border-orange-500/30'
+
+    # Cyan — network / attack surface (IPs, domains, ports, hostnames)
+    if any(k in tc for k in ('IP_ADDRESS', 'INTERNET_NAME', 'DOMAIN_NAME',
+                              'TCP_PORT', 'UDP_PORT', 'NETBLOCK', 'BGP',
+                              'AFFILIATE_INTERNET', 'DNS_', 'PROVIDER_')):
+        return 'bg-cyan-900/40 text-cyan-300 border border-cyan-500/30'
+
+    # Violet — identity / people (emails, usernames, names, phones, accounts)
+    if any(k in tc for k in ('EMAIL', 'USERNAME', 'HUMAN_NAME', 'PHONE_NUMBER',
+                              'ACCOUNT_', 'SOCIAL_MEDIA')):
+        return 'bg-violet-900/40 text-violet-300 border border-violet-500/30'
+
+    # Emerald — infrastructure / tech (web servers, SSL, software, hosting)
+    if any(k in tc for k in ('WEBSERVER', 'SSL_CERTIFICATE', 'SOFTWARE',
+                              'OPERATING_SYSTEM', 'HTTP_CODE', 'LINKED_URL',
+                              'WEB_ANALYTICS', 'CLOUD_STORAGE')):
+        return 'bg-emerald-900/40 text-emerald-300 border border-emerald-500/30'
+
+    # Amber — reputation / threat intel
+    if any(k in tc for k in ('LEAKSITE', 'DARKNET', 'DEFACED', 'RANSOMWARE')):
+        return 'bg-amber-900/40 text-amber-300 border border-amber-500/30'
+
+    # Muted slate — raw / bulk data
+    if any(k in tc for k in ('TARGET_WEB_CONTENT', 'RAW_RIR_DATA', 'RAW_DNS',
+                              'RAW_FILE', 'ROOT', 'SEARCH_ENGINE_WEB_CONTENT')):
+        return 'bg-slate-700/40 text-slate-400 border border-slate-500/30'
+
+    # Default — neutral
+    return 'bg-slate-700/40 text-slate-400 border border-slate-500/30'
 
 
 def _build_api_card_data(sf_config: dict) -> list:
