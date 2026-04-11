@@ -17,7 +17,7 @@
              class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
                     text-slate-800 dark:text-slate-100 text-sm px-3 py-2 focus:outline-none
                     focus:ring-2 focus:ring-sf-accent focus:border-transparent">
-      <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">Number of concurrent module threads per scan.</p>
+      <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">Higher values speed up scans but use more CPU and memory. Start with 3 and increase if your system can handle it.</p>
     </div>
 
     {# DNS Server #}
@@ -29,7 +29,7 @@
              class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
                     text-slate-800 dark:text-slate-100 text-sm font-mono px-3 py-2 focus:outline-none
                     focus:ring-2 focus:ring-sf-accent focus:border-transparent">
-      <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">Custom DNS resolver address (e.g. 8.8.8.8).</p>
+      <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">Override the system DNS resolver. Use 8.8.8.8 (Google) or 1.1.1.1 (Cloudflare) for reliability.</p>
     </div>
 
     {# HTTP User Agent #}
@@ -40,7 +40,7 @@
              class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
                     text-slate-800 dark:text-slate-100 text-sm font-mono px-3 py-2 focus:outline-none
                     focus:ring-2 focus:ring-sf-accent focus:border-transparent">
-      <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">User-Agent string sent with HTTP requests.</p>
+      <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">The browser identity string sent with HTTP requests. Changing this can help avoid being blocked by some websites.</p>
     </div>
 
     {# Fetch Timeout #}
@@ -51,7 +51,7 @@
              class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
                     text-slate-800 dark:text-slate-100 text-sm px-3 py-2 focus:outline-none
                     focus:ring-2 focus:ring-sf-accent focus:border-transparent">
-      <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">Maximum seconds to wait for an HTTP response.</p>
+      <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">How long to wait for each HTTP response before giving up. Increase for slow or distant targets.</p>
     </div>
 
   </div>
@@ -98,7 +98,7 @@ function saveGeneralSettings() {
       msg.classList.add('text-sf-critical');
     }
     msg.classList.remove('hidden');
-    setTimeout(function() { msg.classList.add('hidden'); }, 3000);
+    setTimeout(function() { msg.classList.add('hidden'); }, 4000);
   })
   .catch(function() {
     const msg = document.getElementById('general-save-msg');

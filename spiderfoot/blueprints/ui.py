@@ -181,11 +181,15 @@ def _build_modules_data():
         meta = mod_cfg.get('meta', {})
         use_cases = meta.get('useCases', [])
         cats = meta.get('categories', [])
+        flags = meta.get('flags', [])
         category = cats[0] if cats else 'Uncategorised'
         category_set.add(category)
 
         # Default enabled state: module is in 'Footprint' use case
         enabled = 'Footprint' in use_cases
+
+        # Detect local tools: modules with 'tool' flag or that run local binaries
+        is_local_tool = 'tool' in flags or mod_name.startswith('sfp_tool_')
 
         # Check if module requires an API key and if it's configured
         opts = mod_cfg.get('opts', {})
@@ -211,6 +215,7 @@ def _build_modules_data():
             'enabled': enabled,
             'requiresKey': requires_key,
             'keyConfigured': key_configured,
+            'isLocalTool': is_local_tool,
         }
 
     categories = sorted(category_set)

@@ -31,6 +31,12 @@
   opacity: 1;
 }
 
+/* Hide expand hint when sidebar is expanded */
+.sidebar:hover .sidebar-expand-hint,
+.sidebar.expanded .sidebar-expand-hint {
+  opacity: 0;
+}
+
 /* ---- Scrollbar (dark theme) ---- */
 .dark ::-webkit-scrollbar {
   width: 6px;

@@ -10,6 +10,7 @@ window.scanForm = (initialModules) => ({
     scanName: '',
     targetType: '',
     useCase: 'footprint',
+    moduleSearch: '',
 
     /**
      * modules — keyed by module name (sfp_xxx).
@@ -160,6 +161,20 @@ window.scanForm = (initialModules) => ({
       return Object.values(this.modules).filter(m => m.enabled).length;
     },
 
+    /** Filter modules by search query (matches name, summary, category, or module key). */
+    filteredModules() {
+      const q = (this.moduleSearch || '').trim().toLowerCase();
+      if (!q) return [];
+      return Object.entries(this.modules)
+        .filter(([key, m]) =>
+          m.name.toLowerCase().includes(q) ||
+          m.summary.toLowerCase().includes(q) ||
+          m.category.toLowerCase().includes(q) ||
+          key.toLowerCase().includes(q)
+        )
+        .sort(([, a], [, b]) => a.name.localeCompare(b.name));
+    },
+
     /** Enable or disable all modules in a category. */
     toggleCategory(category, state) {
       for (const key of Object.keys(this.modules)) {
@@ -169,27 +184,77 @@ window.scanForm = (initialModules) => ({
       }
     },
 
+    // --------------------------------------------------- local tools helpers
+    /** All local tool modules, sorted by name. */
+    localToolModules() {
+      return Object.entries(this.modules)
+        .filter(([, m]) => m.isLocalTool)
+        .sort(([, a], [, b]) => a.name.localeCompare(b.name));
+    },
+
+    /** Local tool modules grouped by category. */
+    localToolsByCategory() {
+      const groups = {};
+      for (const [key, mod] of this.localToolModules()) {
+        const cat = mod.category;
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push([key, mod]);
+      }
+      return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+    },
+
+    /** Count enabled local tools. */
+    localToolsEnabledCount() {
+      return Object.values(this.modules).filter(m => m.isLocalTool && m.enabled).length;
+    },
+
+    /** Total local tools count. */
+    localToolsTotalCount() {
+      return Object.values(this.modules).filter(m => m.isLocalTool).length;
+    },
+
+    /** Enable or disable all local tools. */
+    toggleAllTools(state) {
+      for (const key of Object.keys(this.modules)) {
+        if (this.modules[key].isLocalTool) {
+          this.modules[key].enabled = state;
+        }
+      }
+    },
+
+    // ------------------------------------------------------------ toast
+    toastMsg: '',
+    toastType: '',  // 'error' or 'success'
+    submitting: false,
+
+    showToast(msg, type) {
+      this.toastMsg = msg;
+      this.toastType = type || 'error';
+      setTimeout(() => { this.toastMsg = ''; }, 6000);
+    },
+
     // ------------------------------------------------------------ submission
     async submitScan() {
       const targets = this.parsedTargets();
 
       if (targets.length === 0) {
-        alert('Please enter a scan target.');
+        this.showToast('Please enter a scan target.', 'error');
         return;
       }
 
       const unknowns = targets.filter(t => !t.type);
       if (unknowns.length > 0) {
-        alert('Unrecognized target type: ' + unknowns.map(t => t.value).join(', '));
+        this.showToast('Unrecognized target type: ' + unknowns.map(t => t.value).join(', '), 'error');
         return;
       }
 
       const enabledMods = Object.keys(this.modules).filter(k => this.modules[k].enabled);
       if (enabledMods.length === 0) {
-        alert('Please enable at least one module.');
+        this.showToast('Please enable at least one module.', 'error');
         return;
       }
 
+      this.submitting = true;
       const baseName = this.scanName.trim();
       const errors = [];
       let launched = 0;
@@ -224,8 +289,10 @@ window.scanForm = (initialModules) => ({
         }
       }
 
+      this.submitting = false;
+
       if (errors.length > 0) {
-        alert('Launched ' + launched + '/' + targets.length + ' scans.\nErrors:\n' + errors.join('\n'));
+        this.showToast('Launched ' + launched + '/' + targets.length + ' scans. Errors: ' + errors.join('; '), 'error');
       }
 
       if (launched > 0) {

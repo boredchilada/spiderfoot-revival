@@ -466,9 +466,14 @@ def _human_size(num_bytes: int) -> str:
 
 
 def _build_api_card_data(sf_config: dict) -> list:
-    """Scan all modules for API key options and return sorted card list."""
+    """Scan all modules for API key options and return a grouped list.
+
+    Returns a list of dicts:
+        {group, cards: [{mod_name, service_name, opt_key, value, configured}]}
+    Groups are sorted with configured-first logic per group, then alphabetically.
+    """
     modules_cfg = sf_config.get('__modules__', {})
-    cards = []
+    raw_cards = []
 
     for mod_name, mod_cfg in modules_cfg.items():
         if mod_name.startswith('sfp__stor_'):
@@ -476,25 +481,46 @@ def _build_api_card_data(sf_config: dict) -> list:
 
         meta = mod_cfg.get('meta', {})
         service_name = meta.get('name', mod_name)
+        categories = meta.get('categories', [])
+        group = categories[0] if categories else 'Other'
         opts = mod_cfg.get('opts', {})
 
         for opt_key, opt_val in opts.items():
             key_lower = opt_key.lower()
             if 'api_key' in key_lower or 'apikey' in key_lower:
-                # Try to get the stored/live value
                 value = str(opt_val) if opt_val is not None else ''
                 configured = bool(value and value.strip())
-                cards.append({
+                raw_cards.append({
                     'mod_name': mod_name,
                     'service_name': service_name,
                     'opt_key': opt_key,
                     'value': value,
                     'configured': configured,
+                    'group': group,
                 })
 
-    # Sort: configured first, then alphabetically by service name
-    cards.sort(key=lambda c: (0 if c['configured'] else 1, c['service_name'].lower()))
-    return cards
+    # Group cards by category
+    groups = {}
+    for card in raw_cards:
+        g = card['group']
+        groups.setdefault(g, []).append(card)
+
+    # Sort cards within each group: configured first, then alphabetically
+    for g in groups:
+        groups[g].sort(key=lambda c: (0 if c['configured'] else 1, c['service_name'].lower()))
+
+    # Build ordered group list, sorted alphabetically by group name
+    grouped = []
+    for g in sorted(groups.keys()):
+        configured_count = sum(1 for c in groups[g] if c['configured'])
+        grouped.append({
+            'group': g,
+            'cards': groups[g],
+            'configured_count': configured_count,
+            'total_count': len(groups[g]),
+        })
+
+    return grouped
 
 
 @frag_bp.route('/settings-section')
@@ -527,8 +553,8 @@ def settings_section():
                 if db_key in saved_config:
                     opts[opt_key] = saved_config[db_key]
 
-        cards = _build_api_card_data(sf_config)
-        return render_template('fragments/settings_apikeys.html', cards=cards)
+        groups = _build_api_card_data(sf_config)
+        return render_template('fragments/settings_apikeys.html', groups=groups)
 
     elif section == 'proxy':
         return render_template('fragments/settings_proxy.html', config=config)

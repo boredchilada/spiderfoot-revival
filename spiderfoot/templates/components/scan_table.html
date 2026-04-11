@@ -22,9 +22,9 @@
         {% endfor %}
       {% else %}
         <tr>
-          <td class="px-4 py-12 text-center text-slate-400 dark:text-slate-500 text-sm">
-            No scans yet —
-            <a href="/newscan" class="text-sf-accent hover:underline ml-1">start a new scan</a>
+          <td class="px-4 py-12 text-center text-sm">
+            <p class="text-slate-400 dark:text-slate-500 mb-2">No scans yet. Enter a domain, IP, email, or other target to begin gathering OSINT.</p>
+            <a href="/newscan" class="text-sf-accent hover:underline font-medium">Start your first scan &rarr;</a>
           </td>
         </tr>
       {% endif %}

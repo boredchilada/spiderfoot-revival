@@ -27,7 +27,7 @@
       <span class="text-xs font-semibold uppercase tracking-wider {{ label_color }}">{{ label_text }}</span>
       <span class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{{ finding.title }}</span>
     </div>
-    <p class="text-xs text-slate-500 dark:text-slate-400 truncate">{{ finding.description }}</p>
+    <p class="text-xs text-slate-500 dark:text-slate-400 truncate" title="{{ finding.description }}">{{ finding.description }}</p>
   </div>
   <span class="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap flex-shrink-0">
     {{ finding.rule_name }}

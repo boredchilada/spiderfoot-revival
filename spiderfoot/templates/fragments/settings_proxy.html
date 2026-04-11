@@ -1,10 +1,10 @@
 {# Proxy/TOR settings fragment #}
 {# config: dict from dbh.configGet() merged with SF_CONFIG defaults #}
 
-<form id="proxy-form" class="space-y-6">
+<form id="proxy-form" class="space-y-6" x-data="{ proxyType: '{{ config.get('_socks1type', '') }}' }">
   <div>
     <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">Proxy / TOR</h2>
-    <p class="text-sm text-slate-500 dark:text-slate-400">Route SpiderFoot traffic through a proxy or TOR network.</p>
+    <p class="text-sm text-slate-500 dark:text-slate-400">Route SpiderFoot traffic through a proxy or TOR network to anonymize your scans or bypass network restrictions.</p>
   </div>
 
   <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -13,64 +13,76 @@
     <div class="sm:col-span-2">
       <label for="p-type" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Proxy Type</label>
       <select id="p-type" name="_socks1type"
+              x-model="proxyType"
               class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
                      text-slate-800 dark:text-slate-100 text-sm px-3 py-2 focus:outline-none
                      focus:ring-2 focus:ring-sf-accent focus:border-transparent">
         {% set current_type = config.get('_socks1type', '') %}
-        <option value="" {% if not current_type %}selected{% endif %}>None</option>
+        <option value="" {% if not current_type %}selected{% endif %}>None — direct connection</option>
+        <option value="HTTP" {% if current_type == 'HTTP' %}selected{% endif %}>HTTP Proxy</option>
         <option value="SOCKS4" {% if current_type == 'SOCKS4' %}selected{% endif %}>SOCKS4</option>
         <option value="SOCKS5" {% if current_type == 'SOCKS5' %}selected{% endif %}>SOCKS5</option>
-        <option value="HTTP" {% if current_type == 'HTTP' %}selected{% endif %}>HTTP</option>
-        <option value="TOR" {% if current_type == 'TOR' %}selected{% endif %}>TOR</option>
+        <option value="TOR" {% if current_type == 'TOR' %}selected{% endif %}>TOR — anonymous routing (requires TOR running on 127.0.0.1:9050)</option>
       </select>
+      <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">
+        <span x-show="proxyType === ''">All scan traffic will connect directly from this machine.</span>
+        <span x-show="proxyType === 'HTTP'" x-cloak>Route traffic through an HTTP proxy. Good for corporate networks or basic IP masking.</span>
+        <span x-show="proxyType === 'SOCKS4'" x-cloak>SOCKS4 proxy — supports TCP connections but no authentication.</span>
+        <span x-show="proxyType === 'SOCKS5'" x-cloak>SOCKS5 proxy — supports TCP/UDP with optional authentication. Most versatile option.</span>
+        <span x-show="proxyType === 'TOR'" x-cloak>Anonymize scans via the TOR network. TOR must be running locally. Scans will be slower.</span>
+      </p>
     </div>
 
     {# Proxy Address #}
-    <div>
+    <div :class="{ 'opacity-40 pointer-events-none': !proxyType }">
       <label for="p-addr" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Proxy Address</label>
       <input id="p-addr" name="_socks2addr" type="text"
              value="{{ config.get('_socks2addr', '') }}"
              placeholder="127.0.0.1"
+             :disabled="!proxyType"
              class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
                     text-slate-800 dark:text-slate-100 text-sm font-mono px-3 py-2 focus:outline-none
-                    focus:ring-2 focus:ring-sf-accent focus:border-transparent">
+                    focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:opacity-50">
     </div>
 
     {# Proxy Port #}
-    <div>
+    <div :class="{ 'opacity-40 pointer-events-none': !proxyType }">
       <label for="p-port" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Proxy Port</label>
       <input id="p-port" name="_socks3port" type="number" min="1" max="65535"
              value="{{ config.get('_socks3port', '') }}"
              placeholder="9050"
+             :disabled="!proxyType"
              class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
                     text-slate-800 dark:text-slate-100 text-sm px-3 py-2 focus:outline-none
-                    focus:ring-2 focus:ring-sf-accent focus:border-transparent">
+                    focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:opacity-50">
     </div>
 
     {# Username (optional) #}
-    <div>
+    <div :class="{ 'opacity-40 pointer-events-none': !proxyType }">
       <label for="p-user" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
         Username <span class="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>
       </label>
       <input id="p-user" name="_socks4user" type="text"
              value="{{ config.get('_socks4user', '') }}"
              autocomplete="username"
+             :disabled="!proxyType"
              class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
                     text-slate-800 dark:text-slate-100 text-sm font-mono px-3 py-2 focus:outline-none
-                    focus:ring-2 focus:ring-sf-accent focus:border-transparent">
+                    focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:opacity-50">
     </div>
 
     {# Password (optional) #}
-    <div>
+    <div :class="{ 'opacity-40 pointer-events-none': !proxyType }">
       <label for="p-pwd" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
         Password <span class="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>
       </label>
       <input id="p-pwd" name="_socks5pwd" type="password"
              value="{{ config.get('_socks5pwd', '') }}"
              autocomplete="new-password"
+             :disabled="!proxyType"
              class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
                     text-slate-800 dark:text-slate-100 text-sm font-mono px-3 py-2 focus:outline-none
-                    focus:ring-2 focus:ring-sf-accent focus:border-transparent">
+                    focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:opacity-50">
     </div>
 
   </div>
@@ -116,7 +128,7 @@ function saveProxySettings() {
       msg.classList.add('text-sf-critical');
     }
     msg.classList.remove('hidden');
-    setTimeout(function() { msg.classList.add('hidden'); }, 3000);
+    setTimeout(function() { msg.classList.add('hidden'); }, 4000);
   })
   .catch(function() {
     const msg = document.getElementById('proxy-save-msg');

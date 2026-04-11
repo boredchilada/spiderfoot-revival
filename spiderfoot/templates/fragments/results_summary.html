@@ -13,7 +13,8 @@
     </div>
     {% else %}
     <div class="bg-slate-50 dark:bg-sf-elevated rounded-lg p-6 text-center">
-      <p class="text-sm text-slate-400 dark:text-slate-500">No correlation findings for this scan.</p>
+      <p class="text-sm text-slate-400 dark:text-slate-500">No findings for this scan.</p>
+      <p class="text-xs text-slate-400/60 dark:text-slate-500/60 mt-1">Findings are generated when correlation rules detect patterns across events, such as exposed credentials or open services.</p>
     </div>
     {% endif %}
   </div>
@@ -42,6 +43,7 @@
     <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Event Summary</h3>
     <div class="bg-slate-50 dark:bg-sf-elevated rounded-lg p-6 text-center">
       <p class="text-sm text-slate-400 dark:text-slate-500">No events recorded yet.</p>
+      <p class="text-xs text-slate-400/60 dark:text-slate-500/60 mt-1">Events appear as modules discover information about the target — domains, IPs, emails, technologies, and more.</p>
     </div>
   </div>
   {% endif %}

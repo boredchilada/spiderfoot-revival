@@ -1,12 +1,14 @@
-{# API Keys settings fragment #}
-{# cards: list of dicts {mod_name, service_name, opt_key, value, configured} #}
-{# sorted: configured first, then alphabetically #}
+{# API Keys settings fragment — grouped by module category #}
+{# groups: list of {group, cards: [{mod_name, service_name, opt_key, value, configured}], configured_count, total_count} #}
 
 <div x-data="{ query: '' }" class="space-y-5">
 
   <div>
     <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">API Keys</h2>
-    <p class="text-sm text-slate-500 dark:text-slate-400">Configure API keys for modules that require external service access.</p>
+    <p class="text-sm text-slate-500 dark:text-slate-400">
+      Many modules pull data from external services that require API keys. Add your keys below to unlock those modules.
+      Most services offer free tiers — check their websites for signup links.
+    </p>
   </div>
 
   {# Search bar #}
@@ -22,21 +24,54 @@
                const name = el.getAttribute('data-api-card') || '';
                el.style.display = name.includes(q) ? '' : 'none';
              });
+             // Show/hide group headers based on whether they have visible cards
+             document.querySelectorAll('[data-api-group]').forEach(function(grp) {
+               const visible = grp.querySelectorAll('[data-api-card]:not([style*=display\\3A\\ none])').length;
+               grp.style.display = (q && visible === 0) ? 'none' : '';
+             });
            "
-           placeholder="Filter by service name..."
+           placeholder="Search for a service (e.g. Shodan, VirusTotal)..."
            class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-elevated
                   text-slate-800 dark:text-slate-100 text-sm pl-9 pr-3 py-2
                   focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent">
   </div>
 
-  {# Card grid #}
-  <form id="apikeys-form">
-    {% if cards %}
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {% for card in cards %}
-        {% include 'components/api_key_card.html' %}
+  {# Grouped card sections #}
+  <form id="apikeys-form" class="space-y-4">
+    {% if groups %}
+      {% for g in groups %}
+      <div data-api-group="{{ g.group | lower }}" x-data="{ groupOpen: {{ 'true' if g.configured_count > 0 else 'false' }} }">
+        {# Group header — collapsible #}
+        <button type="button" @click="groupOpen = !groupOpen"
+                class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer
+                       bg-slate-50 dark:bg-sf-elevated border border-slate-200 dark:border-sf-border
+                       hover:bg-slate-100 dark:hover:bg-slate-700/60
+                       transition-colors duration-150 text-left select-none mb-2">
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ g.group }}</span>
+            <span class="text-xs font-mono px-2 py-0.5 rounded-full
+                         {% if g.configured_count > 0 %}
+                           bg-green-500/10 text-green-400 border border-green-500/20
+                         {% else %}
+                           bg-slate-500/10 text-slate-400 border border-slate-500/20
+                         {% endif %}">
+              {{ g.configured_count }}/{{ g.total_count }} configured
+            </span>
+          </div>
+          <svg class="w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200"
+               :class="groupOpen ? 'rotate-180' : ''"
+               fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/>
+          </svg>
+        </button>
+        {# Cards grid #}
+        <div x-show="groupOpen" x-transition class="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-1">
+          {% for card in g.cards %}
+            {% include 'components/api_key_card.html' %}
+          {% endfor %}
+        </div>
+      </div>
       {% endfor %}
-    </div>
     {% else %}
     <div class="bg-slate-50 dark:bg-sf-elevated rounded-lg p-8 text-center">
       <p class="text-sm text-slate-400 dark:text-slate-500">No API key modules found.</p>
@@ -44,7 +79,7 @@
     {% endif %}
   </form>
 
-  {% if cards %}
+  {% if groups %}
   <div class="flex items-center gap-3 pt-2">
     <button type="button" onclick="saveApiKeys()"
             class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-sf-accent text-white text-sm font-medium
@@ -98,6 +133,7 @@ function saveApiKeys() {
       msg.classList.add('text-sf-critical');
     }
     msg.classList.remove('hidden');
+    setTimeout(function() { msg.classList.add('hidden'); }, 4000);
   })
   .catch(function() {
     const msg = document.getElementById('apikeys-save-msg');

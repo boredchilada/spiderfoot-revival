@@ -25,13 +25,20 @@
         <p class="text-xs text-slate-400 dark:text-slate-500">Loading graph data...</p>
       </template>
       <template x-if="!loading && nodeCount !== null">
-        <p class="text-xs text-slate-400 dark:text-slate-500">
-          <span class="font-mono font-bold text-sf-accent" x-text="nodeCount"></span> nodes loaded.
-          Full interactive rendering available in a future update.
-        </p>
+        <div class="text-center">
+          <p class="text-xs text-slate-400 dark:text-slate-500 mb-3">
+            <span class="font-mono font-bold text-sf-accent" x-text="nodeCount"></span> nodes available.
+            Interactive rendering is coming in a future update.
+          </p>
+          <p class="text-xs text-slate-400/70 dark:text-slate-500/70">
+            In the meantime, you can export as
+            <a href="/scanviz?id={{ scan_id }}&gexf=1" class="text-sf-accent hover:underline">GEXF</a>
+            and open it in a graph tool like <span class="font-medium">Gephi</span> or <span class="font-medium">yEd</span>.
+          </p>
+        </div>
       </template>
       <template x-if="!loading && nodeCount === null">
-        <p class="text-xs text-slate-400 dark:text-slate-500">No graph data available for this scan.</p>
+        <p class="text-xs text-slate-400 dark:text-slate-500">No graph data available yet. Data appears as the scan discovers relationships between entities.</p>
       </template>
     </div>
   </div>

@@ -1,7 +1,7 @@
 /**
  * SpiderFoot Theme Manager
  *
- * Manages dark ("Operations") / light ("Analyst") theme switching.
+ * Manages dark ("Operations") / light ("Analyst") / auto (system) theme switching.
  * Theme preference is stored in localStorage under the key "sf-theme".
  *
  * The initial theme is applied via an inline <script> in base.html
@@ -14,45 +14,60 @@
   const STORAGE_KEY = 'sf-theme';
   const DARK = 'dark';
   const LIGHT = 'light';
+  const AUTO = 'auto';
 
   /**
-   * Return the current theme.
+   * Resolve the effective theme (dark or light), accounting for 'auto'.
    * @returns {'dark'|'light'}
    */
-  function getTheme() {
+  function resolveTheme() {
     return document.documentElement.classList.contains(DARK) ? DARK : LIGHT;
   }
 
   /**
-   * Apply a theme.
-   * @param {'dark'|'light'} theme
+   * Return the stored preference (dark, light, or auto).
+   * @returns {'dark'|'light'|'auto'}
    */
-  function setTheme(theme) {
-    if (theme === DARK) {
-      document.documentElement.classList.add(DARK);
-    } else {
-      document.documentElement.classList.remove(DARK);
-    }
-    localStorage.setItem(STORAGE_KEY, theme);
-    updateToggleIcons(theme);
+  function getStoredTheme() {
+    return localStorage.getItem(STORAGE_KEY) || DARK;
   }
 
   /**
-   * Toggle between dark and light themes.
+   * Apply a theme.
+   * @param {'dark'|'light'|'auto'} theme
+   */
+  function setTheme(theme) {
+    if (theme === AUTO) {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        document.documentElement.classList.remove(DARK);
+      } else {
+        document.documentElement.classList.add(DARK);
+      }
+    } else if (theme === LIGHT) {
+      document.documentElement.classList.remove(DARK);
+    } else {
+      document.documentElement.classList.add(DARK);
+    }
+    localStorage.setItem(STORAGE_KEY, theme);
+    updateToggleIcons(resolveTheme());
+  }
+
+  /**
+   * Toggle between dark and light themes (sidebar button cycles dark → light → dark).
    */
   function toggleTheme() {
-    setTheme(getTheme() === DARK ? LIGHT : DARK);
+    setTheme(resolveTheme() === DARK ? LIGHT : DARK);
   }
 
   /**
    * Update sun/moon icons on all theme toggle buttons.
    */
-  function updateToggleIcons(theme) {
+  function updateToggleIcons(effectiveTheme) {
     document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {
       var sun = btn.querySelector('.icon-sun');
       var moon = btn.querySelector('.icon-moon');
       if (sun && moon) {
-        if (theme === DARK) {
+        if (effectiveTheme === DARK) {
           sun.classList.remove('hidden');
           moon.classList.add('hidden');
         } else {
@@ -65,16 +80,25 @@
 
   // Bind click handlers once DOM is ready
   document.addEventListener('DOMContentLoaded', function () {
-    updateToggleIcons(getTheme());
+    updateToggleIcons(resolveTheme());
 
     document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {
       btn.addEventListener('click', toggleTheme);
     });
   });
 
+  // Listen for OS theme changes when auto is selected
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+      if (getStoredTheme() === AUTO) {
+        setTheme(AUTO);
+      }
+    });
+  }
+
   // Expose on window for programmatic access
   window.sfTheme = {
-    get: getTheme,
+    get: resolveTheme,
     set: setTheme,
     toggle: toggleTheme,
   };
