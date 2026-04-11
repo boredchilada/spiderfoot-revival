@@ -374,16 +374,9 @@ def settings():
     config = dict(sf_config)
     config.update(saved_config)
 
-    # Generate CSRF token if not already set (mirrors /api/optsraw logic)
-    import random
-    if current_app.config.get('SF_TOKEN') is None:
-        current_app.config['SF_TOKEN'] = random.SystemRandom().randint(0, 99999999)
-    token = current_app.config['SF_TOKEN']
-
     return render_template(
         'pages/settings.html',
         page_id='SETTINGS',
         version=__version__,
         config=config,
-        token=token,
     )
