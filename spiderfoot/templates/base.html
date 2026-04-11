@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}SpiderFoot{% endblock %}</title>
+
+  <!-- Google Fonts (link tags load more reliably cross-browser than CSS @import) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <!-- Prevent flash of wrong theme -->
   <script>
@@ -23,43 +30,8 @@
     })();
   </script>
 
-  <!-- Tailwind CSS (CDN for development) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      // Safelist classes used in HTMX-swapped content (Tailwind CDN can't scan dynamic content)
-      safelist: [
-        'bg-red-900/40', 'text-red-300', 'border-red-500/30',
-        'bg-orange-900/40', 'text-orange-300', 'border-orange-500/30',
-        'bg-cyan-900/40', 'text-cyan-300', 'border-cyan-500/30',
-        'bg-violet-900/40', 'text-violet-300', 'border-violet-500/30',
-        'bg-emerald-900/40', 'text-emerald-300', 'border-emerald-500/30',
-        'bg-amber-900/40', 'text-amber-300', 'border-amber-500/30',
-        'bg-slate-700/40', 'text-slate-400', 'border-slate-500/30',
-      ],
-      theme: {
-        extend: {
-          colors: {
-            sf: {
-              base: '#0a0e17',
-              surface: '#111827',
-              elevated: '#1e293b',
-              border: '#334155',
-              accent: '#06b6d4',
-              warning: '#f59e0b',
-              critical: '#ef4444',
-              success: '#22c55e',
-            },
-          },
-          fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-            mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
-          },
-        },
-      },
-    }
-  </script>
+  <!-- Tailwind CSS (pre-built, no CDN JIT — consistent across all browsers) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
 
   <!-- Custom styles -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">

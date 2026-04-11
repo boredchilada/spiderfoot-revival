@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import hmac as _hmac
 import logging
 import os
@@ -35,6 +36,15 @@ def _load_passwd_file(path: str) -> dict:
     return users
 
 
+def generate_csrf_token(secret_key: str, session_id: str) -> str:
+    """Generate an HMAC-signed CSRF token."""
+    return _hmac.new(
+        secret_key.encode('utf-8'),
+        session_id.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+
+
 def create_app(config=None):
     """Flask application factory.
 
@@ -64,9 +74,6 @@ def create_app(config=None):
 
     # Multiprocessing logging queue (used when launching scan processes)
     app.config.setdefault('SF_LOGGING_QUEUE', None)
-
-    # CSRF-style token for settings endpoints
-    app.config.setdefault('SF_TOKEN', None)
 
     # Jinja2 custom filters
     @app.template_filter('datetimeformat')
@@ -178,5 +185,37 @@ def create_app(config=None):
             )
 
         return None
+
+    # --- CSRF protection ---
+    from flask import session, request as flask_request, Response as FlaskResponse
+
+    @app.before_request
+    def check_csrf():
+        # Only enforce on POST requests
+        if flask_request.method != 'POST':
+            return None
+
+        # Skip CSRF for API clients authenticating via Basic Auth
+        if flask_request.headers.get('Authorization', '').startswith('Basic '):
+            return None
+
+        # Validate the token
+        token = flask_request.headers.get('X-CSRF-Token', '')
+        session_token = session.get('csrf_token', '')
+
+        if not session_token or not _hmac.compare_digest(token, session_token):
+            return FlaskResponse('CSRF token missing or invalid.\n', 403)
+
+        return None
+
+    @app.context_processor
+    def inject_csrf_token():
+        """Make csrf_token available in all templates."""
+        if 'csrf_token' not in session:
+            session['csrf_token'] = generate_csrf_token(
+                app.config['SECRET_KEY'],
+                os.urandom(16).hex()
+            )
+        return {'csrf_token': session['csrf_token']}
 
     return app
