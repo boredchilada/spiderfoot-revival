@@ -483,6 +483,8 @@ def _build_api_card_data(sf_config: dict) -> list:
         service_name = meta.get('name', mod_name)
         categories = meta.get('categories', [])
         group = categories[0] if categories else 'Other'
+        data_source = meta.get('dataSource', {})
+        website = data_source.get('website', '')
         opts = mod_cfg.get('opts', {})
 
         for opt_key, opt_val in opts.items():
@@ -497,6 +499,7 @@ def _build_api_card_data(sf_config: dict) -> list:
                     'value': value,
                     'configured': configured,
                     'group': group,
+                    'website': website,
                 })
 
     # Group cards by category
