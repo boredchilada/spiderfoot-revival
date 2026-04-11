@@ -79,7 +79,7 @@ class TestBasicAuth:
         assert 'Basic' in response.headers['WWW-Authenticate']
 
     def test_valid_credentials_returns_200(self, auth_client):
-        response = auth_client.get('/api/ping', headers=_basic_auth_header('admin', 'secret123'))
+        response = auth_client.get('/api/scanlist', headers=_basic_auth_header('admin', 'secret123'))
         assert response.status_code == 200
 
     def test_invalid_password_returns_401(self, auth_client):
