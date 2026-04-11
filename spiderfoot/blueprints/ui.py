@@ -4,6 +4,7 @@ from flask import Blueprint, current_app, render_template, request
 
 from spiderfoot import SpiderFootDb
 from spiderfoot.__version__ import __version__
+from spiderfoot.helpers import SpiderFootHelpers
 
 ui_bp = Blueprint('ui', __name__)
 
@@ -216,6 +217,7 @@ def _build_modules_data():
             'requiresKey': requires_key,
             'keyConfigured': key_configured,
             'isLocalTool': is_local_tool,
+            'privateIpOk': mod_name in SpiderFootHelpers.PRIVATE_IP_COMPATIBLE_MODULES,
         }
 
     categories = sorted(category_set)

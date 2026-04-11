@@ -590,6 +590,14 @@ def startscan():
     if "sfp__stor_stdout" in modlist:
         modlist.remove("sfp__stor_stdout")
 
+    # For private IPs, strip modules that only work with public IPs
+    if targetType in ('IP_ADDRESS', 'IPV6_ADDRESS', 'NETBLOCK_OWNER', 'NETBLOCKV6_OWNER'):
+        if SpiderFootHelpers.isPrivateIP(scantarget):
+            allowed = SpiderFootHelpers.PRIVATE_IP_COMPATIBLE_MODULES
+            modlist = [m for m in modlist if m in allowed]
+            if not modlist or modlist == ['sfp__stor_db']:
+                return jsonify(["ERROR", "No modules available for private IP targets."])
+
     if targetType in ["HUMAN_NAME", "USERNAME", "BITCOIN_ADDRESS"]:
         scantarget = scantarget.replace("\"", "")
     else:

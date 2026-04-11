@@ -70,14 +70,14 @@
        class="divide-y divide-slate-100 dark:divide-sf-border/60">
 
     <template x-for="[key, mod] in modulesForCategory('{{ cat_js }}')" :key="key">
-      <label class="flex items-start gap-3 px-4 py-2.5 cursor-pointer
-                    hover:bg-slate-50 dark:hover:bg-sf-elevated/60
-                    transition-colors duration-100">
+      <label class="flex items-start gap-3 px-4 py-2.5 transition-colors duration-100"
+             :class="mod.blockedPrivateIp ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-sf-elevated/60'">
 
         {# Toggle switch #}
         <div class="relative mt-0.5 shrink-0">
           <input type="checkbox"
                  :checked="mod.enabled"
+                 :disabled="mod.blockedPrivateIp"
                  @change="modules[key].enabled = $event.target.checked"
                  class="sr-only peer">
           <div class="w-9 h-5 rounded-full border-2 transition-colors duration-200

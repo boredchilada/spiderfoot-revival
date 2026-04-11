@@ -198,6 +198,14 @@
         <a href="/opts" class="text-sf-accent hover:underline">Settings</a>.
       </p>
 
+      {# Private IP warning banner #}
+      <div x-show="isPrivateTarget" x-transition x-cloak
+           class="mb-3 px-3 py-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-300">
+        <span class="font-semibold">Private IP detected.</span>
+        Modules that query external services (Shodan, VirusTotal, etc.) have been disabled — they have no data on private IPs.
+        Only direct-connect modules (port scan, SSL cert, local tools) remain available.
+      </div>
+
       {# Module search #}
       <div class="relative">
         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -225,12 +233,12 @@
       <template x-if="filteredModules().length > 0">
         <div class="border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden divide-y divide-slate-100 dark:divide-sf-border/60">
           <template x-for="[key, mod] in filteredModules()" :key="key">
-            <label class="flex items-start gap-3 px-4 py-2.5 cursor-pointer
-                          hover:bg-slate-50 dark:hover:bg-sf-elevated/60
-                          transition-colors duration-100">
+            <label class="flex items-start gap-3 px-4 py-2.5 transition-colors duration-100"
+                   :class="mod.blockedPrivateIp ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-sf-elevated/60'">
               <div class="relative mt-0.5 shrink-0">
                 <input type="checkbox"
                        :checked="mod.enabled"
+                       :disabled="mod.blockedPrivateIp"
                        @change="modules[key].enabled = $event.target.checked"
                        class="sr-only peer">
                 <div class="w-9 h-5 rounded-full border-2 transition-colors duration-200

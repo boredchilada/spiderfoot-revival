@@ -19,15 +19,29 @@ window.scanForm = (initialModules) => ({
      */
     modules: initialModules || {},
 
+    // Track whether the current target is a private IP
+    isPrivateTarget: false,
+
     // ----------------------------------------------------------------- init
     init() {
       // Apply default footprint selection on load
       this.selectUseCase('footprint');
 
-      // Watch target for auto-detection (first line for single-target badge compat)
+      // Watch target for auto-detection + private IP module filtering
       this.$watch('target', () => {
         const targets = this.parsedTargets();
         this.targetType = targets.length === 1 ? targets[0].type : '';
+
+        // Check if any target is a private IP
+        const wasPrivate = this.isPrivateTarget;
+        this.isPrivateTarget = targets.some(t =>
+          (t.type === 'IP Address' || t.type === 'Subnet') && this._isPrivateIP(t.value)
+        );
+
+        // If private-IP state changed, update module availability
+        if (this.isPrivateTarget !== wasPrivate) {
+          this._applyPrivateIpFilter();
+        }
       });
     },
 
@@ -218,6 +232,51 @@ window.scanForm = (initialModules) => ({
       for (const key of Object.keys(this.modules)) {
         if (this.modules[key].isLocalTool) {
           this.modules[key].enabled = state;
+        }
+      }
+    },
+
+    // ----------------------------------------------- private IP filtering
+    /**
+     * Check if an IP string is RFC1918 private, loopback, or link-local.
+     */
+    _isPrivateIP(value) {
+      const v = (value || '').split('/')[0]; // strip CIDR suffix
+      const parts = v.split('.');
+      if (parts.length !== 4) return false;
+      const [a, b] = parts.map(Number);
+      // 10.0.0.0/8
+      if (a === 10) return true;
+      // 172.16.0.0/12
+      if (a === 172 && b >= 16 && b <= 31) return true;
+      // 192.168.0.0/16
+      if (a === 192 && b === 168) return true;
+      // 127.0.0.0/8 (loopback)
+      if (a === 127) return true;
+      // 169.254.0.0/16 (link-local)
+      if (a === 169 && b === 254) return true;
+      return false;
+    },
+
+    /**
+     * When target is a private IP, disable modules that only work with
+     * public IPs and mark them as blocked. When target changes back to
+     * public, restore their previous state.
+     */
+    _applyPrivateIpFilter() {
+      for (const [key, mod] of Object.entries(this.modules)) {
+        if (this.isPrivateTarget && !mod.privateIpOk) {
+          // Save previous enabled state so we can restore it
+          if (mod._savedEnabled === undefined) {
+            mod._savedEnabled = mod.enabled;
+          }
+          mod.enabled = false;
+          mod.blockedPrivateIp = true;
+        } else if (mod.blockedPrivateIp) {
+          // Restore previous state
+          mod.enabled = mod._savedEnabled !== undefined ? mod._savedEnabled : mod.enabled;
+          mod.blockedPrivateIp = false;
+          delete mod._savedEnabled;
         }
       }
     },

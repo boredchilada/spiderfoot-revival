@@ -208,6 +208,40 @@ class SpiderFootHelpers():
 
         return correlationRulesRaw
 
+    # Modules that work with private/RFC1918 IPs (direct-connect, local tools, DNS).
+    # Everything NOT in this set is assumed to require public IPs (external API lookups).
+    PRIVATE_IP_COMPATIBLE_MODULES = {
+        # DNS — resolution works on any IP
+        'sfp_dnsresolve', 'sfp_dnsneighbor',
+        # Direct-connect scanning
+        'sfp_portscan_tcp', 'sfp_sslcert',
+        # Local tools that connect directly
+        'sfp_tool_nmap', 'sfp_tool_nbtscan', 'sfp_tool_onesixtyone',
+        'sfp_tool_testsslsh', 'sfp_tool_nuclei',
+        'sfp_tool_bbot_scan', 'sfp_tool_bbot_vuln',
+        # Internal storage (always needed)
+        'sfp__stor_db', 'sfp__stor_stdout',
+        # Modules that work on any data (not IP-specific lookups)
+        'sfp_hosting', 'sfp_customfeed',
+    }
+
+    @staticmethod
+    def isPrivateIP(target: str) -> bool:
+        """Check if a target string is a private/RFC1918 IP address.
+
+        Args:
+            target: IP address string
+
+        Returns:
+            True if the IP is private, loopback, or link-local
+        """
+        try:
+            import netaddr
+            ip = netaddr.IPAddress(target.split('/')[0])
+            return ip.is_private() or ip.is_loopback() or ip.is_link_local()
+        except Exception:
+            return False
+
     @staticmethod
     def targetTypeFromString(target: str) -> typing.Optional[str]:
         """Return the scan target seed data type for the specified scan target input.
