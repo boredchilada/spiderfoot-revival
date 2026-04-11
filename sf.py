@@ -40,7 +40,6 @@ def main() -> None:
         'host': '127.0.0.1',
         'port': 5001,
         'root': '/',
-        'cors_origins': [],
     }
 
     # 'Global' configuration options
