@@ -1,9 +1,35 @@
+import base64
+import logging
 import os
 import multiprocessing as mp
 from copy import deepcopy
 from datetime import datetime, timezone
 
 from flask import Flask
+
+
+def _load_passwd_file(path: str) -> dict:
+    """Load username:password pairs from a passwd file.
+
+    Args:
+        path: filesystem path to the passwd file
+
+    Returns:
+        dict mapping usernames to passwords
+    """
+    users = {}
+    try:
+        with open(path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if ':' in line:
+                    username, password = line.split(':', 1)
+                    users[username.strip()] = password.strip()
+    except FileNotFoundError:
+        pass
+    return users
 
 
 def create_app(config=None):
@@ -85,5 +111,59 @@ def create_app(config=None):
     # without the /api prefix (e.g. /scanlist, /ping, /modules).
     api_compat_bp = api_bp
     app.register_blueprint(api_compat_bp, url_prefix='/', name='api_compat')
+
+    # --- Authentication via passwd file ---
+    passwd_path = app.config.get('SF_PASSWD_FILE')
+    if passwd_path is None:
+        from spiderfoot.helpers import SpiderFootHelpers
+        passwd_path = SpiderFootHelpers.dataPath() + '/passwd'
+
+    users = app.config.get('SF_USERS')
+    if users is None:
+        users = _load_passwd_file(passwd_path)
+        app.config['SF_USERS'] = users
+
+    auth_log = logging.getLogger('spiderfoot.auth')
+
+    @app.before_request
+    def check_auth():
+        from flask import request, Response
+
+        # Exempt paths: static files and ping health check
+        if request.path.startswith('/static/') or request.path == '/api/ping':
+            return None
+
+        # If no users configured, auth is disabled
+        if not app.config.get('SF_USERS'):
+            return None
+
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Basic '):
+            return Response(
+                'Authentication required.\n',
+                401,
+                {'WWW-Authenticate': 'Basic realm="SpiderFoot"'}
+            )
+
+        try:
+            decoded = base64.b64decode(auth_header[6:]).decode('utf-8')
+            username, password = decoded.split(':', 1)
+        except Exception:
+            return Response(
+                'Malformed credentials.\n',
+                401,
+                {'WWW-Authenticate': 'Basic realm="SpiderFoot"'}
+            )
+
+        stored_password = app.config['SF_USERS'].get(username)
+        if stored_password is None or stored_password != password:
+            auth_log.warning(f"Failed login attempt for user '{username}'")
+            return Response(
+                'Invalid credentials.\n',
+                401,
+                {'WWW-Authenticate': 'Basic realm="SpiderFoot"'}
+            )
+
+        return None
 
     return app
