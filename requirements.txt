@@ -2,7 +2,6 @@ adblockparser>=0.7,<1
 dnspython>=2.3.0,<3
 ExifRead>=2.3.2,<3
 flask>=3.0
-flask-cors>=4.0
 beautifulsoup4>=4.11.2,<5
 lxml>=4.9.2,<5
 netaddr>=0.8.0,<1

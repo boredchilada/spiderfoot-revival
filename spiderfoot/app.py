@@ -4,7 +4,6 @@ from copy import deepcopy
 from datetime import datetime, timezone
 
 from flask import Flask
-from flask_cors import CORS
 
 
 def create_app(config=None):
@@ -52,9 +51,6 @@ def create_app(config=None):
             return dt.strftime('%Y-%m-%d %H:%M')
         except (TypeError, ValueError, OSError):
             return '—'
-
-    # CORS
-    CORS(app)
 
     # Security headers
     @app.after_request
