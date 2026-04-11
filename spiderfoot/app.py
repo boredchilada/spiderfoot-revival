@@ -1,4 +1,5 @@
 import base64
+import hmac as _hmac
 import logging
 import os
 import multiprocessing as mp
@@ -27,8 +28,10 @@ def _load_passwd_file(path: str) -> dict:
                 if ':' in line:
                     username, password = line.split(':', 1)
                     users[username.strip()] = password.strip()
-    except FileNotFoundError:
-        pass
+    except OSError as exc:
+        logging.getLogger('spiderfoot.auth').warning(
+            "Cannot read passwd file %s: %s", path, exc
+        )
     return users
 
 
@@ -130,7 +133,7 @@ def create_app(config=None):
         from flask import request, Response
 
         # Exempt paths: static files and ping health check
-        if request.path.startswith('/static/') or request.path == '/api/ping':
+        if request.path.startswith('/static/') or request.path in ('/api/ping', '/ping'):
             return None
 
         # If no users configured, auth is disabled
@@ -156,7 +159,17 @@ def create_app(config=None):
             )
 
         stored_password = app.config['SF_USERS'].get(username)
-        if stored_password is None or stored_password != password:
+        if stored_password is None:
+            # Dummy comparison to prevent username-enumeration via timing
+            _hmac.compare_digest("dummy", password)
+            auth_log.warning(f"Failed login attempt for unknown user '{username}'")
+            return Response(
+                'Invalid credentials.\n',
+                401,
+                {'WWW-Authenticate': 'Basic realm="SpiderFoot"'}
+            )
+
+        if not _hmac.compare_digest(stored_password, password):
             auth_log.warning(f"Failed login attempt for user '{username}'")
             return Response(
                 'Invalid credentials.\n',
