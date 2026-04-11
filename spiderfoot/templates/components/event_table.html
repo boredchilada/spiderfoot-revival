@@ -4,11 +4,14 @@
 {# cat_chips: list of dicts with key, label, count for category filter chips #}
 {# scan_id: current scan ID #}
 
-<div class="p-4" x-data="{ activeCat: '' }">
+<div class="p-5" x-data="{ activeCat: '' }">
 
   {# Search and filter controls #}
   <div class="flex flex-col sm:flex-row gap-3 mb-3">
-    <div class="flex-1">
+    <div class="flex-1 relative">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+      </svg>
       <input type="text"
              name="q"
              placeholder="Search events..."
@@ -16,7 +19,7 @@
              hx-trigger="keyup changed delay:300ms"
              hx-target="#event-rows"
              hx-include="[name='type_filter']"
-             class="w-full px-3 py-2 text-sm rounded-md border border-slate-200 dark:border-sf-border
+             class="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-slate-200 dark:border-sf-border
                     bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
                     placeholder-slate-400 dark:placeholder-slate-500
                     focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
@@ -30,7 +33,7 @@
             class="px-3 py-2 text-sm rounded-md border border-slate-200 dark:border-sf-border
                    bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-200
                    focus:outline-none focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent
-                   transition-colors">
+                   transition-colors min-w-[160px]">
       <option value="ALL">All Types</option>
       {% for et in event_types %}
       <option value="{{ et[0] }}">{{ et[1] }} ({{ et[3] }})</option>
@@ -40,7 +43,7 @@
 
   {# Category filter chips #}
   {% if cat_chips %}
-  <div class="flex flex-wrap gap-2 mb-4">
+  <div class="flex flex-wrap gap-1.5 mb-4">
     <button
       @click="activeCat = ''"
       hx-get="/frag/events?id={{ scan_id }}"
@@ -53,6 +56,7 @@
       All
     </button>
     {% for chip in cat_chips %}
+    {% if chip.key %}
     <button
       @click="activeCat = '{{ chip.key }}'"
       hx-get="/frag/events?id={{ scan_id }}&category={{ chip.key }}"
@@ -65,67 +69,93 @@
       {{ chip.label }}
       <span class="ml-1.5 text-[10px] opacity-70">({{ "{:,}".format(chip.count) }})</span>
     </button>
+    {% endif %}
     {% endfor %}
   </div>
   {% endif %}
 
-  {# Event table — HTMX swaps the #event-rows div #}
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          <th class="px-3 py-2 w-6"></th>
-          <th class="px-3 py-2">Type</th>
-          <th class="px-3 py-2">Data</th>
-          <th class="px-3 py-2">Module</th>
-        </tr>
-      </thead>
-    </table>
-    {# Separate table for body so HTMX can swap cleanly with tbody-per-row #}
-    <table class="w-full text-sm" id="event-rows">
-      {% for event in events %}
-      <tbody x-data="{ expanded: false }">
-      <tr class="border-t border-slate-100 dark:border-sf-border hover:bg-slate-50 dark:hover:bg-sf-elevated transition-colors cursor-pointer"
-          @click="expanded = !expanded">
-        <td class="px-3 py-2 w-6 text-slate-400 dark:text-slate-500">
-          <span x-text="expanded ? '\u25BE' : '\u25B8'" class="text-xs"></span>
-        </td>
-        <td class="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap text-sm">{{ event.type }}</td>
-        <td class="px-3 py-2 font-mono text-xs text-slate-600 dark:text-slate-400 max-w-md truncate">{{ event.data }}</td>
-        <td class="px-3 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">{{ event.module }}</td>
-      </tr>
-      <tr x-show="expanded" x-transition x-cloak
-          class="border-t border-slate-100 dark:border-sf-border bg-slate-50 dark:bg-sf-base">
-        <td></td>
-        <td colspan="3" class="px-3 py-3 text-xs">
-          <div class="space-y-1 text-slate-500 dark:text-slate-400">
-            <div><span class="text-slate-400 dark:text-slate-500">Type:</span> <span class="font-mono text-slate-700 dark:text-slate-300">{{ event.type_code }}</span></div>
-            <div class="flex items-center justify-between">
-              <span class="text-slate-400 dark:text-slate-500">Full data:</span>
-              <button type="button"
-                      onclick="navigator.clipboard.writeText(this.closest('td').querySelector('[data-event-data]').textContent).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 1500); })"
-                      class="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-sf-border text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
-                Copy
-              </button>
+  {# Event list — card-style rows #}
+  <div id="event-rows" class="space-y-0">
+    {% for event in events %}
+    <div x-data="{ expanded: false }"
+         class="border-b border-slate-100 dark:border-sf-border/60 last:border-b-0">
+
+      {# Collapsed row #}
+      <div @click="expanded = !expanded"
+           class="flex items-center gap-3 px-3 py-2.5 cursor-pointer
+                  hover:bg-slate-50 dark:hover:bg-sf-elevated/40 transition-colors group">
+
+        {# Expand indicator #}
+        <span class="text-slate-400 dark:text-slate-500 text-xs shrink-0 w-4 text-center transition-transform"
+              :class="expanded ? 'rotate-90' : ''">&rsaquo;</span>
+
+        {# Type badge — color computed server-side #}
+        <span class="inline-flex items-center shrink-0 text-[11px] font-medium px-2 py-0.5 rounded
+                     {{ event.badge_color }}
+                     whitespace-nowrap max-w-[180px] truncate"
+              title="{{ event.type }}">
+          {{ event.type }}
+        </span>
+
+        {# Data preview — cleaned up #}
+        <span class="flex-1 min-w-0 text-sm text-slate-600 dark:text-slate-300 truncate font-mono"
+              title="{{ event.data[:200] if event.data|length > 200 else event.data }}">
+          {%- if event.type_code == 'TARGET_WEB_CONTENT' -%}
+            <span class="text-slate-400 dark:text-slate-500 italic font-sans text-xs">HTML document &middot; {{ "{:,}".format(event.data | length) }} chars</span>
+          {%- elif event.type_code == 'RAW_RIR_DATA' -%}
+            <span class="text-slate-400 dark:text-slate-500 italic font-sans text-xs">Raw data &middot; {{ "{:,}".format(event.data | length) }} chars</span>
+          {%- elif event.data | length > 200 -%}
+            {{ event.data[:120] }}
+          {%- else -%}
+            {{ event.data }}
+          {%- endif -%}
+        </span>
+
+        {# Module + source #}
+        <span class="text-xs text-slate-400 dark:text-slate-500 shrink-0 hidden sm:inline whitespace-nowrap">{{ event.module }}</span>
+      </div>
+
+      {# Expanded detail panel #}
+      <div x-show="expanded" x-transition x-cloak
+           class="px-3 pb-3 ml-7">
+        <div class="rounded-lg border border-slate-200 dark:border-sf-border bg-slate-50 dark:bg-sf-base overflow-hidden">
+
+          {# Detail header with copy button #}
+          <div class="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-sf-border bg-white/50 dark:bg-sf-surface/50">
+            <div class="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500">
+              <span class="font-mono text-slate-600 dark:text-slate-300">{{ event.type_code }}</span>
+              <span>&middot;</span>
+              <span>{{ event.module }}</span>
+              {% if event.generated %}
+              <span>&middot;</span>
+              <span>{{ event.generated }}</span>
+              {% endif %}
+              {% if event.confidence %}
+              <span>&middot;</span>
+              <span>{{ event.confidence }}% confidence</span>
+              {% endif %}
             </div>
-            <div data-event-data class="font-mono text-slate-700 dark:text-slate-200 bg-white dark:bg-sf-surface rounded px-3 py-2 break-all text-xs border border-slate-200 dark:border-sf-border select-all">{{ event.data }}</div>
-            <div><span class="text-slate-400 dark:text-slate-500">Source module:</span> <span class="font-mono">{{ event.module }}</span></div>
-            {% if event.generated %}
-            <div><span class="text-slate-400 dark:text-slate-500">Discovered:</span> {{ event.generated }}</div>
-            {% endif %}
-            <div><span class="text-slate-400 dark:text-slate-500">Confidence:</span> {{ event.confidence }}%</div>
+            <button type="button"
+                    onclick="navigator.clipboard.writeText(this.closest('.rounded-lg').querySelector('[data-event-data]').textContent).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 1500); })"
+                    class="text-xs px-2.5 py-1 rounded bg-slate-200 dark:bg-sf-border text-slate-600 dark:text-slate-300
+                           hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors font-medium">
+              Copy
+            </button>
           </div>
-        </td>
-      </tr>
-      </tbody>
-      {% else %}
-      <tbody>
-      <tr>
-        <td colspan="4" class="px-3 py-8 text-center text-slate-400 dark:text-slate-500">No events found.</td>
-      </tr>
-      </tbody>
-      {% endfor %}
-    </table>
+
+          {# Data content #}
+          <div data-event-data
+               class="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-200 break-all select-all
+                      {% if event.data | length > 500 %}max-h-48 overflow-y-auto{% endif %}">
+            {{- event.data -}}
+          </div>
+
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="px-3 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">No events found.</div>
+    {% endfor %}
   </div>
 
 </div>
