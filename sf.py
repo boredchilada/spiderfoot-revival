@@ -488,7 +488,7 @@ def start_web_server(sfWebUiConfig: dict, sfConfig: dict, loggingQueue=None) -> 
 
     app = create_app(config=sfConfig)
     app.config['SF_LOGGING_QUEUE'] = loggingQueue
-    app.run(host=web_host, port=int(web_port), debug=sfConfig.get('_debug', False), use_reloader=False)
+    app.run(host=web_host, port=int(web_port), debug=False, use_reloader=False)
 
 
 def handle_abort(signal, frame) -> None:

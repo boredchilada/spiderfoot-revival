@@ -371,7 +371,7 @@ class SpiderFootCli(cmd.Cmd):
                     url,
                     headers=headers,
                     verify=self.ownopts['cli.ssl_verify'],
-                    auth=requests.auth.HTTPDigestAuth(
+                    auth=requests.auth.HTTPBasicAuth(
                         self.ownopts['cli.username'],
                         self.ownopts['cli.password']
                     )
@@ -382,7 +382,7 @@ class SpiderFootCli(cmd.Cmd):
                     url,
                     headers=headers,
                     verify=self.ownopts['cli.ssl_verify'],
-                    auth=requests.auth.HTTPDigestAuth(
+                    auth=requests.auth.HTTPBasicAuth(
                         self.ownopts['cli.username'],
                         self.ownopts['cli.password']
                     ),
