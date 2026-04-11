@@ -466,7 +466,6 @@ def start_web_server(sfWebUiConfig: dict, sfConfig: dict, loggingQueue=None) -> 
     web_host = sfWebUiConfig.get('host', '127.0.0.1')
     web_port = sfWebUiConfig.get('port', 5001)
     web_root = sfWebUiConfig.get('root', '/')
-    cors_origins = sfWebUiConfig.get('cors_origins', [])
 
     log.info(f"Starting web server at {web_host}:{web_port} ...")
 
