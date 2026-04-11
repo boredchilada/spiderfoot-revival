@@ -11,7 +11,6 @@ import html
 import json
 import logging
 import multiprocessing as mp
-import random
 import string
 import time
 from copy import deepcopy
@@ -867,9 +866,6 @@ def optsraw():
     """Return global and module settings as JSON."""
     config = get_config()
     ret = dict()
-    token = random.SystemRandom().randint(0, 99999999)
-    # Store token on app for validation later
-    current_app.config['SF_TOKEN'] = token
 
     for opt in config:
         if not opt.startswith('__'):
@@ -883,7 +879,7 @@ def optsraw():
                         continue
                     ret["module." + mod + "." + mo] = config['__modules__'][mod]['opts'][mo]
 
-    return jsonify(['SUCCESS', {'token': token, 'data': ret}])
+    return jsonify(['SUCCESS', {'data': ret}])
 
 
 # -- Options export ----------------------------------------------------------
@@ -924,11 +920,6 @@ def savesettingsraw():
     from sflib import SpiderFoot
 
     allopts = request.values.get('allopts', '')
-    token = request.values.get('token', '')
-
-    stored_token = current_app.config.get('SF_TOKEN')
-    if str(token) != str(stored_token):
-        return jsonify(["ERROR", f"Invalid token ({token})."])
 
     config = get_config()
 
@@ -970,12 +961,7 @@ def savesettings():
     from sflib import SpiderFoot
 
     allopts = request.values.get('allopts', '')
-    token = request.values.get('token', '')
     config_file = request.files.get('configFile', None)
-
-    stored_token = current_app.config.get('SF_TOKEN')
-    if str(token) != str(stored_token):
-        return jsonify(["ERROR", f"Invalid token ({token})."])
 
     config = get_config()
 

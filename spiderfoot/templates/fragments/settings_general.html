@@ -75,15 +75,17 @@ function saveGeneralSettings() {
     opts[el.name] = el.value;
   });
 
-  const token = window.__SF_TOKEN__ || '';
+  const csrfToken = window.__SF_CSRF_TOKEN__ || '';
   const body = new URLSearchParams({
     allopts: JSON.stringify(opts),
-    token: token,
   });
 
   fetch('/api/savesettings', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRF-Token': csrfToken,
+    },
     body: body.toString(),
   })
   .then(function(r) { return r.json(); })

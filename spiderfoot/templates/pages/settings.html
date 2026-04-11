@@ -3,7 +3,7 @@
 
 {% block head %}
 <script>
-  window.__SF_TOKEN__ = {{ token | tojson }};
+  window.__SF_CSRF_TOKEN__ = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 </script>
 {% endblock %}
 
