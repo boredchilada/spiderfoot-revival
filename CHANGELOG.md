@@ -4,6 +4,10 @@ All notable changes to the SpiderFoot Revival project.
 
 ## [5.0.3] - 2026-04-12
 
+### UI Fixes
+
+- Fixed module toggle switches not visually sliding in category accordions — replaced Alpine.js `:class` bindings with CSS `peer-checked:` pattern matching the working Local Tools toggles
+
 ### Code Review — Critical & High Fixes
 
 #### Event Pipeline
