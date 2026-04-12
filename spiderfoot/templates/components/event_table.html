@@ -6,12 +6,16 @@
 
 <div class="p-5" x-data="{
   activeCat: '',
-  viewMode: '',
+  viewMode: localStorage.getItem('sf_view_mode') || '',
   activeSort: 'data',
   dedupOn: localStorage.getItem('sf_dedup') !== '0',
   setDedup(val) {
     this.dedupOn = val;
     localStorage.setItem('sf_dedup', val ? '1' : '0');
+  },
+  setViewMode(val) {
+    this.viewMode = val;
+    localStorage.setItem('sf_view_mode', val);
   }
 }">
 
@@ -108,13 +112,13 @@
 
         {# Dedup toggle #}
         <div class="flex items-center gap-0.5 bg-slate-100 dark:bg-sf-elevated rounded-md p-0.5">
-          <button @click="setDedup(true); $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') })"
+          <button @click="if (!dedupOn) { setDedup(true); $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') }) }"
                   :class="dedupOn ? 'bg-white dark:bg-sf-surface text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'"
                   class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
                   title="Combine duplicate entries into one row">
             Unique
           </button>
-          <button @click="setDedup(false); $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') })"
+          <button @click="if (dedupOn) { setDedup(false); $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') }) }"
                   :class="!dedupOn ? 'bg-white dark:bg-sf-surface text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'"
                   class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
                   title="Show every event individually">
@@ -124,17 +128,17 @@
 
         {# View mode toggle #}
         <div class="flex items-center gap-0.5 bg-slate-100 dark:bg-sf-elevated rounded-md p-0.5">
-          <button @click="viewMode = ''; $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') })"
+          <button @click="if (viewMode !== '') { setViewMode(''); $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') }) }"
                   :class="viewMode === '' ? 'bg-white dark:bg-sf-surface text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'"
                   class="px-2.5 py-1 text-xs font-medium rounded transition-colors">
             Flat
           </button>
-          <button @click="viewMode = 'module'; $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') })"
+          <button @click="if (viewMode !== 'module') { setViewMode('module'); $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') }) }"
                   :class="viewMode === 'module' ? 'bg-white dark:bg-sf-surface text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'"
                   class="px-2.5 py-1 text-xs font-medium rounded transition-colors">
             By Module
           </button>
-          <button @click="viewMode = 'type'; $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') })"
+          <button @click="if (viewMode !== 'type') { setViewMode('type'); $nextTick(() => { htmx.trigger($refs.catTrigger, 'do-filter') }) }"
                   :class="viewMode === 'type' ? 'bg-white dark:bg-sf-surface text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'"
                   class="px-2.5 py-1 text-xs font-medium rounded transition-colors">
             By Type
@@ -144,13 +148,10 @@
     </div>
   </div>
 
-  {# Event list #}
-  <div id="event-rows" class="space-y-0">
-    {% for event in events %}
-      {% include 'components/event_row.html' %}
-    {% else %}
-    <div class="px-3 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">No events found.</div>
-    {% endfor %}
+  {# Event list — always fetched via /frag/events to respect stored view mode, dedup, sort #}
+  <div id="event-rows" class="space-y-0"
+       x-init="setTimeout(() => htmx.trigger($refs.catTrigger, 'do-filter'), 50)">
+    <div class="px-3 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">Loading events...</div>
   </div>
 
 </div>
