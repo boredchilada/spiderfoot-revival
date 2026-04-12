@@ -34,7 +34,7 @@
   <div class="relative">
     <input type="password"
            name="{{ card.mod_name }}:{{ card.opt_key }}"
-           value="{{ card.value }}"
+           value="{{ '********' if card.value else '' }}"
            placeholder="Paste API key here"
            autocomplete="new-password"
            class="w-full rounded-md border border-slate-300 dark:border-sf-border bg-white dark:bg-sf-surface
