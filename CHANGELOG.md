@@ -42,6 +42,29 @@ All notable changes to the SpiderFoot Revival project.
 - Moved `import time` to module level in `fragments.py` — was being re-imported inside loops on every HTTP request
 - Standardized log timestamp handling — always divide by 1000 (removed conditional check)
 
+### Code Review — Module Fixes
+- `sfp_shodan`: Added `SOFTWARE_USED` and `BGP_AS_MEMBER` to `producedEvents()` — were emitted but undeclared, invisible in module dependency graph
+- `sfp_shodan`: Added `errorState`/`checkForStop` guard inside netblock query loop — stops wasting API quota on dead keys
+- `sfp_virustotal`: Added 204 throttle and 401/403 auth checks to `queryIp()` (matching existing `queryDomain()` pattern)
+- `sfp_hunter`: Added 401/403/429 `errorState` handling — was flooding dead APIs with no error detection
+- Updated `sfcli.py` version from "4.0.0" to "5.0.3"
+- Export links in scan results now use `url_for()` instead of hardcoded legacy bare-root paths
+
+### Code Review — Module System Hardening
+- Added interface validation at module load time — checks for required methods (`watchedEvents`, `producedEvents`, `handleEvent`, `setup`) and required attributes (`meta`, `opts`, `optdescs`) before loading; warns on empty `producedEvents()` for non-storage modules
+- Added `_rateLimit()` helper to plugin base class — standardized API throttling via `_delay` opt (replaces per-module hardcoded `time.sleep()`)
+- Correlation engine short-circuits when first collection returns empty — avoids unnecessary DB queries for remaining collections
+
+### Code Review — Architecture Cleanup
+- Added RFC 8594 `Sunset` deprecation header on legacy root-level API routes (`/scanlist`, `/ping`, etc.) — clients should migrate to `/api/` prefix
+- Extracted ~480 LOC of data transformation from `fragments.py` into `spiderfoot/services/event_service.py` — `EVENT_CATEGORIES`, badge colors, event dict building, dedup, cert parsing, port extraction now live in a framework-independent service layer
+- Decomposed `sflib.py` (1673-line god object) into focused modules:
+  - `spiderfoot/net/http.py` — `SpiderFootHttp` (fetchUrl, sessions, proxy, credential redaction)
+  - `spiderfoot/net/dns.py` — `SpiderFootDns` (resolve, validate, wildcard detection)
+  - `spiderfoot/net/ssl.py` — `SpiderFootSsl` (parseCert, safe socket creation)
+  - `spiderfoot/net/host.py` — pure functions (validIP, urlFQDN, domain parsing, CIDR validation)
+  - `SpiderFoot` class remains as thin facade — all 244 modules continue working with zero code changes
+
 ---
 
 ## [5.0.2] - 2026-04-11
