@@ -1243,6 +1243,8 @@ class SpiderFootHelpers():
 
         return None
 
+    _country_codes_cache: typing.ClassVar[typing.Optional[typing.Dict[str, str]]] = None
+
     @staticmethod
     def countryCodes() -> typing.Dict[str, str]:
         """Dictionary of country codes and associated country names.
@@ -1250,8 +1252,10 @@ class SpiderFootHelpers():
         Returns:
             dict[str, str]: country codes and associated country names
         """
+        if SpiderFootHelpers._country_codes_cache is not None:
+            return SpiderFootHelpers._country_codes_cache
 
-        return {
+        SpiderFootHelpers._country_codes_cache = {
             "AF": "Afghanistan",
             "AX": "Aland Islands",
             "AL": "Albania",
@@ -1510,6 +1514,7 @@ class SpiderFootHelpers():
             "SU": "Soviet Union",
             "UK": "United Kingdom"
         }
+        return SpiderFootHelpers._country_codes_cache
 
     @staticmethod
     def sanitiseInput(cmd: str, extra: typing.Optional[typing.List[str]] = None) -> bool:
