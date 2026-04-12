@@ -133,9 +133,12 @@ class SpiderFootPlugin():
     # Maximum threads
     maxThreads = 1
 
+    # Default opts — subclasses override with their own class-level opts dict.
+    # Each module's setup() replaces opts with merged config, so no shared-state issue.
+    opts = dict()
+
     def __init__(self) -> None:
         self._listenerModules = []
-        self.opts = {}
         # Holds the thread object when module threading is enabled
         self.thread = None
         # logging overrides
