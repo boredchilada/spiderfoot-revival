@@ -203,7 +203,7 @@ class SpiderFootHelpers():
                 continue
 
             ruleName = filename.split('.')[0]
-            with open(path + filename, 'r') as f:
+            with open(os.path.join(path, filename), 'r') as f:
                 correlationRulesRaw[ruleName] = f.read()
 
         return correlationRulesRaw

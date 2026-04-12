@@ -1,6 +1,7 @@
 import atexit
 import logging
 import sys
+import threading
 import time
 from contextlib import suppress
 from logging.handlers import QueueHandler, QueueListener
@@ -29,6 +30,7 @@ class SpiderFootSqliteLogHandler(logging.Handler):
         else:
             self.batch_size = 5
         self.shutdown_hook = False
+        self._batch_lock = threading.Lock()
         super().__init__()
 
     def emit(self, record: 'logging.LogRecord') -> None:
@@ -49,8 +51,9 @@ class SpiderFootSqliteLogHandler(logging.Handler):
                 self.logBatch()
 
     def logBatch(self):
-        batch = self.batch
-        self.batch = []
+        with self._batch_lock:
+            batch = self.batch
+            self.batch = []
         if self.dbh is None:
             # Create a new database handle when the first log batch is processed
             self.makeDbh()
