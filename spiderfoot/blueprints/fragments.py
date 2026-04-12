@@ -129,26 +129,14 @@ def results_tab():
         )
 
     elif tab == 'data':
-        try:
-            raw_events = dbh.scanResultEvent(scan_id, 'ALL')[:500]
-        except Exception:
-            raw_events = []
-
-        # Build event dicts for the template
-        events = []
-        for e in raw_events:
-            events.append(build_event_dict(e))
-
-        # Default to deduped view on initial load
-        events = dedup_events(events)
-
-        # Get event types for the filter dropdown
+        # Event rows are fetched client-side via /frag/events (respects stored
+        # view mode, dedup, sort from localStorage). We only need the filter
+        # dropdown and category chips for the controls shell.
         try:
             event_types = dbh.scanResultSummary(scan_id, 'type')
         except Exception:
             event_types = []
 
-        # Build category chip counts
         type_count_map = {}
         for et in event_types:
             type_count_map[et[0]] = int(et[3] or 0)
@@ -163,7 +151,6 @@ def results_tab():
 
         return render_template(
             'components/event_table.html',
-            events=events,
             event_types=event_types,
             scan_id=scan_id,
             cat_chips=cat_chips,

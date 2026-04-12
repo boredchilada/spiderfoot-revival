@@ -22,7 +22,7 @@
         <button
           hx-get="/frag/events?id={{ scan_id }}&page={{ p }}"
           hx-target="#event-rows"
-          hx-include="[name='q'],[name='type_filter'],[name='sort'],[name='group_by'],[name='dedup']"
+          hx-include="[name='q'],[name='type_filter'],[name='sort'],[name='group_by'],[name='dedup'],[name='category']"
           class="px-2.5 py-1 text-xs rounded {{ 'bg-sf-accent/20 text-sf-accent font-medium' if p == page else 'bg-slate-100 dark:bg-sf-elevated text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200' }} transition-colors">
           {{ p }}
         </button>

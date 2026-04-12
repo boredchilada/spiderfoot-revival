@@ -70,13 +70,18 @@
             </a>
           </div>
         </div>
-        <a href="/newscan?target={{ scan.target | urlencode }}"
-           class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded
-                  text-sf-accent border border-cyan-200 dark:border-cyan-700/50
-                  hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors">
+        <button type="button"
+                hx-post="{{ url_for('api.rerunscan') }}"
+                hx-vals='{"id": "{{ scan.id }}"}'
+                hx-swap="none"
+                hx-on::after-request="if(event.detail.successful) window.location.href = '/'"
+                hx-confirm="Re-scan {{ scan.target }} with the same modules?"
+                class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded
+                       text-sf-accent border border-cyan-200 dark:border-cyan-700/50
+                       hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors cursor-pointer">
           {{ icons.arrow_path(class="w-3.5 h-3.5 mr-1.5") }}
           Re-scan
-        </a>
+        </button>
       </div>
     </div>
   </div>
