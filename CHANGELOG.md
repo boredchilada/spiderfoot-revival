@@ -4,6 +4,60 @@ All notable changes to the SpiderFoot Revival project.
 
 ## [5.0.2] - 2026-04-11
 
+### Security Hardening
+
+#### Authentication & Access Control
+- Added HTTP Basic Auth via `before_request` hook — all endpoints protected by default when passwd file is configured (`~/.spiderfoot/passwd`)
+- Static files and `/api/ping` health check exempt from auth
+- Timing-safe password comparison via `hmac.compare_digest` to prevent enumeration
+- Loud startup warning when binding to non-localhost without authentication
+
+#### CSRF Protection
+- Added HMAC-signed CSRF tokens via Flask sessions, enforced on all POST requests
+- CSRF token auto-injected into all HTMX requests via `htmx:configRequest` listener
+- CSRF token included in scan submission and settings save fetch calls
+- API clients using Basic Auth bypass CSRF (not vulnerable to browser-based attacks)
+- Removed legacy `SF_TOKEN` random integer mechanism
+
+#### Network Attack Surface
+- Removed unrestricted CORS (`flask-cors` dependency deleted) — no cross-origin access needed
+- All state-modifying endpoints now POST-only (scandelete, stopscan, startscan, vacuum, etc.)
+- Hardened `/query` endpoint: read-only SQLite connection, semicolons rejected, error details no longer leaked to client
+- Added scan creation rate limiting (configurable max concurrent scans, default 10)
+- Hardcoded `debug=False` in production — Flask debugger no longer toggleable from config
+- Switched CLI (`sfcli.py`) from HTTP Digest Auth to Basic Auth
+
+#### Input Sanitization & XSS
+- Fixed SQL injection in `scanElementSourcesDirect` and `scanElementChildrenDirect` — parameterized IN clauses replace string interpolation
+- Archived legacy CherryPy UI files (sfwebui.py, .tmpl templates, legacy JS) — eliminates 4 critical stored XSS vectors, 1 infinite loop, and broken template literals
+- URL-encoded `scan.target` in re-scan link href to prevent parameter injection
+- API key values masked with `********` in HTML source; sentinel skipped on save
+- Removed global `ssl._create_default_https_context` override — SSL verification no longer disabled process-wide
+
+### Bug Fixes — Correctness & Data Integrity
+- Fixed `getAddresses()` overwriting IPv4 results with IPv6 (`extend` instead of reassign)
+- Fixed `scanElementChildrenAll` only following last child branch (`nextIds` reset moved outside loop)
+- Fixed `correlationResultCreate` non-atomic insert — correlation result and event hashes now commit in a single transaction
+- Fixed correlation meta cleaning bug — `else` branch incorrectly referenced `rule[k]` instead of `rule['meta'][k]`
+- Fixed `build_correlation_title` crash when `event_extract` fails — uninitialized variable now handled with `continue`
+- Fixed `logBatch` race condition — batch swap now protected by `threading.Lock`
+- Fixed missing path separator in `loadCorrelationRulesRaw` — uses `os.path.join`
+- Fixed unreachable `return False` in `vacuumDB`
+- Fixed stale loop variable in `scanElementSourcesAll` — guarded with `if nextIds`
+- Moved mutable class-level `_listenerModules` and `opts` to `__init__` in plugin base class — prevents cross-instance state leakage
+- Added depth limit (1000) to event chain traversal in `notifyListeners` — prevents infinite loops from circular references
+- Replaced MD5-based correlation IDs with `uuid.uuid4().hex`
+
+### Tech Debt & Cleanup
+- Updated default user-agent from Firefox 62 (2018) to Firefox 128
+- Fixed wrong type hints in threadpool (`str` → `queue.Queue`, `None` → `Generator`)
+- Replaced broad `suppress(Exception)` with specific exceptions in threadpool
+- Cached `countryCodes()` dict as class variable — no longer rebuilt on every call
+- Refactored `extractLinksFromHtml` to parse HTML once instead of 7 times
+- Conditional scan table polling interval (5s when scans running, 30s when idle)
+- Converted `parsedTargets()` to getter in Alpine.js scan form for render-cycle caching
+- Safe `int()` parsing on page parameter with fallback to 1
+
 ### UX Overhaul
 
 #### Dashboard
