@@ -56,15 +56,15 @@
           </button>
           <div x-show="exportOpen" x-transition
                class="absolute right-0 mt-1 w-36 bg-white dark:bg-sf-elevated border border-slate-200 dark:border-sf-border rounded-md shadow-lg z-20 py-1">
-            <a href="/scaneventresultexportmulti?ids={{ scan.id }}"
+            <a href="{{ url_for('api.scaneventresultexportmulti', ids=scan.id) }}"
                class="block px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-sf-surface transition-colors">
               Export CSV
             </a>
-            <a href="/scanexportjsonmulti?ids={{ scan.id }}"
+            <a href="{{ url_for('api.scanexportjsonmulti', ids=scan.id) }}"
                class="block px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-sf-surface transition-colors">
               Export JSON
             </a>
-            <a href="/scanviz?id={{ scan.id }}&gexf=1"
+            <a href="{{ url_for('api.scanviz', id=scan.id, gexf=1) }}"
                class="block px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-sf-surface transition-colors">
               Export GEXF
             </a>

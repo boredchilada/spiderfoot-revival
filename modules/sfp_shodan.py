@@ -84,6 +84,7 @@ class sfp_shodan(SpiderFootPlugin):
         return ["OPERATING_SYSTEM", "DEVICE_TYPE",
                 "TCP_PORT_OPEN", "TCP_PORT_OPEN_BANNER",
                 'RAW_RIR_DATA', 'GEOINFO', 'IP_ADDRESS',
+                'SOFTWARE_USED', 'BGP_AS_MEMBER',
                 'VULNERABILITY_CVE_CRITICAL',
                 'VULNERABILITY_CVE_HIGH', 'VULNERABILITY_CVE_MEDIUM',
                 'VULNERABILITY_CVE_LOW', 'VULNERABILITY_GENERAL']
@@ -256,6 +257,8 @@ class sfp_shodan(SpiderFootPlugin):
             qrylist.append(eventData)
 
         for addr in qrylist:
+            if self.checkForStop() or self.errorState:
+                return
             rec = self.queryHost(addr)
             if rec is None:
                 continue
