@@ -1,0 +1,27 @@
+{
+  "name": "spiderfoot",
+  "version": "1.0.0",
+  "description": "Self-hosted OSINT automation platform. Forked from [SpiderFoot](https://github.com/smicallef/spiderfoot) with a modernized UI, overhauled module ecosystem, and improved developer experience.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boredchilada/spiderfoot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/boredchilada/spiderfoot/issues"
+  },
+  "homepage": "https://github.com/boredchilada/spiderfoot#readme",
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  }
+}

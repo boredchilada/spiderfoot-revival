@@ -1,6 +1,6 @@
 # SpiderFoot Revival
 
-Self-hosted OSINT automation platform forked from [SpiderFoot](https://github.com/smicallef/spiderfoot). Major overhaul — new UI, new modules, modernized stack. Current version: **5.0.1**.
+Self-hosted OSINT automation platform forked from [SpiderFoot](https://github.com/smicallef/spiderfoot). Major overhaul — new UI, new modules, modernized stack. Current version: **5.0.2**.
 
 ## Quick Start
 
@@ -78,3 +78,6 @@ spiderfoot/
 - **No per-module timeout**: Modules can hang indefinitely. Only `_fetchtimeout` (5s per HTTP request) exists. A module-level timeout is a planned improvement.
 - **SpiderFoot events have no inherent severity**: Don't add artificial red/amber/green severity to events. Group by category (Attack Surface, Identities, Infrastructure, Reputation, Vulnerabilities) instead.
 - **Event categories**: Defined in `blueprints/fragments.py` as `EVENT_CATEGORIES` dict — used by both summary tab and filter chips.
+- **Event badge colors**: Defined in `_event_badge_color()` in `blueprints/fragments.py` — computed server-side, NOT in Jinja2 templates (Jinja2 `.startswith()` is unreliable in sandboxed Flask).
+- **Tailwind CDN safelist**: Classes used only in HTMX-swapped content (not in initial HTML) MUST be added to the `safelist` array in `base.html`'s Tailwind config. Firefox caches the JIT stylesheet and won't regenerate for dynamically loaded classes.
+- **Local tool detection**: Modules with `'tool'` in their `flags` metadata or `sfp_tool_*` prefix are shown in the Local Tools section. Set `isLocalTool` in `ui.py:_build_modules_data()`.

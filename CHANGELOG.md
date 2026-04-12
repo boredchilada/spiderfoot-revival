@@ -2,6 +2,57 @@
 
 All notable changes to the SpiderFoot Revival project.
 
+## [5.0.2] - 2026-04-11
+
+### UX Overhaul
+
+#### Dashboard
+- Renamed page title from "Scans" to "Dashboard" to match nav
+- Renamed "Correlations" stat card to "Findings" with "from X scans" subtitle
+- "94 need API keys" is now a clickable link to Settings
+- Improved empty state with guidance text and "Start your first scan" CTA
+
+#### New Scan Page
+- Added **module search bar** — instant filtering across all 241 modules by name, description, category, or key
+- Added **Local Tools section** — dedicated dashed-border accordion grouping 17 tool modules (bbot, nmap, whatweb, etc.) by sub-category with synced toggles
+- Rewrote scan type descriptions for non-security users ("Discover public info about a target" instead of "Map the attack surface")
+- "KEY NEEDED" badges now link to Settings with arrow indicator
+- Added intro text explaining what modules are and how API keys work
+- Module descriptions show full text on hover via title attribute
+
+#### Scan Results
+- Replaced duplicate "Sources" stat card with "Duration" card
+- Added "Soon" badge on Graph tab to set expectations
+- Graph placeholder now explains GEXF export for use in Gephi/yEd
+- Standardized severity labels: HIGH→Critical, MEDIUM→Warning, LOW→Low, INFO→Info (consistent across Summary and Correlations tabs)
+- Improved empty state explanations for findings, events, and correlations
+
+#### Data Tab (Redesigned)
+- Replaced dense table layout with clean flex-based rows
+- Color-coded type badges by event category: cyan (network/DNS), emerald (infrastructure/SSL), violet (identity), red (malicious), orange (vulnerabilities), amber (threat intel), slate (raw data)
+- Badge colors computed server-side for cross-browser reliability
+- Smart data preview: Web Content events show "HTML document · X chars" instead of raw HTML entities
+- Long data truncated at 120 chars in preview, full content in expandable detail panel
+- Detail panel has metadata header (type code, module, timestamp, confidence), Copy button, and scrollable container for large payloads
+- "All" chip added to category filters for easy reset
+- Copy-to-clipboard button for event data
+
+#### Settings
+- **API Keys**: Grouped 94 keys by module category with collapsible headers and configured/total counters; auto-expands groups with configured keys; intro text about free tiers; search bar; service website links on each card
+- **General**: Improved helper text with practical guidance (thread performance trade-offs, DNS server examples, user agent purpose, timeout advice)
+- **Proxy/TOR**: Contextual help text changes based on proxy type; fields visually disabled when "None" selected; improved descriptions
+- **Appearance**: Added "Auto" theme option that follows OS preference via prefers-color-scheme
+
+#### Global
+- Sidebar expand hint chevron (visible when collapsed, hidden when expanded)
+- Standardized save feedback to 4-second auto-hide across all settings sections
+- Replaced browser `alert()` in scan submission with inline toast notifications
+- Added loading spinner on Launch Scan button during submission
+- Added Tailwind CDN safelist for HTMX-swapped classes (Firefox compatibility)
+- Theme system updated to support dark/light/auto with OS preference listener
+
+---
+
 ## [5.0.1] - 2026-04-10
 
 ### Bug Fixes — Critical
