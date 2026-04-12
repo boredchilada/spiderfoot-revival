@@ -101,7 +101,9 @@ cover/
 #################
 docs/_build/
 
-# Tailwind standalone CLI binary
+# Node / Tailwind build artifacts #
+####################################
+node_modules/
 tailwindcss-*
 
 # Superpowers brainstorming files
