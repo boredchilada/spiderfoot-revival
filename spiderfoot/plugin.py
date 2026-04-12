@@ -412,6 +412,17 @@ class SpiderFootPlugin():
                             while 1:
                                 self.incomingEventQueue.get_nowait()
 
+    def _rateLimit(self) -> None:
+        """Sleep for the configured delay between API calls.
+
+        Modules can call this instead of hardcoding time.sleep() values.
+        The delay is read from the module's '_delay' opt (set globally or
+        per-module in config). Default is 0 (no delay).
+        """
+        delay = self.opts.get('_delay', 0)
+        if delay:
+            sleep(delay)
+
     def checkForStop(self) -> bool:
         """For modules to use to check for when they should give back control.
 

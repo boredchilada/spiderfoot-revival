@@ -128,6 +128,15 @@ def create_app(config=None):
     api_compat_bp = api_bp
     app.register_blueprint(api_compat_bp, url_prefix='/', name='api_compat')
 
+    # Tag responses from legacy root-level API routes as deprecated (RFC 8594)
+    @app.after_request
+    def tag_deprecated_routes(response):
+        from flask import request as _req
+        if _req.blueprints and 'api_compat' in _req.blueprints:
+            response.headers['X-Deprecated'] = 'true; use /api/ prefix'
+            response.headers['Sunset'] = '2026-12-31'
+        return response
+
     # --- Authentication via passwd file ---
     passwd_path = app.config.get('SF_PASSWD_FILE')
     if passwd_path is None:

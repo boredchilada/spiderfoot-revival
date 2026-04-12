@@ -1,6 +1,7 @@
 #  -*- coding: utf-8 -*-
 import html
 import json
+import logging
 import os
 import os.path
 import random
@@ -10,6 +11,8 @@ import sys
 import typing
 import urllib.parse
 import uuid
+
+log = logging.getLogger("spiderfoot.helpers")
 from pathlib import Path
 from importlib import resources
 
@@ -159,8 +162,33 @@ class SpiderFootHelpers():
             modName = filename.split('.')[0]
             sfModules[modName] = dict()
             mod = __import__('modules.' + modName, globals(), locals(), [modName])
-            sfModules[modName]['object'] = getattr(mod, modName)()
-            mod_dict = sfModules[modName]['object'].asdict()
+            mod_instance = getattr(mod, modName)()
+
+            # Validate module interface
+            _skip = False
+            for method_name in ('watchedEvents', 'producedEvents', 'handleEvent', 'setup'):
+                if not callable(getattr(mod_instance, method_name, None)):
+                    log.warning(f"Module {modName} missing required method '{method_name}', skipping")
+                    _skip = True
+                    break
+            if _skip:
+                del sfModules[modName]
+                continue
+
+            for attr_name in ('meta', 'opts', 'optdescs'):
+                if not isinstance(getattr(mod_instance, attr_name, None), dict):
+                    log.warning(f"Module {modName} has invalid '{attr_name}' (expected dict), skipping")
+                    _skip = True
+                    break
+            if _skip:
+                del sfModules[modName]
+                continue
+
+            if not mod_instance.producedEvents() and '__stor' not in modName:
+                log.warning(f"Module {modName} declares empty producedEvents()")
+
+            sfModules[modName]['object'] = mod_instance
+            mod_dict = mod_instance.asdict()
             sfModules[modName].update(mod_dict)
 
             if len(sfModules[modName]['cats']) > 1:
