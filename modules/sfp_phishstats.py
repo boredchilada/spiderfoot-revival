@@ -58,11 +58,14 @@ class sfp_phishstats(SpiderFootPlugin):
 
     results = None
     errorState = False
+    _errorCount = 0
+    _maxErrors = 10
 
     def setup(self, sfc, userOpts=dict()):
         self.sf = sfc
         self.results = self.tempStorage()
         self.errorState = False
+        self._errorCount = 0
 
         for opt in list(userOpts.keys()):
             self.opts[opt] = userOpts[opt]
@@ -107,9 +110,19 @@ class sfp_phishstats(SpiderFootPlugin):
             useragent=self.opts['_useragent']
         )
 
+        if res['code'] in ["0", None]:
+            self._errorCount += 1
+            if self._errorCount >= self._maxErrors:
+                self.error(f"PhishStats API unreachable after {self._errorCount} consecutive failures, giving up.")
+                self.errorState = True
+            return None
+
         if res['code'] != "200":
             self.debug(f"No information found from PhishStats for {qry}.")
             return None
+
+        # Reset error counter on success
+        self._errorCount = 0
 
         try:
             return json.loads(res['content'])
