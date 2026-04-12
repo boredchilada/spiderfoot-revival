@@ -94,6 +94,16 @@ class sfp_hunter(SpiderFootPlugin):
 
         res = self.sf.fetchUrl(url, timeout=self.opts['_fetchtimeout'], useragent="SpiderFoot")
 
+        if res['code'] in ["401", "403"]:
+            self.error("Hunter.io API key is invalid or unauthorized.")
+            self.errorState = True
+            return None
+
+        if res['code'] == "429":
+            self.error("Hunter.io rate limit exceeded.")
+            self.errorState = True
+            return None
+
         if res['code'] == "404":
             return None
 

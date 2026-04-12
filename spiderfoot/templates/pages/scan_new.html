@@ -10,7 +10,8 @@
 
 {% block content %}
 
-{# Pass module data via a script tag to avoid HTML attribute escaping issues #}
+{# Pass module data via a script tag to avoid HTML attribute escaping issues.
+   tojson escapes <, >, & via markupsafe — safe against </script> injection. #}
 <script>
   window.__SF_MODULES__ = {{ modules | tojson }};
 </script>
