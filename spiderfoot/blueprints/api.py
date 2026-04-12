@@ -972,7 +972,11 @@ def savesettingsraw():
         useropts = json.loads(allopts)
         cleanopts = dict()
         for opt in list(useropts.keys()):
-            cleanopts[opt] = clean_user_input([useropts[opt]])[0]
+            val = clean_user_input([useropts[opt]])[0]
+            # Skip masked API key placeholders — preserve existing value
+            if val == '********':
+                continue
+            cleanopts[opt] = val
 
         currentopts = deepcopy(config)
         sf = SpiderFoot(config)
@@ -1032,7 +1036,11 @@ def savesettings():
         useropts = json.loads(allopts)
         cleanopts = dict()
         for opt in list(useropts.keys()):
-            cleanopts[opt] = clean_user_input([useropts[opt]])[0]
+            val = clean_user_input([useropts[opt]])[0]
+            # Skip masked API key placeholders — preserve existing value
+            if val == '********':
+                continue
+            cleanopts[opt] = val
 
         currentopts = deepcopy(config)
         sf = SpiderFoot(config)
