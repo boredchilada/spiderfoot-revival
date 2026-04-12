@@ -144,12 +144,18 @@ def _build_scan_list():
 @ui_bp.route('/')
 def dashboard():
     scans, stats = _build_scan_list()
+    has_running = any(
+        (s.get('status') or '').upper() in ('RUNNING', 'STARTED', 'STARTING')
+        for s in scans
+    )
+    poll_interval = '5s' if has_running else '30s'
     return render_template(
         'pages/dashboard.html',
         page_id='DASHBOARD',
         version=__version__,
         scans=scans,
         stats=stats,
+        poll_interval=poll_interval,
     )
 
 

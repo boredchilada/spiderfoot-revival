@@ -395,7 +395,10 @@ def events_fragment():
     sort_by = request.args.get('sort', 'data')
     group_by = request.args.get('group_by', '')
     dedup = request.args.get('dedup', '1')  # Default: deduplicated
-    page = int(request.args.get('page', 1))
+    try:
+        page = int(request.args.get('page', 1))
+    except (ValueError, TypeError):
+        page = 1
     per_page = 50
 
     if not scan_id:

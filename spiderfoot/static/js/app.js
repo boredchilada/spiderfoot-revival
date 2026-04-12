@@ -29,7 +29,7 @@ window.scanForm = (initialModules) => ({
 
       // Watch target for auto-detection + private IP module filtering
       this.$watch('target', () => {
-        const targets = this.parsedTargets();
+        const targets = this.parsedTargets;
         this.targetType = targets.length === 1 ? targets[0].type : '';
 
         // Check if any target is a private IP
@@ -56,7 +56,7 @@ window.scanForm = (initialModules) => ({
      * Parse the target textarea into an array of { value, type } objects.
      * Splits on newlines and commas, trims whitespace, deduplicates.
      */
-    parsedTargets() {
+    get parsedTargets() {
       const raw = (this.target || '').trim();
       if (!raw) return [];
       const items = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
@@ -294,7 +294,7 @@ window.scanForm = (initialModules) => ({
 
     // ------------------------------------------------------------ submission
     async submitScan() {
-      const targets = this.parsedTargets();
+      const targets = this.parsedTargets;
 
       if (targets.length === 0) {
         this.showToast('Please enter a scan target.', 'error');
