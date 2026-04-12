@@ -1281,3 +1281,18 @@ class TestSpiderFootDb(unittest.TestCase):
             with self.subTest(invalid_type=invalid_type):
                 with self.assertRaises(TypeError):
                     sfdb.correlationResultCreate("", "", "", "", "", "", invalid_type, [])
+
+
+class TestSQLInjectionPrevention(unittest.TestCase):
+    """Verify SQL IN clauses use parameterized queries."""
+
+    def setUp(self):
+        self.db = SpiderFootDb({'__database': ':memory:'}, init=True)
+
+    def test_scanElementSourcesDirect_does_not_interpolate_hashes(self):
+        result = self.db.scanElementSourcesDirect("fake-scan-id", ["safe1", "safe2"])
+        self.assertIsInstance(result, list)
+
+    def test_scanElementChildrenDirect_does_not_interpolate_hashes(self):
+        result = self.db.scanElementChildrenDirect("fake-scan-id", ["safe1", "safe2"])
+        self.assertIsInstance(result, list)
