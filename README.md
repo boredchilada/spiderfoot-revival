@@ -4,7 +4,7 @@ Self-hosted OSINT automation platform. Forked from [SpiderFoot](https://github.c
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.9+-green)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-5.0.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.0.2-blue.svg)](CHANGELOG.md)
 
 ## What Changed from Upstream
 

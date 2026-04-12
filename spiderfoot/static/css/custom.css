@@ -2,9 +2,22 @@
  * Styles that go beyond Tailwind utilities.
  */
 
-/* ---- Font imports (must be first) ---- */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+/* Fonts loaded via <link> in base.html for cross-browser reliability */
+
+/* ---- Normalize cross-browser sizing ---- */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
 
 /* Alpine.js cloak — hide elements until Alpine initializes */
 [x-cloak] { display: none !important; }
