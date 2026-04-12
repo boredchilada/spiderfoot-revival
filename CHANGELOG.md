@@ -2,6 +2,48 @@
 
 All notable changes to the SpiderFoot Revival project.
 
+## [5.0.3] - 2026-04-12
+
+### Code Review — Critical & High Fixes
+
+#### Event Pipeline
+- Fixed `storeOnly` deduplication completely bypassed in threaded mode — events now carry the flag through the queue, and `waitForThreads()` enforces it by only dispatching store-only events to `__stor` modules
+- Added `try/except` around `deepcopy()` in event dispatch — a single non-serializable event no longer crashes the entire scan
+- Changed threadpool worker `break` to `continue` on exception — failed tasks no longer cause the worker to skip remaining module queues
+- Changed `maxstorage` default from 1024 to 0 (unlimited) — stops silent truncation of SSL certificates, DNS records, and HTTP headers
+- Set `storeOnly = True` when event chain depth limit (1000) is reached in `notifyListeners()` — suppresses events when dedup chain cannot be fully verified
+
+#### Security
+- Sanitized scan names in all `Content-Disposition` headers via `_safe_filename()` — prevents header injection from user-controlled scan names
+- Filtered API keys, passwords, tokens, and secrets from `/api/optsexport` config download
+- Blocked `tbl_config`, `ATTACH`, `PRAGMA`, and `load_extension` in `/api/query` endpoint — prevents credential extraction and SQLite abuse
+- Fixed `re.sub()` in `removeUrlCreds()` where `re.IGNORECASE` was passed as positional `count` arg (value 2) instead of `flags=` keyword — case-insensitive matching and full replacement now work correctly
+- Added `token=`, `secret=`, `apikey=`, `api_key=`, `access_token=` patterns to URL credential redaction
+- Added `SESSION_COOKIE_HTTPONLY` and `SESSION_COOKIE_SAMESITE = 'Lax'` flags
+- Added CSV formula injection protection (`_csv_safe()`) to all CSV export endpoints — prefixes `=`, `+`, `-`, `@` with single quote
+- Removed `html.escape()` unescape in `clean_user_input()` that was re-introducing raw `"` and `&` after escaping
+- Added redirect depth limit (10) to `fetchUrl()` refresh header handler — prevents stack overflow from malicious infinite-redirect servers
+- Fixed certificate CN substring matching in `parseCert()` — `evil.example.com` no longer falsely matches a check for `example.com`
+
+#### Authentication
+- Persisted `SECRET_KEY` across server restarts via config dict — sessions and CSRF tokens no longer invalidated on every restart
+
+#### Correlation Engine
+- Added cycle detection (visited set) and depth limit (50) to `enrich_event_entities()` — prevents infinite loop on circular event graphs
+- Added `None` guard in `collect_events()` — `collect_from_db()` returning `None` now returns empty list instead of crashing the correlator
+- Added minimum sample size (5 buckets) to `analysis_outlier()` — prevents false-positive correlations on tiny datasets
+- Fixed `field.split(".")` to `split(".", 1)` in `event_extract()`, `event_keep()`, and `event_strip()` — prevents crash on 3-level field paths in correlation headlines
+
+#### Data Integrity
+- Increased event ID entropy from `randint(0, 99999999)` (~26.5 bits) to `getrandbits(64)` — eliminates birthday collision risk that could kill the storage module
+
+#### Code Quality
+- Added `DEVICE_TYPE`, `RAW_RIR_DATA`, `TCP_PORT_OPEN_BANNER`, `CO_HOSTED_SITE_DOMAIN`, `AFFILIATE_INTERNET_NAME`, `AFFILIATE_DOMAIN_NAME` to `EVENT_CATEGORIES` — these no longer fall into "Other" bucket in UI summary
+- Moved `import time` to module level in `fragments.py` — was being re-imported inside loops on every HTTP request
+- Standardized log timestamp handling — always divide by 1000 (removed conditional check)
+
+---
+
 ## [5.0.2] - 2026-04-11
 
 ### Security Hardening
