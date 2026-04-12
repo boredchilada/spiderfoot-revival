@@ -20,6 +20,7 @@
             hx-get="/frag/settings-section?section=apikeys&view={{ view_id }}"
             hx-target="#settings-content"
             hx-swap="innerHTML"
+            hx-on::after-request="localStorage.setItem('sf_apikeys_view', '{{ view_id }}')"
             class="px-3 py-1 text-xs font-medium rounded-full border transition-colors duration-150
                    {% if current_view == view_id %}
                      bg-sf-accent/15 text-sf-accent border-cyan-500/30

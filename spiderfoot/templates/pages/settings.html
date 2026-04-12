@@ -27,7 +27,11 @@
 
       {% for key, label in nav_items %}
       <button
-        @click="section = '{{ key }}'"
+        @click="section = '{{ key }}';
+        {% if key == 'apikeys' %}
+          var v = localStorage.getItem('sf_apikeys_view');
+          if (v) { $el.setAttribute('hx-get', '/frag/settings-section?section=apikeys&view=' + v); htmx.process($el); }
+        {% endif %}"
         hx-get="/frag/settings-section?section={{ key }}"
         hx-target="#settings-content"
         hx-swap="innerHTML"
