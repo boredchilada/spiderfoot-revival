@@ -53,6 +53,7 @@ def main() -> None:
         '_useragent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0',  # User-Agent to use for HTTP requests
         '_dnsserver': '',  # Override the default resolver
         '_fetchtimeout': 5,  # number of seconds before giving up on a fetch
+        '_moduleactivitytimeout': 1800,  # seconds before killing an unresponsive module (0 = disabled)
         '_internettlds': 'https://publicsuffix.org/list/effective_tld_names.dat',
         '_internettlds_cache': 72,
         '_genericusers': ",".join(SpiderFootHelpers.usernamesFromWordlists(['generic-usernames'])),

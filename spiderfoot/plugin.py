@@ -5,6 +5,7 @@ import os
 import queue
 import sys
 import threading
+import time
 from time import sleep
 import traceback
 
@@ -141,6 +142,8 @@ class SpiderFootPlugin():
         self._log = None
         # Shared thread pool for all modules
         self.sharedThreadPool = None
+        # Last activity timestamp for watchdog
+        self._lastActivity = time.time()
 
     @property
     def log(self):
@@ -372,6 +375,7 @@ class SpiderFootPlugin():
 
         # output to queue if applicable
         if self.outgoingEventQueue is not None:
+            self._lastActivity = time.time()
             self.outgoingEventQueue.put(sfEvent)
         # otherwise, call other modules directly
         else:
@@ -519,6 +523,7 @@ class SpiderFootPlugin():
                 except queue.Empty:
                     sleep(.3)
                     continue
+                self._lastActivity = time.time()
                 if sfEvent == 'FINISHED':
                     self.sf.debug(f"{self.__name__}.threadWorker() got \"FINISHED\" from incomingEventQueue.")
                     self.poolExecute(self.finish)

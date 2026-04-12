@@ -465,6 +465,24 @@ class SpiderFootScanner():
                     if scanstatus and scanstatus[5] == "ABORT-REQUESTED":
                         raise AssertionError("ABORT-REQUESTED")
 
+                    # Module activity watchdog — kill modules stuck for too long
+                    activity_timeout = self.__config.get('_moduleactivitytimeout', 1800)
+                    if activity_timeout > 0:
+                        now = time.time()
+                        for mod in self.__moduleInstances.values():
+                            if mod.errorState:
+                                continue
+                            if not mod.running:
+                                mod._lastActivity = now
+                                continue
+                            idle_time = now - mod._lastActivity
+                            if idle_time > activity_timeout:
+                                self.__sf.error(
+                                    f"Module {mod.__name__} unresponsive for "
+                                    f"{idle_time / 60:.0f} min — killing module."
+                                )
+                                mod.errorState = True
+
                 try:
                     sfEvent = self.eventQueue.get_nowait()
                     self.__sf.debug(f"waitForThreads() got event, {sfEvent.eventType}, from eventQueue.")
