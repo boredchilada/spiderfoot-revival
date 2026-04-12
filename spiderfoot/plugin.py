@@ -97,7 +97,7 @@ class SpiderFootPlugin():
     # Will be set to True by the controller if the user aborts scanning
     _stopScanning = False
     # Modules that will be notified when this module produces events
-    _listenerModules = list()
+    # (initialized per-instance in __init__)
     # Current event being processed
     _currentEvent = None
     # Target currently being acted against
@@ -128,11 +128,13 @@ class SpiderFootPlugin():
     # SpiderFoot object, set in each module's setup() function
     sf = None
     # Configuration, set in each module's setup() function
-    opts = dict()
+    # (initialized per-instance in __init__)
     # Maximum threads
     maxThreads = 1
 
     def __init__(self) -> None:
+        self._listenerModules = []
+        self.opts = {}
         # Holds the thread object when module threading is enabled
         self.thread = None
         # logging overrides
@@ -356,12 +358,17 @@ class SpiderFootPlugin():
         # from dest, as we are already operating on dest's original
         # notification from one of the upstream events.
 
+        max_depth = 1000
+        depth = 0
         prevEvent = sfEvent.sourceEvent
-        while prevEvent is not None:
+        while prevEvent is not None and depth < max_depth:
             if prevEvent.sourceEvent is not None and prevEvent.sourceEvent.eventType == sfEvent.eventType and prevEvent.sourceEvent.data.lower() == eventData.lower():
                 storeOnly = True
                 break
+            depth += 1
             prevEvent = prevEvent.sourceEvent
+        if depth >= max_depth:
+            self._log.warning(f"Event chain depth limit ({max_depth}) reached for {eventName}")
 
         # output to queue if applicable
         if self.outgoingEventQueue is not None:
