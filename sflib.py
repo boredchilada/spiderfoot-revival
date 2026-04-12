@@ -70,10 +70,6 @@ class SpiderFoot:
         self.opts = deepcopy(options)
         self.log = logging.getLogger(f"spiderfoot.{__name__}")
 
-        # This is ugly but we don't want any fetches to fail - we expect
-        # to encounter unverified SSL certs!
-        ssl._create_default_https_context = ssl._create_unverified_context  # noqa: DUO122
-
         if self.opts.get('_dnsserver', "") != "":
             res = dns.resolver.Resolver()
             res.nameservers = [self.opts['_dnsserver']]
