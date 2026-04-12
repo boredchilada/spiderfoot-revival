@@ -998,14 +998,19 @@ def savesettings():
 
     allopts = request.values.get('allopts', '')
     config_file = request.files.get('configFile', None)
+    # The frontend import sends file contents as a form field, not a file upload
+    config_text = request.values.get('configFile', '')
 
     config = get_config()
 
-    if config_file:
+    if config_file or config_text:
         try:
-            contents = config_file.read()
-            if isinstance(contents, bytes):
-                contents = contents.decode('utf-8')
+            if config_file:
+                contents = config_file.read()
+                if isinstance(contents, bytes):
+                    contents = contents.decode('utf-8')
+            else:
+                contents = config_text
 
             tmp = dict()
             for line in contents.split("\n"):
