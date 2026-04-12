@@ -199,8 +199,7 @@ class sfp_template(SpiderFootPlugin):
         # utilised in SpiderFoot HX and not the open source version.
         self.__dataSource__ = "Some Data Source"
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     # What events is this module interested in for input
     # For a list of all events, check spiderfoot/db.py.

@@ -76,8 +76,7 @@ class sfp_phishstats(SpiderFootPlugin):
         self._errorCount = 0
         self._lastRequestTime = 0
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return [

@@ -59,8 +59,7 @@ class sfp_crt(SpiderFootPlugin):
         self.results = self.tempStorage()
         self.cert_ids = self.tempStorage()
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return ['DOMAIN_NAME', 'INTERNET_NAME']

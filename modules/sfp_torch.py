@@ -55,8 +55,7 @@ class sfp_torch(SpiderFootPlugin):
         self.sf = sfc
         self.results = self.tempStorage()
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return [

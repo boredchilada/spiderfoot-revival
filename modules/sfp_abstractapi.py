@@ -64,8 +64,7 @@ class sfp_abstractapi(SpiderFootPlugin):
         self.errorState = False
         self.results = self.tempStorage()
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return ["DOMAIN_NAME", "PHONE_NUMBER", "IP_ADDRESS", "IPV6_ADDRESS"]

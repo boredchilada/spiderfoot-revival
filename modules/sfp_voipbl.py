@@ -60,8 +60,7 @@ class sfp_voipbl(SpiderFootPlugin):
         self.results = self.tempStorage()
         self.errorState = False
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return [

@@ -74,8 +74,7 @@ class sfp_citadel(SpiderFootPlugin):
         self.errorState = False
         self.__dataSource__ = "Leak-Lookup.com"
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     # What events is this module interested in for input
     def watchedEvents(self):

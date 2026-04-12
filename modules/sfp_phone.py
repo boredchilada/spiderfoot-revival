@@ -38,8 +38,7 @@ class sfp_phone(SpiderFootPlugin):
         self.sf = sfc
         self.results = self.tempStorage()
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return ['TARGET_WEB_CONTENT', 'DOMAIN_WHOIS', 'NETBLOCK_WHOIS', 'PHONE_NUMBER']

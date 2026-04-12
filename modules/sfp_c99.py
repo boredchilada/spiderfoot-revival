@@ -65,8 +65,7 @@ class sfp_c99(SpiderFootPlugin):
         self.results = self.tempStorage()
         self.cohostcount = 0
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return [

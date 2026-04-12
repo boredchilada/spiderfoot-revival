@@ -172,6 +172,35 @@ class SpiderFootPlugin():
         self._listenerModules = list()
         self._stopScanning = False
 
+    def _mergeOpts(self, userOpts: dict) -> None:
+        """Merge user-supplied options into self.opts with type coercion.
+
+        Values from the database/UI arrive as strings. This method casts
+        each incoming value to match the type of the existing default in
+        self.opts, preventing TypeErrors in module code that does arithmetic
+        or comparisons on option values.
+        """
+        for opt in userOpts:
+            if opt in self.opts and userOpts[opt] is not None:
+                default = self.opts[opt]
+                val = userOpts[opt]
+                try:
+                    if isinstance(default, bool):
+                        self.opts[opt] = val if isinstance(val, bool) else str(val) == "1"
+                    elif isinstance(default, int):
+                        self.opts[opt] = int(val)
+                    elif isinstance(default, float):
+                        self.opts[opt] = float(val)
+                    elif isinstance(default, list):
+                        self.opts[opt] = val if isinstance(val, list) else [val]
+                    else:
+                        self.opts[opt] = val
+                except (ValueError, TypeError):
+                    # Keep the default if conversion fails
+                    pass
+            else:
+                self.opts[opt] = userOpts[opt]
+
     def setup(self, sf, userOpts: dict = {}) -> None:
         """Will always be overriden by the implementer.
 

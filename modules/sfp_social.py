@@ -55,8 +55,7 @@ class sfp_social(SpiderFootPlugin):
         self.results = self.tempStorage()
         self.__dataSource__ = "Target Website"
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return ["LINKED_URL_EXTERNAL"]

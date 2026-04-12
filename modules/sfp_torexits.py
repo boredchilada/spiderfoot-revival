@@ -59,8 +59,7 @@ class sfp_torexits(SpiderFootPlugin):
         self.errorState = False
         self.__dataSource__ = "torproject.org"
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return [

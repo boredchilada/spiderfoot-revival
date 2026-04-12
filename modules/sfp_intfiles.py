@@ -40,8 +40,7 @@ class sfp_intfiles(SpiderFootPlugin):
         self.results = self.tempStorage()
         self.__dataSource__ = "Target Website"
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     # What events is this module interested in for input
     def watchedEvents(self):
