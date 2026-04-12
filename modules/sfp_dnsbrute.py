@@ -62,8 +62,7 @@ class sfp_dnsbrute(SpiderFootPlugin):
         self.__dataSource__ = "DNS"
         self.lock = threading.Lock()
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
         if self.opts['commons']:
             with importlib.resources.open_text('spiderfoot.dicts', 'subdomains.txt') as f:

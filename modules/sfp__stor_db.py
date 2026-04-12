@@ -37,8 +37,7 @@ class sfp__stor_db(SpiderFootPlugin):
     def setup(self, sfc, userOpts=dict()):
         self.sf = sfc
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     # What events is this module interested in for input
     # Because this is a storage plugin, we are interested in everything so we

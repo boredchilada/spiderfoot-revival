@@ -43,8 +43,7 @@ class sfp_dnszonexfer(SpiderFootPlugin):
         self.events = self.tempStorage()
         self.__dataSource__ = "DNS"
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return ['PROVIDER_DNS']

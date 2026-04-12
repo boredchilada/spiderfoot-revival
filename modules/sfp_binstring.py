@@ -59,8 +59,7 @@ class sfp_binstring(SpiderFootPlugin):
 
         self.d = SpiderFootHelpers.dictionaryWordsFromWordlists()
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def getStrings(self, content):
         words = list()

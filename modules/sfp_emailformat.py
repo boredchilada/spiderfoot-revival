@@ -52,8 +52,7 @@ class sfp_emailformat(SpiderFootPlugin):
         self.sf = sfc
         self.results = self.tempStorage()
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return ['INTERNET_NAME', "DOMAIN_NAME"]

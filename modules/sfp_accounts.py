@@ -70,8 +70,7 @@ class sfp_accounts(SpiderFootPlugin):
         self.__dataSource__ = "Social Media"
         self.lock = threading.Lock()
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
         self.commonNames = SpiderFootHelpers.humanNamesFromWordlists()
         self.words = SpiderFootHelpers.dictionaryWordsFromWordlists()

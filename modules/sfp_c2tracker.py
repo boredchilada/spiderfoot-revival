@@ -71,8 +71,7 @@ class sfp_c2tracker(SpiderFootPlugin):
         self.c2_ips = None
         self.c2_last_fetched = 0
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return ["IP_ADDRESS", "AFFILIATE_IPADDR", "NETBLOCK_MEMBER", "NETBLOCK_OWNER"]

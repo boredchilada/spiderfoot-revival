@@ -70,8 +70,7 @@ class sfp_viewdns(SpiderFootPlugin):
         self.accum = list()
         self.cohostcount = 0
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     def watchedEvents(self):
         return [

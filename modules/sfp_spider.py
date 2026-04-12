@@ -80,8 +80,7 @@ class sfp_spider(SpiderFootPlugin):
         self.siteCookies = self.tempStorage()
         self.__dataSource__ = "Target Website"
 
-        for opt in list(userOpts.keys()):
-            self.opts[opt] = userOpts[opt]
+        self._mergeOpts(userOpts)
 
     # Search engines and DNS lookups provide INTERNET_NAME.
     def watchedEvents(self):
