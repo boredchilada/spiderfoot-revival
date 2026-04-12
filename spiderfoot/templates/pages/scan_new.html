@@ -234,13 +234,12 @@
       <template x-if="filteredModules().length > 0">
         <div class="border border-slate-200 dark:border-sf-border rounded-lg overflow-hidden divide-y divide-slate-100 dark:divide-sf-border/60">
           <template x-for="[key, mod] in filteredModules()" :key="key">
-            <label class="flex items-start gap-3 px-4 py-2.5 transition-colors duration-100"
-                   :class="mod.blockedPrivateIp ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-sf-elevated/60'">
-              <div class="relative mt-0.5 shrink-0">
+            <div class="flex items-start gap-3 px-4 py-2.5 transition-colors duration-100"
+                 @click="if (!mod.blockedPrivateIp) modules[key].enabled = !modules[key].enabled"
+                 :class="mod.blockedPrivateIp ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-sf-elevated/60'">
+              <div class="relative mt-0.5 shrink-0 pointer-events-none">
                 <input type="checkbox"
-                       :checked="mod.enabled"
-                       :disabled="mod.blockedPrivateIp"
-                       @change="modules[key].enabled = $event.target.checked"
+                       :checked="modules[key].enabled"
                        class="sr-only peer">
                 <div class="w-9 h-5 rounded-full border-2 transition-colors duration-200
                             border-slate-300 dark:border-slate-600
@@ -270,7 +269,7 @@
                 <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5 leading-snug"
                    x-text="mod.summary" :title="mod.summary"></p>
               </div>
-            </label>
+            </div>
           </template>
         </div>
       </template>
