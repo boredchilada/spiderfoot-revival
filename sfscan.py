@@ -524,7 +524,14 @@ class SpiderFootScanner():
                     if not mod.errorState and mod.incomingEventQueue is not None:
                         watchedEvents = mod.watchedEvents()
                         if sfEvent.eventType in watchedEvents or "*" in watchedEvents:
-                            mod.incomingEventQueue.put(deepcopy(sfEvent))
+                            if getattr(sfEvent, 'storeOnly', False) and "__stor" not in mod.__module__:
+                                continue
+                            try:
+                                mod.incomingEventQueue.put(deepcopy(sfEvent))
+                            except Exception as e:
+                                self.__sf.error(
+                                    f"Failed to dispatch {sfEvent.eventType} to {mod.__name__}: {e}"
+                                )
 
         finally:
             # tell the modules to stop

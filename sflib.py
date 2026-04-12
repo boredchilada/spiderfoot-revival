@@ -1105,12 +1105,17 @@ class SpiderFoot:
             r'key=\S+': "key=XXX",
             r'pass=\S+': "pass=XXX",
             r'user=\S+': "user=XXX",
-            r'password=\S+': "password=XXX"
+            r'password=\S+': "password=XXX",
+            r'token=\S+': "token=XXX",
+            r'secret=\S+': "secret=XXX",
+            r'apikey=\S+': "apikey=XXX",
+            r'api_key=\S+': "api_key=XXX",
+            r'access_token=\S+': "access_token=XXX",
         }
 
         ret = url
         for pat in pats:
-            ret = re.sub(pat, pats[pat], ret, re.IGNORECASE)
+            ret = re.sub(pat, pats[pat], ret, flags=re.IGNORECASE)
 
         return ret
 

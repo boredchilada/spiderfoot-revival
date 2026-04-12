@@ -11,6 +11,7 @@ import html
 import json
 import logging
 import multiprocessing as mp
+import re
 import string
 import time
 from copy import deepcopy
@@ -70,6 +71,16 @@ def clean_user_input(input_list):
         c = c.replace("&amp;", "&").replace("&quot;", "\"")
         ret.append(c)
     return ret
+
+
+def _safe_filename(name: str) -> str:
+    """Sanitize a string for use in Content-Disposition filename."""
+    if not name:
+        return "SpiderFoot"
+    return re.sub(r'[^\w\-.]', '_', name)[:100]
+
+
+_SENSITIVE_OPT_PATTERNS = ('api_key', 'apikey', 'password', 'secret', 'token', 'passphrase')
 
 
 def search_base(id=None, eventType=None, value=None):
@@ -183,6 +194,14 @@ def query():
 
     if ';' in q:
         return jsonify_error('400', "Semicolons are not allowed in queries.")
+
+    q_lower = q.lower()
+    for keyword in ('attach', 'pragma', 'load_extension'):
+        if re.search(r'\b' + keyword + r'\b', q_lower):
+            return jsonify_error('400', f"'{keyword}' is not permitted.")
+    for table in ('tbl_config',):
+        if table in q_lower:
+            return jsonify_error('400', f"Access to {table} is not permitted via this endpoint.")
 
     # Use the same database path as the main connection
     db_path = current_app.config.get('SF_CONFIG', {}).get('__database', '')
@@ -931,6 +950,10 @@ def optsexport():
     for opt in sorted(conf):
         if ":_" in opt or opt.startswith("_"):
             continue
+        # Skip sensitive options (API keys, passwords, etc.)
+        opt_lower = opt.lower()
+        if any(p in opt_lower for p in _SENSITIVE_OPT_PATTERNS):
+            continue
         if pattern:
             if pattern in opt:
                 content += f"{opt}={conf[opt]}\n"
@@ -1148,7 +1171,7 @@ def scanexportlogs():
         fileobj.getvalue().encode('utf-8'),
         mimetype='application/csv',
         headers={
-            'Content-Disposition': f"attachment; filename=SpiderFoot-{id}.log.csv",
+            'Content-Disposition': f'attachment; filename="SpiderFoot-{_safe_filename(str(id))}.log.csv"',
             'Pragma': 'no-cache'
         }
     )
@@ -1187,13 +1210,13 @@ def scancorrelationsexport():
             rule_description = row[5]
             rows.append([rule_name, correlation, rule_risk, rule_description])
 
-        fname = f"{scan_name}-SpiderFoot-correlations.xlsx" if scan_name else "SpiderFoot-correlations.xlsx"
+        fname = f"{_safe_filename(scan_name)}-SpiderFoot-correlations.xlsx"
 
         return Response(
             build_excel(rows, headings, sheet_name_index=0),
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             headers={
-                'Content-Disposition': f"attachment; filename={fname}",
+                'Content-Disposition': f'attachment; filename="{fname}"',
                 'Pragma': 'no-cache'
             }
         )
@@ -1210,13 +1233,13 @@ def scancorrelationsexport():
             rule_description = row[5]
             parser.writerow([rule_name, correlation, rule_risk, rule_description])
 
-        fname = f"{scan_name}-SpiderFoot-correlations.csv" if scan_name else "SpiderFoot-correlations.csv"
+        fname = f"{_safe_filename(scan_name)}-SpiderFoot-correlations.csv"
 
         return Response(
             fileobj.getvalue().encode('utf-8'),
             mimetype='application/csv',
             headers={
-                'Content-Disposition': f"attachment; filename={fname}",
+                'Content-Disposition': f'attachment; filename="{fname}"',
                 'Pragma': 'no-cache'
             }
         )
@@ -1315,13 +1338,13 @@ def scaneventresultexportmulti():
         if len(ids.split(',')) > 1 or scan_name == "":
             fname = "SpiderFoot.xlsx"
         else:
-            fname = scan_name + "-SpiderFoot.xlsx"
+            fname = _safe_filename(scan_name) + "-SpiderFoot.xlsx"
 
         return Response(
             build_excel(rows, ["Scan Name", "Updated", "Type", "Module", "Source", "F/P", "Data"], sheet_name_index=2),
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             headers={
-                'Content-Disposition': f"attachment; filename={fname}",
+                'Content-Disposition': f'attachment; filename="{fname}"',
                 'Pragma': 'no-cache'
             }
         )
@@ -1341,13 +1364,13 @@ def scaneventresultexportmulti():
         if len(ids.split(',')) > 1 or scan_name == "":
             fname = "SpiderFoot.csv"
         else:
-            fname = scan_name + "-SpiderFoot.csv"
+            fname = _safe_filename(scan_name) + "-SpiderFoot.csv"
 
         return Response(
             fileobj.getvalue().encode('utf-8'),
             mimetype='application/csv',
             headers={
-                'Content-Disposition': f"attachment; filename={fname}",
+                'Content-Disposition': f'attachment; filename="{fname}"',
                 'Pragma': 'no-cache'
             }
         )
@@ -1453,13 +1476,13 @@ def scanexportjsonmulti():
     if len(ids.split(',')) > 1 or scan_name == "":
         fname = "SpiderFoot.json"
     else:
-        fname = scan_name + "-SpiderFoot.json"
+        fname = _safe_filename(scan_name) + "-SpiderFoot.json"
 
     return Response(
         json.dumps(scaninfo).encode('utf-8'),
         mimetype='application/json; charset=utf-8',
         headers={
-            'Content-Disposition': f"attachment; filename={fname}",
+            'Content-Disposition': f'attachment; filename="{fname}"',
             'Pragma': 'no-cache'
         }
     )
@@ -1489,13 +1512,13 @@ def scanviz():
     if gexf == "0":
         return jsonify(SpiderFootHelpers.buildGraphJson([root], data))
 
-    fname = (scan_name + "SpiderFoot.gexf") if scan_name else "SpiderFoot.gexf"
+    fname = _safe_filename(scan_name) + "-SpiderFoot.gexf"
 
     return Response(
         SpiderFootHelpers.buildGraphGexf([root], "SpiderFoot Export", data),
         mimetype='application/gexf',
         headers={
-            'Content-Disposition': f"attachment; filename={fname}",
+            'Content-Disposition': f'attachment; filename="{fname}"',
             'Pragma': 'no-cache'
         }
     )
@@ -1535,13 +1558,13 @@ def scanvizmulti():
     if len(ids.split(',')) > 1 or scan_name == "":
         fname = "SpiderFoot.gexf"
     else:
-        fname = scan_name + "-SpiderFoot.gexf"
+        fname = _safe_filename(scan_name) + "-SpiderFoot.gexf"
 
     return Response(
         SpiderFootHelpers.buildGraphGexf(roots, "SpiderFoot Export", data),
         mimetype='application/gexf',
         headers={
-            'Content-Disposition': f"attachment; filename={fname}",
+            'Content-Disposition': f'attachment; filename="{fname}"',
             'Pragma': 'no-cache'
         }
     )
