@@ -54,7 +54,7 @@ All API endpoints are dual-registered at `/api/*` and `/*` for backwards compati
 - Pagination: `hx-get="/frag/events?id=X&page=N"` → `hx-target="#event-rows"`
 
 ### Event Categories (for UI grouping)
-Defined in `blueprints/fragments.py` as `EVENT_CATEGORIES`:
+Defined in `services/event_service.py` as `EVENT_CATEGORIES`:
 - **Attack Surface**: INTERNET_NAME, IP_ADDRESS, TCP_PORT_OPEN, DOMAIN_NAME
 - **Identities & Exposure**: EMAILADDR, USERNAME, SOCIAL_MEDIA, LEAKSITE_CONTENT
 - **Infrastructure**: WEBSERVER_TECHNOLOGY, SSL_CERTIFICATE, BGP_AS_MEMBER, GEOINFO
@@ -138,7 +138,7 @@ class sfp_example(SpiderFootPlugin):
 | POST | `/api/savesettings` | Import config (JSON or CFG file) |
 | GET | `/api/modules` | List all available modules |
 
-## Current Module Count: 244 (v5.0.1)
+## Current Module Count: 244
 
 ### By API Model
 - FREE_NOAUTH_UNLIMITED: ~35 modules
