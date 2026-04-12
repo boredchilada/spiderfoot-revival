@@ -17,6 +17,7 @@ import re
 import sqlite3
 import threading
 import time
+import uuid
 
 
 class SpiderFootDb:
@@ -443,7 +444,6 @@ class SpiderFootDb:
                 return True
             except sqlite3.Error as e:
                 raise IOError("SQL error encountered when vacuuming the database") from e
-        return False
 
     def search(self, criteria: dict, filterFp: bool = False) -> list:
         """Search database.
@@ -1671,7 +1671,8 @@ class SpiderFootDb:
                 if parentId != "ROOT":
                     keepGoing = True
 
-        datamap[parentId] = row
+        if nextIds:
+            datamap[parentId] = row
         return [datamap, pc]
 
     def scanElementChildrenAll(self, instanceId: str, parentIds: list) -> list:
@@ -1715,9 +1716,9 @@ class SpiderFootDb:
                 keepGoing = False
                 break
 
+            nextIds = list()
             for row in nextSet:
                 datamap.append(row[8])
-                nextIds = list()
                 nextIds.append(row[8])
 
         return datamap
@@ -1777,7 +1778,7 @@ class SpiderFootDb:
         if not isinstance(eventHashes, list):
             raise TypeError(f"eventHashes is {type(eventHashes)}; expected list()")
 
-        uniqueId = str(hashlib.md5(str(time.time() + random.SystemRandom().randint(0, 99999999)).encode('utf-8')).hexdigest())  # noqa: DUO130
+        uniqueId = uuid.uuid4().hex
 
         qry = "INSERT INTO tbl_scan_correlation_results \
             (id, scan_instance_id, title, rule_name, rule_descr, rule_risk, rule_id, rule_logic) \
@@ -1788,23 +1789,17 @@ class SpiderFootDb:
                 self.dbh.execute(qry, (
                     uniqueId, instanceId, correlationTitle, ruleName, ruleDescr, ruleRisk, ruleId, ruleYaml
                 ))
+
+                # Map events to the correlation result in the same transaction
+                event_qry = "INSERT INTO tbl_scan_correlation_results_events \
+                    (correlation_id, event_hash) \
+                    VALUES (?, ?)"
+                self.dbh.executemany(event_qry, [
+                    (uniqueId, eventHash) for eventHash in eventHashes
+                ])
+
                 self.conn.commit()
             except sqlite3.Error as e:
                 raise IOError("Unable to create correlation result in database") from e
-
-        # Map events to the correlation result
-        qry = "INSERT INTO tbl_scan_correlation_results_events \
-            (correlation_id, event_hash) \
-            VALUES (?, ?)"
-
-        with self.dbhLock:
-            for eventHash in eventHashes:
-                try:
-                    self.dbh.execute(qry, (
-                        uniqueId, eventHash
-                    ))
-                    self.conn.commit()
-                except sqlite3.Error as e:
-                    raise IOError("Unable to create correlation result in database") from e
 
         return uniqueId
