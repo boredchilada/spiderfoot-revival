@@ -2,6 +2,7 @@ import html
 import logging
 import os
 import re
+import time
 from collections import OrderedDict
 
 from flask import Blueprint, current_app, render_template, request
@@ -22,6 +23,7 @@ EVENT_CATEGORIES = {
             'INTERNET_NAME_UNRESOLVED': 'unresolved hosts',
             'IP_ADDRESS': 'IPs',
             'TCP_PORT_OPEN': 'open ports',
+            'TCP_PORT_OPEN_BANNER': 'port banners',
             'UDP_PORT_OPEN': 'UDP ports',
             'DOMAIN_NAME': 'domains',
         },
@@ -49,7 +51,9 @@ EVENT_CATEGORIES = {
             'WEBSERVER_BANNER': 'banners',
             'WEBSERVER_HTTPHEADERS': 'HTTP headers',
             'OPERATING_SYSTEM': 'OS detections',
+            'DEVICE_TYPE': 'device types',
             'SOFTWARE_USED': 'software',
+            'RAW_RIR_DATA': 'RIR records',
             'SSL_CERTIFICATE_ISSUED': 'SSL certs',
             'SSL_CERTIFICATE_ISSUER': 'cert issuers',
             'BGP_AS_MEMBER': 'ASNs',
@@ -59,6 +63,9 @@ EVENT_CATEGORIES = {
             'DOMAIN_WHOIS': 'WHOIS records',
             'DOMAIN_REGISTRAR': 'registrars',
             'CO_HOSTED_SITE': 'co-hosted sites',
+            'CO_HOSTED_SITE_DOMAIN': 'co-hosted domains',
+            'AFFILIATE_INTERNET_NAME': 'affiliate hosts',
+            'AFFILIATE_DOMAIN_NAME': 'affiliate domains',
         },
     },
     'reputation': {
@@ -326,11 +333,8 @@ def results_tab():
 
         logs = []
         for row in logs_raw:
-            raw_ts = row[0] if row else 0
-            if raw_ts and raw_ts > 9999999999:
-                raw_ts = raw_ts / 1000
-            import time as _time
-            ts = _time.strftime("%Y-%m-%d %H:%M:%S", _time.localtime(raw_ts)) if raw_ts else ''
+            raw_ts = row[0] / 1000 if row and row[0] else 0
+            ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(raw_ts)) if raw_ts else ''
             logs.append({
                 'time': ts,
                 'component': row[1] if len(row) > 1 else '',
@@ -370,11 +374,8 @@ def log_lines():
 
     logs = []
     for row in logs_raw:
-        raw_ts = row[0] if row else 0
-        if raw_ts and raw_ts > 9999999999:
-            raw_ts = raw_ts / 1000
-        import time as _time
-        ts = _time.strftime("%Y-%m-%d %H:%M:%S", _time.localtime(raw_ts)) if raw_ts else ''
+        raw_ts = row[0] / 1000 if row and row[0] else 0
+        ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(raw_ts)) if raw_ts else ''
         logs.append({
             'time': ts,
             'component': row[1] if len(row) > 1 else '',

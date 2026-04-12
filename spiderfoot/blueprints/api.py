@@ -68,7 +68,6 @@ def clean_user_input(input_list):
             ret.append('')
             continue
         c = html.escape(item, True)
-        c = c.replace("&amp;", "&").replace("&quot;", "\"")
         ret.append(c)
     return ret
 
@@ -81,6 +80,14 @@ def _safe_filename(name: str) -> str:
 
 
 _SENSITIVE_OPT_PATTERNS = ('api_key', 'apikey', 'password', 'secret', 'token', 'passphrase')
+
+
+def _csv_safe(value) -> str:
+    """Prevent CSV formula injection by prefixing dangerous characters."""
+    s = str(value) if value is not None else ''
+    if s and s[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + s
+    return s
 
 
 def search_base(id=None, eventType=None, value=None):
@@ -1161,10 +1168,10 @@ def scanexportlogs():
     for row in data:
         parser.writerow([
             time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(row[0] / 1000)),
-            str(row[1]),
-            str(row[2]),
-            str(row[3]),
-            row[4]
+            _csv_safe(row[1]),
+            _csv_safe(row[2]),
+            _csv_safe(row[3]),
+            _csv_safe(row[4])
         ])
 
     return Response(
@@ -1231,7 +1238,7 @@ def scancorrelationsexport():
             rule_name = row[2]
             rule_risk = row[3]
             rule_description = row[5]
-            parser.writerow([rule_name, correlation, rule_risk, rule_description])
+            parser.writerow([_csv_safe(rule_name), _csv_safe(correlation), _csv_safe(rule_risk), _csv_safe(rule_description)])
 
         fname = f"{_safe_filename(scan_name)}-SpiderFoot-correlations.csv"
 
@@ -1287,7 +1294,7 @@ def scaneventresultexport():
                 continue
             lastseen = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(row[0]))
             datafield = str(row[1]).replace("<SFURL>", "").replace("</SFURL>", "")
-            parser.writerow([lastseen, str(row[4]), str(row[3]), str(row[2]), row[13], datafield])
+            parser.writerow([lastseen, _csv_safe(row[4]), _csv_safe(row[3]), _csv_safe(row[2]), _csv_safe(row[13]), _csv_safe(datafield)])
 
         return Response(
             fileobj.getvalue().encode('utf-8'),
@@ -1358,8 +1365,8 @@ def scaneventresultexportmulti():
                 continue
             lastseen = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(row[0]))
             datafield = str(row[1]).replace("<SFURL>", "").replace("</SFURL>", "")
-            parser.writerow([scaninfo[row[12]][0], lastseen, str(row[4]), str(row[3]),
-                             str(row[2]), row[13], datafield])
+            parser.writerow([_csv_safe(scaninfo[row[12]][0]), lastseen, _csv_safe(row[4]), _csv_safe(row[3]),
+                             _csv_safe(row[2]), _csv_safe(row[13]), _csv_safe(datafield)])
 
         if len(ids.split(',')) > 1 or scan_name == "":
             fname = "SpiderFoot.csv"
@@ -1419,7 +1426,7 @@ def scansearchresultexport():
             if row[10] == "ROOT":
                 continue
             datafield = str(row[1]).replace("<SFURL>", "").replace("</SFURL>", "")
-            parser.writerow([row[0], str(row[10]), str(row[3]), str(row[2]), row[11], datafield])
+            parser.writerow([_csv_safe(row[0]), _csv_safe(row[10]), _csv_safe(row[3]), _csv_safe(row[2]), _csv_safe(row[11]), _csv_safe(datafield)])
 
         return Response(
             fileobj.getvalue().encode('utf-8'),

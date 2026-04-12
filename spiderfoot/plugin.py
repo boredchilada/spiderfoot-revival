@@ -375,6 +375,7 @@ class SpiderFootPlugin():
             prevEvent = prevEvent.sourceEvent
         if depth >= max_depth:
             self._log.warning(f"Event chain depth limit ({max_depth}) reached for {eventName}")
+            storeOnly = True
 
         # output to queue if applicable
         if self.outgoingEventQueue is not None:

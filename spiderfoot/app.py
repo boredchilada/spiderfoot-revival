@@ -70,6 +70,8 @@ def create_app(config=None):
         secret = os.urandom(32).hex()
         sf_config['__secret_key'] = secret
     app.config['SECRET_KEY'] = secret
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
     # Store the live SpiderFoot config on the app so blueprints can access it
     # via current_app.config['SF_CONFIG'].

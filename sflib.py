@@ -1046,8 +1046,10 @@ class SpiderFoot:
             fqdn = fqdn.lower()
 
             try:
-                # Extract the CN from the issued section
-                if "cn=" + fqdn in ret['issued'].lower():
+                # Extract the CN from the issued section (use boundary match to avoid
+                # evil.example.com matching a check for example.com)
+                issued_lower = ret['issued'].lower()
+                if re.search(r'\bcn=' + re.escape(fqdn) + r'(?:\b|,|$)', issued_lower):
                     certhosts.append(fqdn)
 
                 # Extract subject alternative names
@@ -1201,7 +1203,8 @@ class SpiderFoot:
         disableContentEncoding: bool = False,
         sizeLimit: int = None,
         headOnly: bool = False,
-        verify: bool = True
+        verify: bool = True,
+        _redirectDepth: int = 0
     ) -> dict:
         """Fetch a URL and return the HTTP response as a dictionary.
 
@@ -1401,6 +1404,10 @@ class SpiderFoot:
 
                 self.debug(f"Refresh header '{refresh_header}' found, re-directing to {self.removeUrlCreds(newurl)}")
 
+                if _redirectDepth >= 10:
+                    self.debug("Max refresh redirects (10) reached, stopping")
+                    return result
+
                 return self.fetchUrl(
                     newurl,
                     cookies,
@@ -1411,7 +1418,8 @@ class SpiderFoot:
                     postData,
                     disableContentEncoding,
                     sizeLimit,
-                    headOnly
+                    headOnly,
+                    _redirectDepth=_redirectDepth + 1
                 )
 
             if disableContentEncoding:
