@@ -841,22 +841,25 @@ class SpiderFootHelpers():
             domains = [domains]
 
         tags = {
-            'a': 'href',
-            'img': 'src',
-            'script': 'src',
-            'link': 'href',
-            'area': 'href',
-            'base': 'href',
-            'form': 'action'
+            'a': ['href'],
+            'img': ['src'],
+            'script': ['src'],
+            'link': ['href'],
+            'area': ['href'],
+            'base': ['href'],
+            'form': ['action']
         }
 
         links: typing.List[typing.Union[typing.List[str], str]] = []
 
         try:
-            for t in list(tags.keys()):
-                for lnk in BeautifulSoup(data, features="lxml", parse_only=SoupStrainer(t)).find_all(t):
-                    if lnk.has_attr(tags[t]):
-                        links.append(lnk[tags[t]])
+            strainer = SoupStrainer(list(tags.keys()))
+            soup = BeautifulSoup(data, features="lxml", parse_only=strainer)
+            for tag_name, attrs in tags.items():
+                for lnk in soup.find_all(tag_name):
+                    for attr in attrs:
+                        if lnk.has_attr(attr):
+                            links.append(lnk[attr])
         except BaseException:
             return returnLinks
 

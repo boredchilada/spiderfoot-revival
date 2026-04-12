@@ -1,6 +1,7 @@
 import queue
 import logging
 import threading
+import typing
 from time import sleep
 from contextlib import suppress
 
@@ -65,7 +66,7 @@ class SpiderFootThreadPool:
     def stop(self, val: bool):
         assert val in (True, False), "stop must be either True or False"
         for t in self.pool:
-            with suppress(Exception):
+            with suppress(AttributeError):
                 t.stop = val
         self._stop = val
 
@@ -96,10 +97,10 @@ class SpiderFootThreadPool:
         with self._lock:
             inputQueues = list(self.inputQueues.values())
         for q in inputQueues:
-            with suppress(Exception):
+            with suppress(queue.Empty):
                 while 1:
                     q.get_nowait()
-            with suppress(Exception):
+            with suppress(AttributeError):
                 q.close()
         # make sure output queues are empty
         with self._lock:
@@ -110,7 +111,7 @@ class SpiderFootThreadPool:
                 results[taskName] += moduleResults
             except KeyError:
                 results[taskName] = moduleResults
-            with suppress(Exception):
+            with suppress(AttributeError):
                 q.close()
         return results
 
@@ -143,23 +144,23 @@ class SpiderFootThreadPool:
             int: the number of queued function calls plus the number of functions which are currently executing
         """
         queuedTasks = 0
-        with suppress(Exception):
+        with suppress(KeyError):
             queuedTasks += self.inputQueues[taskName].qsize()
         runningTasks = 0
         for t in self.pool:
-            with suppress(Exception):
+            with suppress(AttributeError):
                 if t.taskName == taskName:
                     runningTasks += 1
         return queuedTasks + runningTasks
 
-    def inputQueue(self, taskName: str = "default") -> str:
+    def inputQueue(self, taskName: str = "default") -> queue.Queue:
         try:
             return self.inputQueues[taskName]
         except KeyError:
             self.inputQueues[taskName] = queue.Queue(self.qsize)
             return self.inputQueues[taskName]
 
-    def outputQueue(self, taskName: str = "default") -> str:
+    def outputQueue(self, taskName: str = "default") -> queue.Queue:
         try:
             return self.outputQueues[taskName]
         except KeyError:
@@ -185,10 +186,10 @@ class SpiderFootThreadPool:
         sleep(.1)
         yield from self.results(taskName, wait=True)
 
-    def results(self, taskName: str = "default", wait: bool = False) -> None:
+    def results(self, taskName: str = "default", wait: bool = False) -> typing.Generator:
         while 1:
             result = False
-            with suppress(Exception):
+            with suppress(queue.Empty):
                 while 1:
                     yield self.outputQueue(taskName).get_nowait()
                     result = True
