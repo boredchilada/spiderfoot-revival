@@ -379,6 +379,7 @@ class SpiderFootPlugin():
         # output to queue if applicable
         if self.outgoingEventQueue is not None:
             self._lastActivity = time.time()
+            sfEvent.storeOnly = storeOnly
             self.outgoingEventQueue.put(sfEvent)
         # otherwise, call other modules directly
         else:

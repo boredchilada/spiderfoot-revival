@@ -63,12 +63,16 @@ def create_app(config=None):
         static_url_path='/static'
     )
 
-    # Default config
-    app.config['SECRET_KEY'] = os.urandom(32).hex()
+    # Persist SECRET_KEY across restarts so sessions/CSRF tokens survive.
+    sf_config = config or {}
+    secret = sf_config.get('__secret_key') or os.environ.get('SF_SECRET_KEY')
+    if not secret:
+        secret = os.urandom(32).hex()
+        sf_config['__secret_key'] = secret
+    app.config['SECRET_KEY'] = secret
 
     # Store the live SpiderFoot config on the app so blueprints can access it
     # via current_app.config['SF_CONFIG'].
-    sf_config = config or {}
     app.config['SF_CONFIG'] = sf_config
     app.config['SF_DEFAULT_CONFIG'] = deepcopy(sf_config)
 

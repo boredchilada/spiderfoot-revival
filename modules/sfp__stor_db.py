@@ -25,7 +25,7 @@ class sfp__stor_db(SpiderFootPlugin):
 
     # Default options
     opts = {
-        'maxstorage': 1024,  # max bytes for any piece of info stored (0 = unlimited)
+        'maxstorage': 0,  # max bytes for any piece of info stored (0 = unlimited)
         '_store': True
     }
 

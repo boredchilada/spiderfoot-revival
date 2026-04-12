@@ -258,7 +258,7 @@ class ThreadPoolWorker(threading.Thread):
                     except Exception:  # noqa: B902
                         import traceback
                         self.log.error(f'Error in thread worker {self.name}: {traceback.format_exc()}')
-                        break
+                        continue
                     if saveResult:
                         self.pool.outputQueue(self.taskName).put(result)
                 except queue.Empty:
