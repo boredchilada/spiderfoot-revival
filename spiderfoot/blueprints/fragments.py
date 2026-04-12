@@ -792,13 +792,24 @@ def _dedup_events(events):
     return deduped
 
 
-def _build_api_card_data(sf_config: dict) -> list:
+def _build_api_card_data(sf_config: dict, group_by: str = 'category') -> list:
     """Scan all modules for API key options and return a grouped list.
+
+    Args:
+        sf_config: SpiderFoot config dict with '__modules__' key
+        group_by: Grouping mode — 'category' (default), 'usecase', or 'flat'
 
     Returns a list of dicts:
         {group, cards: [{mod_name, service_name, opt_key, value, configured}]}
     Groups are sorted with configured-first logic per group, then alphabetically.
     """
+
+    USE_CASE_LABELS = {
+        'Passive': 'Passive Recon',
+        'Investigate': 'Investigation',
+        'Footprint': 'Footprinting',
+    }
+
     modules_cfg = sf_config.get('__modules__', {})
     raw_cards = []
 
@@ -809,10 +820,18 @@ def _build_api_card_data(sf_config: dict) -> list:
         meta = mod_cfg.get('meta', {})
         service_name = meta.get('name', mod_name)
         categories = meta.get('categories', [])
-        group = categories[0] if categories else 'Other'
+        use_cases = meta.get('useCases', [])
         data_source = meta.get('dataSource', {})
         website = data_source.get('website', '')
         opts = mod_cfg.get('opts', {})
+
+        # Determine group based on grouping mode
+        if group_by == 'usecase':
+            group = USE_CASE_LABELS.get(use_cases[0], use_cases[0]) if use_cases else 'Other'
+        elif group_by == 'flat':
+            group = 'All Services'
+        else:
+            group = categories[0] if categories else 'Other'
 
         for opt_key, opt_val in opts.items():
             key_lower = opt_key.lower()
@@ -829,7 +848,7 @@ def _build_api_card_data(sf_config: dict) -> list:
                     'website': website,
                 })
 
-    # Group cards by category
+    # Group cards
     groups = {}
     for card in raw_cards:
         g = card['group']
@@ -874,6 +893,10 @@ def settings_section():
         return render_template('fragments/settings_general.html', config=config)
 
     elif section == 'apikeys':
+        view = request.args.get('view', 'category')
+        if view not in ('category', 'usecase', 'flat'):
+            view = 'category'
+
         # Merge saved per-module opts into the module defaults
         modules_cfg = sf_config.get('__modules__', {})
         for mod_name, mod_cfg in modules_cfg.items():
@@ -883,8 +906,8 @@ def settings_section():
                 if db_key in saved_config:
                     opts[opt_key] = saved_config[db_key]
 
-        groups = _build_api_card_data(sf_config)
-        return render_template('fragments/settings_apikeys.html', groups=groups)
+        groups = _build_api_card_data(sf_config, group_by=view)
+        return render_template('fragments/settings_apikeys.html', groups=groups, current_view=view)
 
     elif section == 'proxy':
         return render_template('fragments/settings_proxy.html', config=config)
