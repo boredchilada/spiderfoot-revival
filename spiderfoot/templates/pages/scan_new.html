@@ -46,8 +46,8 @@
                   placeholder="e.g. example.com, 192.168.1.0/24, user@email.com&#10;One target per line for batch scanning"></textarea>
 
         {# Target count + type badges #}
-        <div class="mt-2 flex flex-wrap gap-1.5" x-show="parsedTargets().length > 0">
-          <template x-for="(t, i) in parsedTargets()" :key="i">
+        <div class="mt-2 flex flex-wrap gap-1.5" x-show="parsedTargets.length > 0">
+          <template x-for="(t, i) in parsedTargets" :key="i">
             <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border"
                   :class="t.type
                     ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
@@ -57,8 +57,8 @@
             </span>
           </template>
         </div>
-        <div class="mt-1 text-xs text-slate-500" x-show="parsedTargets().length > 1"
-             x-text="`${parsedTargets().length} targets — each will launch as a separate scan`"></div>
+        <div class="mt-1 text-xs text-slate-500" x-show="parsedTargets.length > 1"
+             x-text="`${parsedTargets.length} targets — each will launch as a separate scan`"></div>
       </div>
     </div>
 
@@ -390,8 +390,8 @@
   <div class="flex justify-end">
     <button type="button"
             @click="submitScan()"
-            :disabled="totalEnabled() === 0 || parsedTargets().length === 0 || submitting"
-            :class="totalEnabled() === 0 || parsedTargets().length === 0 || submitting
+            :disabled="totalEnabled() === 0 || parsedTargets.length === 0 || submitting"
+            :class="totalEnabled() === 0 || parsedTargets.length === 0 || submitting
               ? 'opacity-50 cursor-not-allowed bg-sf-accent'
               : 'bg-sf-accent hover:bg-cyan-400'"
             class="px-8 py-2.5 text-white rounded-md font-medium text-sm
@@ -407,8 +407,8 @@
       </template>
       <template x-if="!submitting">
         <span>
-          <span x-text="parsedTargets().length > 1
-            ? `Launch ${parsedTargets().length} Scans`
+          <span x-text="parsedTargets.length > 1
+            ? `Launch ${parsedTargets.length} Scans`
             : 'Launch Scan'"></span>
           <span x-show="totalEnabled() > 0"
                 x-text="`(${totalEnabled()} module${totalEnabled() === 1 ? '' : 's'})`"
