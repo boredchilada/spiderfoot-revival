@@ -16,26 +16,20 @@ import io
 import json
 import logging
 import os
-import random
 import re
-import socket
-import ssl
 import sys
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 from copy import deepcopy
-from datetime import datetime
 
-import cryptography
 import dns.resolver
-import netaddr
-import OpenSSL
 import requests
 import urllib3
-from publicsuffixlist import PublicSuffixList
 from spiderfoot import SpiderFootHelpers
+from spiderfoot.net.http import SpiderFootHttp
+from spiderfoot.net.dns import SpiderFootDns
+from spiderfoot.net.ssl import SpiderFootSsl
+from spiderfoot.net import host as hostutil
 
 # For hiding the SSL warnings coming from the requests lib
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # noqa: DUO131
@@ -74,6 +68,11 @@ class SpiderFoot:
             res = dns.resolver.Resolver()
             res.nameservers = [self.opts['_dnsserver']]
             dns.resolver.override_system_resolver(res)
+
+        # Instantiate extracted modules
+        self._http = SpiderFootHttp(self.opts, self.log)
+        self._dns = SpiderFootDns(self.opts, self.log)
+        self._ssl = SpiderFootSsl(self.log)
 
     @property
     def dbh(self):
@@ -134,6 +133,8 @@ class SpiderFoot:
             socksProxy (str): SOCKS proxy
         """
         self._socksProxy = socksProxy
+        # Keep the HTTP client in sync
+        self._http.socksProxy = socksProxy
 
     def optValueToData(self, val: str) -> str:
         """Supplied an option value, return the data based on what the
@@ -583,887 +584,132 @@ class SpiderFoot:
 
         return evtlist
 
+    # -----------------------------------------------------------------------
+    # Delegation to spiderfoot.net.host (standalone functions)
+    # -----------------------------------------------------------------------
+
     def urlFQDN(self, url: str) -> str:
-        """Extract the FQDN from a URL.
-
-        Args:
-            url (str): URL
-
-        Returns:
-            str: FQDN
-        """
+        """Extract the FQDN from a URL."""
         if not url:
             self.error(f"Invalid URL: {url}")
             return None
-
-        baseurl = SpiderFootHelpers.urlBaseUrl(url)
-        if '://' in baseurl:
-            count = 2
-        else:
-            count = 0
-
-        # http://abc.com will split to ['http:', '', 'abc.com']
-        return baseurl.split('/')[count].lower()
+        return hostutil.urlFQDN(url)
 
     def domainKeyword(self, domain: str, tldList: list) -> str:
-        """Extract the keyword (the domain without the TLD or any subdomains) from a domain.
-
-        Args:
-            domain (str): The domain to check.
-            tldList (list): The list of TLDs based on the Mozilla public list.
-
-        Returns:
-            str: The keyword
-        """
+        """Extract the keyword from a domain."""
         if not domain:
             self.error(f"Invalid domain: {domain}")
             return None
-
-        # Strip off the TLD
-        dom = self.hostDomain(domain.lower(), tldList)
-        if not dom:
-            return None
-
-        tld = '.'.join(dom.split('.')[1:])
-        ret = domain.lower().replace('.' + tld, '')
-
-        # If the user supplied a domain with a sub-domain, return the second part
-        if '.' in ret:
-            return ret.split('.')[-1]
-
-        return ret
+        return hostutil.domainKeyword(domain, tldList)
 
     def domainKeywords(self, domainList: list, tldList: list) -> set:
-        """Extract the keywords (the domains without the TLD or any subdomains) from a list of domains.
-
-        Args:
-            domainList (list): The list of domains to check.
-            tldList (list): The list of TLDs based on the Mozilla public list.
-
-        Returns:
-            set: List of keywords
-        """
+        """Extract keywords from a list of domains."""
         if not domainList:
             self.error(f"Invalid domain list: {domainList}")
             return set()
-
-        keywords = list()
-        for domain in domainList:
-            keywords.append(self.domainKeyword(domain, tldList))
-
-        self.debug(f"Keywords: {keywords}")
-        return set([k for k in keywords if k])
-
-    def hostDomain(self, hostname: str, tldList: list) -> str:
-        """Obtain the domain name for a supplied hostname.
-
-        Args:
-            hostname (str): The hostname to check.
-            tldList (list): The list of TLDs based on the Mozilla public list.
-
-        Returns:
-            str: The domain name.
-        """
-        if not tldList:
-            return None
-        if not hostname:
-            return None
-
-        ps = PublicSuffixList(tldList, only_icann=True)
-        return ps.privatesuffix(hostname)
-
-    def validHost(self, hostname: str, tldList: str) -> bool:
-        """Check if the provided string is a valid hostname with a valid public suffix TLD.
-
-        Args:
-            hostname (str): The hostname to check.
-            tldList (str): The list of TLDs based on the Mozilla public list.
-
-        Returns:
-            bool
-        """
-        if not tldList:
-            return False
-        if not hostname:
-            return False
-
-        if "." not in hostname:
-            return False
-
-        if not re.match(r"^[a-z0-9-\.]*$", hostname, re.IGNORECASE):
-            return False
-
-        ps = PublicSuffixList(tldList, only_icann=True, accept_unknown=False)
-        sfx = ps.privatesuffix(hostname)
-        return sfx is not None
-
-    def isDomain(self, hostname: str, tldList: list) -> bool:
-        """Check if the provided hostname string is a valid domain name.
-
-        Given a possible hostname, check if it's a domain name
-        By checking whether it rests atop a valid TLD.
-        e.g. www.example.com = False because tld of hostname is com,
-        and www.example has a . in it.
-
-        Args:
-            hostname (str): The hostname to check.
-            tldList (list): The list of TLDs based on the Mozilla public list.
-
-        Returns:
-            bool
-        """
-        if not tldList:
-            return False
-        if not hostname:
-            return False
-
-        ps = PublicSuffixList(tldList, only_icann=True, accept_unknown=False)
-        sfx = ps.privatesuffix(hostname)
-        return sfx == hostname
-
-    def validIP(self, address: str) -> bool:
-        """Check if the provided string is a valid IPv4 address.
-
-        Args:
-            address (str): The IPv4 address to check.
-
-        Returns:
-            bool
-        """
-        if not address:
-            return False
-        return netaddr.valid_ipv4(address)
-
-    def validIP6(self, address: str) -> bool:
-        """Check if the provided string is a valid IPv6 address.
-
-        Args:
-            address (str): The IPv6 address to check.
-
-        Returns:
-            bool: string is a valid IPv6 address
-        """
-        if not address:
-            return False
-        return netaddr.valid_ipv6(address)
-
-    def validIpNetwork(self, cidr: str) -> bool:
-        """Check if the provided string is a valid CIDR netblock.
-
-        Args:
-            cidr (str): The netblock to check.
-
-        Returns:
-            bool: string is a valid CIDR netblock
-        """
-        if not isinstance(cidr, str):
-            return False
-
-        if '/' not in cidr:
-            return False
-
-        try:
-            return netaddr.IPNetwork(str(cidr)).size > 0
-        except BaseException:
-            return False
-
-    def isPublicIpAddress(self, ip: str) -> bool:
-        """Check if an IP address is public.
-
-        Args:
-            ip (str): IP address
-
-        Returns:
-            bool: IP address is public
-        """
-        if not isinstance(ip, (str, netaddr.IPAddress)):
-            return False
-        if not self.validIP(ip) and not self.validIP6(ip):
-            return False
-
-        if not netaddr.IPAddress(ip).is_unicast():
-            return False
-
-        if netaddr.IPAddress(ip).is_loopback():
-            return False
-        if netaddr.IPAddress(ip).is_reserved():
-            return False
-        if netaddr.IPAddress(ip).is_multicast():
-            return False
-        if netaddr.IPAddress(ip).is_private():
-            return False
-        return True
-
-    def normalizeDNS(self, res: list) -> list:
-        """Clean DNS results to be a simple list
-
-        Args:
-            res (list): List of DNS names
-
-        Returns:
-            list: list of domains
-        """
-        ret = list()
-
-        if not res:
-            return ret
-
-        for addr in res:
-            if isinstance(addr, list):
-                for host in addr:
-                    host = str(host).rstrip(".")
-                    if host:
-                        ret.append(host)
-            else:
-                host = str(addr).rstrip(".")
-                if host:
-                    ret.append(host)
-        return ret
-
-    def resolveHost(self, host: str) -> list:
-        """Return a normalised IPv4 resolution of a hostname.
-
-        Args:
-            host (str): host to resolve
-
-        Returns:
-            list: IP addresses
-        """
-        if not host:
-            self.error(f"Unable to resolve host: {host} (Invalid host)")
-            return list()
-
-        addrs = list()
-        try:
-            addrs = self.normalizeDNS(socket.gethostbyname_ex(host))
-        except BaseException as e:
-            self.debug(f"Unable to resolve host: {host} ({e})")
-            return addrs
-
-        if not addrs:
-            self.debug(f"Unable to resolve host: {host}")
-            return addrs
-
-        self.debug(f"Resolved {host} to IPv4: {addrs}")
-
-        return list(set(addrs))
-
-    def resolveIP(self, ipaddr: str) -> list:
-        """Return a normalised resolution of an IPv4 or IPv6 address.
-
-        Args:
-            ipaddr (str): IP address to reverse resolve
-
-        Returns:
-            list: list of domain names
-        """
-
-        if not self.validIP(ipaddr) and not self.validIP6(ipaddr):
-            self.error(f"Unable to reverse resolve {ipaddr} (Invalid IP address)")
-            return list()
-
-        self.debug(f"Performing reverse resolve of {ipaddr}")
-
-        try:
-            addrs = self.normalizeDNS(socket.gethostbyaddr(ipaddr))
-        except BaseException as e:
-            self.debug(f"Unable to reverse resolve IP address: {ipaddr} ({e})")
-            return list()
-
-        if not addrs:
-            self.debug(f"Unable to reverse resolve IP address: {ipaddr}")
-            return list()
-
-        self.debug(f"Reverse resolved {ipaddr} to: {addrs}")
-
-        return list(set(addrs))
-
-    def resolveHost6(self, hostname: str) -> list:
-        """Return a normalised IPv6 resolution of a hostname.
-
-        Args:
-            hostname (str): hostname to resolve
-
-        Returns:
-            list
-        """
-        if not hostname:
-            self.error(f"Unable to resolve host: {hostname} (Invalid host)")
-            return list()
-
-        addrs = list()
-        try:
-            res = socket.getaddrinfo(hostname, None, socket.AF_INET6)
-            for addr in res:
-                if addr[4][0] not in addrs:
-                    addrs.append(addr[4][0])
-        except BaseException as e:
-            self.debug(f"Unable to resolve host: {hostname} ({e})")
-            return addrs
-
-        if not addrs:
-            self.debug(f"Unable to resolve host: {hostname}")
-            return addrs
-
-        self.debug(f"Resolved {hostname} to IPv6: {addrs}")
-
-        return list(set(addrs))
-
-    def validateIP(self, host: str, ip: str) -> bool:
-        """Verify a host resolves to a given IP.
-
-        Args:
-            host (str): host
-            ip (str): IP address
-
-        Returns:
-            bool: host resolves to the given IP address
-        """
-        if not host:
-            self.error(f"Unable to resolve host: {host} (Invalid host)")
-            return False
-
-        if self.validIP(ip):
-            addrs = self.resolveHost(host)
-        elif self.validIP6(ip):
-            addrs = self.resolveHost6(host)
-        else:
-            self.error(f"Unable to verify hostname {host} resolves to {ip} (Invalid IP address)")
-            return False
-
-        if not addrs:
-            return False
-
-        return any(str(addr) == ip for addr in addrs)
-
-    def safeSocket(self, host: str, port: int, timeout: int) -> 'ssl.SSLSocket':
-        """Create a safe socket that's using SOCKS/TOR if it was enabled.
-
-        Args:
-            host (str): host
-            port (int): port
-            timeout (int): timeout
-
-        Returns:
-            sock
-        """
-        sock = socket.create_connection((host, int(port)), int(timeout))
-        sock.settimeout(int(timeout))
-        return sock
-
-    def safeSSLSocket(self, host: str, port: int, timeout: int) -> 'ssl.SSLSocket':
-        """Create a safe SSL connection that's using SOCKs/TOR if it was enabled.
-
-        Args:
-            host (str): host
-            port (int): port
-            timeout (int): timeout
-
-        Returns:
-            sock
-        """
-        s = socket.socket()
-        s.settimeout(int(timeout))
-        s.connect((host, int(port)))
-        sock = ssl.wrap_socket(s)
-        sock.do_handshake()
-        return sock
-
-    def parseCert(self, rawcert: str, fqdn: str = None, expiringdays: int = 30) -> dict:
-        """Parse a PEM-format SSL certificate.
-
-        Args:
-            rawcert (str): PEM-format SSL certificate
-            fqdn (str): expected FQDN for certificate
-            expiringdays (int): The certificate will be considered as "expiring" if within this number of days of expiry.
-
-        Returns:
-            dict: certificate details
-        """
-        if not rawcert:
-            self.error(f"Invalid certificate: {rawcert}")
-            return None
-
-        ret = dict()
-        if '\r' in rawcert:
-            rawcert = rawcert.replace('\r', '')
-        if isinstance(rawcert, str):
-            rawcert = rawcert.encode('utf-8')
-
-        from cryptography.hazmat.backends.openssl import backend
-        cert = cryptography.x509.load_pem_x509_certificate(rawcert, backend)
-        sslcert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, rawcert)
-        sslcert_dump = OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_TEXT, sslcert)
-
-        ret['text'] = sslcert_dump.decode('utf-8', errors='replace')
-        ret['issuer'] = str(cert.issuer)
-        ret['altnames'] = list()
-        ret['expired'] = False
-        ret['expiring'] = False
-        ret['mismatch'] = False
-        ret['certerror'] = False
-        ret['issued'] = str(cert.subject)
-
-        # Expiry info
-        try:
-            notafter = datetime.strptime(sslcert.get_notAfter().decode('utf-8'), "%Y%m%d%H%M%SZ")
-            ret['expiry'] = int(notafter.strftime("%s"))
-            ret['expirystr'] = notafter.strftime("%Y-%m-%d %H:%M:%S")
-            now = int(time.time())
-            warnexp = now + (expiringdays * 86400)
-            if ret['expiry'] <= warnexp:
-                ret['expiring'] = True
-            if ret['expiry'] <= now:
-                ret['expired'] = True
-        except BaseException as e:
-            self.error(f"Error processing date in certificate: {e}")
-            ret['certerror'] = True
-            return ret
-
-        # SANs
-        try:
-            ext = cert.extensions.get_extension_for_class(cryptography.x509.SubjectAlternativeName)
-            for x in ext.value:
-                if isinstance(x, cryptography.x509.DNSName):
-                    ret['altnames'].append(x.value.lower().encode('raw_unicode_escape').decode("ascii", errors='replace'))
-        except BaseException as e:
-            self.debug(f"Problem processing certificate: {e}")
-
-        certhosts = list()
-        try:
-            attrs = cert.subject.get_attributes_for_oid(cryptography.x509.oid.NameOID.COMMON_NAME)
-
-            if len(attrs) == 1:
-                name = attrs[0].value.lower()
-                # CN often duplicates one of the SANs, don't add it then
-                if name not in ret['altnames']:
-                    certhosts.append(name)
-        except BaseException as e:
-            self.debug(f"Problem processing certificate: {e}")
-
-        # Check for mismatch
-        if fqdn and ret['issued']:
-            fqdn = fqdn.lower()
-
-            try:
-                # Extract the CN from the issued section (use boundary match to avoid
-                # evil.example.com matching a check for example.com)
-                issued_lower = ret['issued'].lower()
-                if re.search(r'\bcn=' + re.escape(fqdn) + r'(?:\b|,|$)', issued_lower):
-                    certhosts.append(fqdn)
-
-                # Extract subject alternative names
-                for host in ret['altnames']:
-                    certhosts.append(host.replace("dns:", ""))
-
-                ret['hosts'] = certhosts
-
-                self.debug(f"Checking for {fqdn} in certificate subject")
-                fqdn_tld = ".".join(fqdn.split(".")[1:]).lower()
-
-                found = False
-                for chost in certhosts:
-                    if chost == fqdn:
-                        found = True
-                    if chost == "*." + fqdn_tld:
-                        found = True
-                    if chost == fqdn_tld:
-                        found = True
-
-                if not found:
-                    ret['mismatch'] = True
-            except BaseException as e:
-                self.error(f"Error processing certificate: {e}")
-                ret['certerror'] = True
-
-        return ret
-
-    def getSession(self) -> 'requests.sessions.Session':
-        """Return requests session object.
-
-        Returns:
-            requests.sessions.Session: requests session
-        """
-        session = requests.session()
-        if self.socksProxy:
-            session.proxies = {
-                'http': self.socksProxy,
-                'https': self.socksProxy,
-            }
-        return session
-
-    def removeUrlCreds(self, url: str) -> str:
-        """Remove potentially sensitive strings (such as "key=..." and "password=...") from a string.
-
-        Used to remove potential credentials from URLs prior during logging.
-
-        Args:
-            url (str): URL
-
-        Returns:
-            str: Sanitized URL
-        """
-        pats = {
-            r'key=\S+': "key=XXX",
-            r'pass=\S+': "pass=XXX",
-            r'user=\S+': "user=XXX",
-            r'password=\S+': "password=XXX",
-            r'token=\S+': "token=XXX",
-            r'secret=\S+': "secret=XXX",
-            r'apikey=\S+': "apikey=XXX",
-            r'api_key=\S+': "api_key=XXX",
-            r'access_token=\S+': "access_token=XXX",
-        }
-
-        ret = url
-        for pat in pats:
-            ret = re.sub(pat, pats[pat], ret, flags=re.IGNORECASE)
-
-        return ret
-
-    def isValidLocalOrLoopbackIp(self, ip: str) -> bool:
-        """Check if the specified IPv4 or IPv6 address is a loopback or local network IP address (IPv4 RFC1918 / IPv6 RFC4192 ULA).
-
-        Args:
-            ip (str): IPv4 or IPv6 address
-
-        Returns:
-            bool: IP address is local or loopback
-        """
-        if not self.validIP(ip) and not self.validIP6(ip):
-            return False
-
-        if netaddr.IPAddress(ip).is_private():
-            return True
-
-        if netaddr.IPAddress(ip).is_loopback():
-            return True
-
-        return False
-
-    def useProxyForUrl(self, url: str) -> bool:
-        """Check if the configured proxy should be used to connect to a specified URL.
-
-        Args:
-            url (str): The URL to check
-
-        Returns:
-            bool: should the configured proxy be used?
-
-        Todo:
-            Allow using TOR only for .onion addresses
-        """
-        host = self.urlFQDN(url).lower()
-
-        if not self.opts['_socks1type']:
-            return False
-
-        proxy_host = self.opts['_socks2addr']
-
-        if not proxy_host:
-            return False
-
-        proxy_port = self.opts['_socks3port']
-
-        if not proxy_port:
-            return False
-
-        # Never proxy requests to the proxy host
-        if host == proxy_host.lower():
-            return False
-
-        # Never proxy RFC1918 addresses on the LAN or the local network interface
-        if self.validIP(host):
-            if netaddr.IPAddress(host).is_private():
-                return False
-            if netaddr.IPAddress(host).is_loopback():
-                return False
-
-        # Never proxy local hostnames
-        else:
-            neverProxyNames = ['local', 'localhost']
-            if host in neverProxyNames:
-                return False
-
-            for s in neverProxyNames:
-                if host.endswith(s):
-                    return False
-
-        return True
-
-    def fetchUrl(
-        self,
-        url: str,
-        cookies: str = None,
-        timeout: int = 30,
-        useragent: str = "SpiderFoot",
-        headers: dict = None,
-        noLog: bool = False,
-        postData: str = None,
-        disableContentEncoding: bool = False,
-        sizeLimit: int = None,
-        headOnly: bool = False,
-        verify: bool = True,
-        _redirectDepth: int = 0
-    ) -> dict:
-        """Fetch a URL and return the HTTP response as a dictionary.
-
-        Args:
-            url (str): URL to fetch
-            cookies (str): cookies
-            timeout (int): timeout
-            useragent (str): user agent header
-            headers (dict): headers
-            noLog (bool): do not log request
-            postData (str): HTTP POST data
-            disableContentEncoding (bool): do not UTF-8 encode response body
-            sizeLimit (int): size threshold
-            headOnly (bool): use HTTP HEAD method
-            verify (bool): use HTTPS SSL/TLS verification
-
-        Returns:
-            dict: HTTP response
-        """
-        if not url:
-            return None
-
-        result = {
-            'code': None,
-            'status': None,
-            'content': None,
-            'headers': None,
-            'realurl': url
-        }
-
-        url = url.strip()
-
-        try:
-            parsed_url = urllib.parse.urlparse(url)
-        except Exception:
-            self.debug(f"Could not parse URL: {url}")
-            return None
-
-        if parsed_url.scheme != 'http' and parsed_url.scheme != 'https':
-            self.debug(f"Invalid URL scheme for URL: {url}")
-            return None
-
-        request_log = []
-
-        proxies = dict()
-        if self.useProxyForUrl(url):
-            proxies = {
-                'http': self.socksProxy,
-                'https': self.socksProxy,
-            }
-
-        header = dict()
-        btime = time.time()
-
-        if isinstance(useragent, list):
-            header['User-Agent'] = random.SystemRandom().choice(useragent)
-        else:
-            header['User-Agent'] = useragent
-
-        # Add custom headers
-        if isinstance(headers, dict):
-            for k in list(headers.keys()):
-                header[k] = str(headers[k])
-
-        request_log.append(f"proxy={self.socksProxy}")
-        request_log.append(f"user-agent={header['User-Agent']}")
-        request_log.append(f"timeout={timeout}")
-        request_log.append(f"cookies={cookies}")
-
-        if sizeLimit or headOnly:
-            if noLog:
-                self.debug(f"Fetching (HEAD): {self.removeUrlCreds(url)} ({', '.join(request_log)})")
-            else:
-                self.info(f"Fetching (HEAD): {self.removeUrlCreds(url)} ({', '.join(request_log)})")
-
-            try:
-                hdr = self.getSession().head(
-                    url,
-                    headers=header,
-                    proxies=proxies,
-                    verify=verify,
-                    timeout=timeout
-                )
-            except Exception as e:
-                if noLog:
-                    self.debug(f"Unexpected exception ({e}) occurred fetching (HEAD only) URL: {url}", exc_info=True)
-                else:
-                    self.error(f"Unexpected exception ({e}) occurred fetching (HEAD only) URL: {url}", exc_info=True)
-
-                return result
-
-            size = int(hdr.headers.get('content-length', 0))
-            newloc = hdr.headers.get('location', url).strip()
-
-            # Relative re-direct
-            if newloc.startswith("/") or newloc.startswith("../"):
-                newloc = SpiderFootHelpers.urlBaseUrl(url) + newloc
-            result['realurl'] = newloc
-            result['code'] = str(hdr.status_code)
-
-            if headOnly:
-                return result
-
-            if size > sizeLimit:
-                return result
-
-            if result['realurl'] != url:
-                if noLog:
-                    self.debug(f"Fetching (HEAD): {self.removeUrlCreds(result['realurl'])} ({', '.join(request_log)})")
-                else:
-                    self.info(f"Fetching (HEAD): {self.removeUrlCreds(result['realurl'])} ({', '.join(request_log)})")
-
-                try:
-                    hdr = self.getSession().head(
-                        result['realurl'],
-                        headers=header,
-                        proxies=proxies,
-                        verify=verify,
-                        timeout=timeout
-                    )
-                    size = int(hdr.headers.get('content-length', 0))
-                    result['realurl'] = hdr.headers.get('location', result['realurl'])
-                    result['code'] = str(hdr.status_code)
-
-                    if size > sizeLimit:
-                        return result
-
-                except Exception as e:
-                    if noLog:
-                        self.debug(f"Unexpected exception ({e}) occurred fetching (HEAD only) URL: {result['realurl']}", exc_info=True)
-                    else:
-                        self.error(f"Unexpected exception ({e}) occurred fetching (HEAD only) URL: {result['realurl']}", exc_info=True)
-
-                    return result
-
-        try:
-            if postData:
-                if noLog:
-                    self.debug(f"Fetching (POST): {self.removeUrlCreds(url)} ({', '.join(request_log)})")
-                else:
-                    self.info(f"Fetching (POST): {self.removeUrlCreds(url)} ({', '.join(request_log)})")
-                res = self.getSession().post(
-                    url,
-                    data=postData,
-                    headers=header,
-                    proxies=proxies,
-                    allow_redirects=True,
-                    cookies=cookies,
-                    timeout=timeout,
-                    verify=verify
-                )
-            else:
-                if noLog:
-                    self.debug(f"Fetching (GET): {self.removeUrlCreds(url)} ({', '.join(request_log)})")
-                else:
-                    self.info(f"Fetching (GET): {self.removeUrlCreds(url)} ({', '.join(request_log)})")
-                res = self.getSession().get(
-                    url,
-                    headers=header,
-                    proxies=proxies,
-                    allow_redirects=True,
-                    cookies=cookies,
-                    timeout=timeout,
-                    verify=verify
-                )
-        except requests.exceptions.RequestException as e:
-            self.error(f"Failed to connect to {url}: {e}")
-            return result
-        except Exception as e:
-            if noLog:
-                self.debug(f"Unexpected exception ({e}) occurred fetching URL: {url}", exc_info=True)
-            else:
-                self.error(f"Unexpected exception ({e}) occurred fetching URL: {url}", exc_info=True)
-
-            return result
-
-        try:
-            result['headers'] = dict()
-            result['realurl'] = res.url
-            result['code'] = str(res.status_code)
-
-            for header, value in res.headers.items():
-                result['headers'][str(header).lower()] = str(value)
-
-            # Sometimes content exceeds the size limit after decompression
-            if sizeLimit and len(res.content) > sizeLimit:
-                self.debug(f"Content exceeded size limit ({sizeLimit}), so returning no data just headers")
-                return result
-
-            refresh_header = result['headers'].get('refresh')
-            if refresh_header:
-                try:
-                    newurl = refresh_header.split(";url=")[1]
-                except Exception as e:
-                    self.debug(f"Refresh header '{refresh_header}' found, but not parsable: {e}")
-                    return result
-
-                self.debug(f"Refresh header '{refresh_header}' found, re-directing to {self.removeUrlCreds(newurl)}")
-
-                if _redirectDepth >= 10:
-                    self.debug("Max refresh redirects (10) reached, stopping")
-                    return result
-
-                return self.fetchUrl(
-                    newurl,
-                    cookies,
-                    timeout,
-                    useragent,
-                    headers,
-                    noLog,
-                    postData,
-                    disableContentEncoding,
-                    sizeLimit,
-                    headOnly,
-                    _redirectDepth=_redirectDepth + 1
-                )
-
-            if disableContentEncoding:
-                result['content'] = res.content
-            else:
-                for encoding in ("utf-8", "ascii"):
-                    try:
-                        result["content"] = res.content.decode(encoding)
-                    except UnicodeDecodeError:
-                        pass
-                    else:
-                        break
-                else:
-                    result["content"] = res.content
-
-        except Exception as e:
-            self.error(f"Unexpected exception ({e}) occurred parsing response for URL: {url}", exc_info=True)
-            result['content'] = None
-            result['status'] = str(e)
-
-        atime = time.time()
-        t = str(atime - btime)
-        self.info(f"Fetched {self.removeUrlCreds(url)} ({len(result['content'] or '')} bytes in {t}s)")
+        result = hostutil.domainKeywords(domainList, tldList)
+        self.debug(f"Keywords: {result}")
         return result
 
+    def hostDomain(self, hostname: str, tldList: list) -> str:
+        """Obtain the domain name for a supplied hostname."""
+        return hostutil.hostDomain(hostname, tldList)
+
+    def validHost(self, hostname: str, tldList: str) -> bool:
+        """Check if the provided string is a valid hostname."""
+        return hostutil.validHost(hostname, tldList)
+
+    def isDomain(self, hostname: str, tldList: list) -> bool:
+        """Check if the provided hostname string is a valid domain name."""
+        return hostutil.isDomain(hostname, tldList)
+
+    def validIP(self, address: str) -> bool:
+        """Check if the provided string is a valid IPv4 address."""
+        return hostutil.validIP(address)
+
+    def validIP6(self, address: str) -> bool:
+        """Check if the provided string is a valid IPv6 address."""
+        return hostutil.validIP6(address)
+
+    def validIpNetwork(self, cidr: str) -> bool:
+        """Check if the provided string is a valid CIDR netblock."""
+        return hostutil.validIpNetwork(cidr)
+
+    def isPublicIpAddress(self, ip: str) -> bool:
+        """Check if an IP address is public."""
+        return hostutil.isPublicIpAddress(ip)
+
+    # -----------------------------------------------------------------------
+    # Delegation to spiderfoot.net.http (SpiderFootHttp)
+    # -----------------------------------------------------------------------
+
+    def fetchUrl(self, *args, **kwargs):
+        """Fetch a URL and return the HTTP response as a dictionary."""
+        return self._http.fetchUrl(*args, **kwargs)
+
+    def getSession(self) -> 'requests.sessions.Session':
+        """Return requests session object."""
+        return self._http.getSession()
+
+    def removeUrlCreds(self, url: str) -> str:
+        """Remove potentially sensitive strings from a URL."""
+        return self._http.removeUrlCreds(url)
+
+    def isValidLocalOrLoopbackIp(self, ip: str) -> bool:
+        """Check if IP address is local or loopback."""
+        return self._http.isValidLocalOrLoopbackIp(ip)
+
+    def useProxyForUrl(self, url: str) -> bool:
+        """Check if the configured proxy should be used for a URL."""
+        return self._http.useProxyForUrl(url)
+
+    # -----------------------------------------------------------------------
+    # Delegation to spiderfoot.net.dns (SpiderFootDns)
+    # -----------------------------------------------------------------------
+
+    def normalizeDNS(self, res: list) -> list:
+        """Clean DNS results to be a simple list."""
+        return self._dns.normalizeDNS(res)
+
+    def resolveHost(self, host: str) -> list:
+        """Return a normalised IPv4 resolution of a hostname."""
+        return self._dns.resolveHost(host)
+
+    def resolveIP(self, ipaddr: str) -> list:
+        """Return a normalised resolution of an IPv4 or IPv6 address."""
+        return self._dns.resolveIP(ipaddr)
+
+    def resolveHost6(self, hostname: str) -> list:
+        """Return a normalised IPv6 resolution of a hostname."""
+        return self._dns.resolveHost6(hostname)
+
+    def validateIP(self, host: str, ip: str) -> bool:
+        """Verify a host resolves to a given IP."""
+        return self._dns.validateIP(host, ip)
+
     def checkDnsWildcard(self, target: str) -> bool:
-        """Check if wildcard DNS is enabled for a domain by looking up a random subdomain.
+        """Check if wildcard DNS is enabled for a domain."""
+        return self._dns.checkDnsWildcard(target)
 
-        Args:
-            target (str): domain
+    # -----------------------------------------------------------------------
+    # Delegation to spiderfoot.net.ssl (SpiderFootSsl)
+    # -----------------------------------------------------------------------
 
-        Returns:
-            bool: Domain returns DNS records for any subdomains
-        """
-        if not target:
-            return False
+    def safeSocket(self, host: str, port: int, timeout: int) -> 'object':
+        """Create a safe socket."""
+        return self._ssl.safeSocket(host, port, timeout)
 
-        randpool = 'bcdfghjklmnpqrstvwxyz3456789'
-        randhost = ''.join([random.SystemRandom().choice(randpool) for x in range(10)])
+    def safeSSLSocket(self, host: str, port: int, timeout: int) -> 'object':
+        """Create a safe SSL connection."""
+        return self._ssl.safeSSLSocket(host, port, timeout)
 
-        if not self.resolveHost(randhost + "." + target):
-            return False
+    def parseCert(self, rawcert: str, fqdn: str = None, expiringdays: int = 30) -> dict:
+        """Parse a PEM-format SSL certificate."""
+        return self._ssl.parseCert(rawcert, fqdn, expiringdays)
 
-        return True
+    # -----------------------------------------------------------------------
+    # Methods that remain in the facade (they call fetchUrl via delegation)
+    # -----------------------------------------------------------------------
 
     def cveInfo(self, cveId: str, sources: str = "circl,nist") -> (str, str):
         """Look up a CVE ID for more information in the first available source.

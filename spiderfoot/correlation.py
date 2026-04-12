@@ -893,6 +893,10 @@ class SpiderFootCorrelator:
                           fetchSources,
                           fetchEntities,
                           collectIndex))
+            # Short-circuit: if first collection returned nothing, skip remaining
+            if collectIndex == 0 and not events:
+                self.log.debug("First collection returned no events, short-circuiting")
+                break
 
         if not events:
             self.log.debug("No events found after going through collections.")
