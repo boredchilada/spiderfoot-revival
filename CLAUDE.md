@@ -1,6 +1,6 @@
 # SpiderFoot Revival
 
-Self-hosted OSINT automation platform forked from [SpiderFoot](https://github.com/smicallef/spiderfoot). Major overhaul — new UI, new modules, modernized stack. Current version: **5.0.2**.
+Self-hosted OSINT automation platform forked from [SpiderFoot](https://github.com/smicallef/spiderfoot). Major overhaul — new UI, new modules, modernized stack. Current version: **5.0.3**.
 
 ## Quick Start
 
@@ -15,14 +15,22 @@ docker run -p 5001:5001 spiderfoot-revival
 ```
 spiderfoot/
   sf.py                          # Main entry point (CLI + web server)
-  sflib.py                       # Core library (SpiderFoot class, fetchUrl, etc.)
+  sflib.py                       # Core library facade (delegates to net/*)
   sfscan.py                      # Scan engine and module orchestration
   modules/                       # 244 OSINT modules (sfp_*.py)
   spiderfoot/
-    app.py                       # Flask app factory
+    app.py                       # Flask app factory, auth (bcrypt), CSRF
     db.py                        # SQLite database layer
     plugin.py                    # Base plugin class (SpiderFootPlugin)
-    __version__.py               # Version (5.0.0)
+    correlation.py               # YAML-based correlation engine
+    __version__.py               # Version (5.0.3)
+    net/                         # Network utilities (extracted from sflib.py)
+      http.py                    # HTTP client (fetchUrl, sessions, proxy)
+      dns.py                     # DNS resolution and validation
+      ssl.py                     # Certificate parsing, safe sockets
+      host.py                    # IP/hostname/domain validation utilities
+    services/
+      event_service.py           # Event formatting, categories, badge colors
     blueprints/
       api.py                     # REST API endpoints (/api/*)
       ui.py                      # HTML page routes (/, /newscan, /scaninfo, /opts)

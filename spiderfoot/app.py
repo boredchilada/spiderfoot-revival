@@ -7,19 +7,76 @@ import multiprocessing as mp
 from copy import deepcopy
 from datetime import datetime, timezone
 
+import bcrypt
 from flask import Flask
+
+
+def _hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+
+def _check_password(password: str, stored: str) -> bool:
+    """Check a password against a stored hash (bcrypt or plaintext legacy).
+
+    If the stored value is plaintext (not a bcrypt hash), it is compared
+    directly and then auto-upgraded to bcrypt in-place via the returned
+    flag.
+
+    Returns:
+        bool: True if the password matches
+    """
+    if stored.startswith('$2b$') or stored.startswith('$2a$'):
+        return bcrypt.checkpw(password.encode('utf-8'), stored.encode('utf-8'))
+    # Legacy plaintext — timing-safe comparison
+    return _hmac.compare_digest(stored, password)
+
+
+def _is_hashed(value: str) -> bool:
+    """Check if a password value is already bcrypt-hashed."""
+    return value.startswith('$2b$') or value.startswith('$2a$')
+
+
+def _upgrade_passwd_file(path: str, users: dict) -> None:
+    """Rewrite passwd file with bcrypt-hashed passwords."""
+    try:
+        lines = []
+        with open(path, 'r') as f:
+            for line in f:
+                stripped = line.strip()
+                if not stripped or stripped.startswith('#'):
+                    lines.append(line)
+                    continue
+                if ':' in stripped:
+                    username, pw = stripped.split(':', 1)
+                    username = username.strip()
+                    hashed = users.get(username, pw.strip())
+                    lines.append(f"{username}:{hashed}\n")
+                else:
+                    lines.append(line)
+        with open(path, 'w') as f:
+            f.writelines(lines)
+    except OSError as exc:
+        logging.getLogger('spiderfoot.auth').warning(
+            "Cannot upgrade passwd file %s: %s", path, exc
+        )
 
 
 def _load_passwd_file(path: str) -> dict:
     """Load username:password pairs from a passwd file.
 
+    Passwords can be bcrypt hashes or plaintext. Plaintext passwords are
+    automatically upgraded to bcrypt on first load (the file is rewritten).
+
     Args:
         path: filesystem path to the passwd file
 
     Returns:
-        dict mapping usernames to passwords
+        dict mapping usernames to bcrypt-hashed passwords
     """
+    auth_log = logging.getLogger('spiderfoot.auth')
     users = {}
+    needs_upgrade = False
     try:
         with open(path, 'r') as f:
             for line in f:
@@ -28,11 +85,21 @@ def _load_passwd_file(path: str) -> dict:
                     continue
                 if ':' in line:
                     username, password = line.split(':', 1)
-                    users[username.strip()] = password.strip()
+                    username = username.strip()
+                    password = password.strip()
+                    if not _is_hashed(password):
+                        auth_log.info(f"Upgrading plaintext password for user '{username}' to bcrypt")
+                        password = _hash_password(password)
+                        needs_upgrade = True
+                    users[username] = password
     except OSError as exc:
-        logging.getLogger('spiderfoot.auth').warning(
-            "Cannot read passwd file %s: %s", path, exc
-        )
+        auth_log.warning("Cannot read passwd file %s: %s", path, exc)
+        return users
+
+    if needs_upgrade:
+        _upgrade_passwd_file(path, users)
+        auth_log.info("Passwd file upgraded — all passwords are now bcrypt-hashed")
+
     return users
 
 
@@ -182,8 +249,8 @@ def create_app(config=None):
 
         stored_password = app.config['SF_USERS'].get(username)
         if stored_password is None:
-            # Dummy comparison to prevent username-enumeration via timing
-            _hmac.compare_digest("dummy", password)
+            # Dummy bcrypt check to prevent username-enumeration via timing
+            _check_password(password, _hash_password("dummy"))
             auth_log.warning(f"Failed login attempt for unknown user '{username}'")
             return Response(
                 'Invalid credentials.\n',
@@ -191,7 +258,7 @@ def create_app(config=None):
                 {'WWW-Authenticate': 'Basic realm="SpiderFoot"'}
             )
 
-        if not _hmac.compare_digest(stored_password, password):
+        if not _check_password(password, stored_password):
             auth_log.warning(f"Failed login attempt for user '{username}'")
             return Response(
                 'Invalid credentials.\n',

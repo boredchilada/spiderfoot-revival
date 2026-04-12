@@ -4,7 +4,7 @@ Self-hosted OSINT automation platform. Forked from [SpiderFoot](https://github.c
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.9+-green)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-5.0.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.0.3-blue.svg)](CHANGELOG.md)
 
 ## What Changed from Upstream
 
@@ -40,6 +40,17 @@ python sf.py -l 127.0.0.1:5001
 ```
 
 Requires Python 3.9+.
+
+## Authentication
+
+By default, SpiderFoot runs without authentication. To enable it, create a passwd file:
+
+```bash
+# Create the passwd file with a bcrypt-hashed password
+python -c "import bcrypt; print('admin:' + bcrypt.hashpw(b'changeme', bcrypt.gensalt()).decode())" > ~/.spiderfoot/passwd
+```
+
+On startup, SpiderFoot loads this file and enforces HTTP Basic Auth on all endpoints. Plaintext passwords in existing passwd files are automatically upgraded to bcrypt on first load.
 
 ## Features
 
@@ -130,13 +141,21 @@ See [CLAUDE_TECHNICAL.md](CLAUDE_TECHNICAL.md) for the full API reference.
 
 ```
 sf.py                          # Entry point (CLI + web server)
-sflib.py                       # Core library (fetchUrl, config, helpers)
+sflib.py                       # Core library facade (delegates to net/*)
 sfscan.py                      # Scan engine and module orchestration
 modules/                       # 244 OSINT modules (sfp_*.py)
 spiderfoot/
-  app.py                       # Flask app factory
+  app.py                       # Flask app factory, auth, CSRF
   db.py                        # SQLite database layer
   plugin.py                    # Base plugin class
+  correlation.py               # YAML-based correlation engine
+  net/                         # Network utilities (extracted from sflib.py)
+    http.py                    # HTTP client (fetchUrl, sessions, proxy)
+    dns.py                     # DNS resolution and validation
+    ssl.py                     # Certificate parsing, safe sockets
+    host.py                    # IP/hostname/domain validation utilities
+  services/
+    event_service.py           # Event formatting, categories, badge colors
   blueprints/
     api.py                     # REST API endpoints (/api/*)
     ui.py                      # HTML page routes
