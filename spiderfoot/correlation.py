@@ -91,8 +91,6 @@ class SpiderFootCorrelator:
             for k in rule['meta'].keys():
                 if isinstance(rule['meta'][k], str):
                     rule['meta'][k] = rule['meta'][k].strip()
-                else:
-                    rule['meta'][k] = rule[k]
 
         if not self.check_ruleset_validity(self.rules):
             raise SyntaxError("Sanity check of correlation rules failed.")
@@ -923,6 +921,7 @@ class SpiderFootCorrelator:
                 v = self.event_extract(data[0], m)[0]
             except Exception:
                 self.log.error(f"Field requested was not available: {m}")
+                continue
             title = title.replace("{" + m + "}", v.replace("\r", "").split("\n")[0])
         return title
 
