@@ -119,6 +119,7 @@ class sfp_tool_bbot_scan(SpiderFootPlugin):
             "--json",
             "--silent",
             "-y",
+            "--no-deps",
             "-c", f"modules.portscan.top_ports={self.opts['top_ports']}",
         ]
 
