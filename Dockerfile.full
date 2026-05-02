@@ -6,7 +6,7 @@
 # Written by: TheTechromancer
 #
 
-FROM python:3
+FROM python:3.11
 
 # Install tools/dependencies from apt
 RUN apt-get -y update && apt-get -y install nbtscan onesixtyone nmap
@@ -32,27 +32,18 @@ RUN groupadd spiderfoot \
     && useradd -m -g spiderfoot -d /home/spiderfoot -s /sbin/nologin \
     -c "SpiderFoot User" spiderfoot
 
-# Install RetireJS
-RUN apt remove -y cmdtest \
-    && apt remove -y yarn \
-    && curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
-    && echo 'deb https://dl.yarnpkg.com/debian/ stable main' |tee /etc/apt/sources.list.d/yarn.list \
-    && apt-get update \
-    && apt-get install yarn -y \
-    && yarn install \
-    && curl -fsSL https://deb.nodesource.com/setup_17.x | bash - \
+# Install Node.js, yarn, and RetireJS
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
-    && npm install -g retire
+    && npm install -g yarn retire
 
 # Install Google Chrome the New Way (Not via apt-key)
 RUN wget -qO - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list \
     && apt -y update && apt install --allow-unauthenticated -y google-chrome-stable
 
-# Install Wappalyzer
-RUN git clone https://github.com/AliasIO/wappalyzer.git \
-    && cd wappalyzer \
-    && yarn install && yarn run link
+# Wappalyzer: upstream repo (AliasIO/wappalyzer) was archived when the project
+# went commercial. Skipped — sfp_tool_wappalyzer will be non-functional.
 
 # Install Nuclei
 RUN wget https://github.com/projectdiscovery/nuclei/releases/download/v2.6.5/nuclei_2.6.5_linux_amd64.zip \
@@ -100,15 +91,30 @@ RUN pip install -r "$REQUIREMENTS"
 
 # Install Python tools
 RUN pip install dnstwist
+RUN pip install bbot
+
+# Pre-install BBOT module dependencies as root so that runtime invocations
+# don't try to call sudo (which the spiderfoot user cannot do, and which
+# causes bbot to hang waiting for a password). --ignore-failed-deps so that
+# any single dep failure (e.g. masscan needing kernel features unavailable
+# during build) doesn't break the whole image.
+USER root
+RUN bbot --install-all-deps -y --silent || true
+# Copy the resulting deps cache to the spiderfoot user's home so that
+# runtime invocations (which run as spiderfoot, not root) skip the
+# core-deps installation step. Without this, bbot treats the user's
+# empty cache as "deps not yet installed" and tries to call sudo.
+RUN mkdir -p /home/spiderfoot/.bbot \
+    && cp -rn /root/.bbot/* /home/spiderfoot/.bbot/ 2>/dev/null || true \
+    && chown -R spiderfoot:spiderfoot /home/spiderfoot/.bbot
+USER spiderfoot
 # CMSeeK
 WORKDIR /tools
 RUN git clone https://github.com/Tuhinshubhra/CMSeeK && cd CMSeeK \
     && pip install -r requirements.txt && mkdir Results
 
 # Install wafw00f
-RUN git clone https://github.com/EnableSecurity/wafw00f \
-    && cd wafw00f \
-    && python3 setup.py install
+RUN pip install wafw00f
 WORKDIR /home/spiderfoot
 
 EXPOSE 5001

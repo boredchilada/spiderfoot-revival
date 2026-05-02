@@ -103,6 +103,7 @@ class sfp_tool_bbot_vuln(SpiderFootPlugin):
             "--json",
             "--silent",
             "-y",
+            "--no-deps",
         ]
 
         try:

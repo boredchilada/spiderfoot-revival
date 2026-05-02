@@ -100,6 +100,7 @@ class sfp_tool_bbot_enum(SpiderFootPlugin):
             "--json",
             "--silent",
             "-y",
+            "--no-deps",
         ]
 
         if self.opts["extra_modules"]:
