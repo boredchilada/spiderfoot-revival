@@ -719,6 +719,36 @@ class SpiderFootDb:
             except sqlite3.Error:
                 raise IOError("Unable to set information for the scan instance.") from None
 
+    def scanInstanceReconcileZombies(self) -> list:
+        """Mark scans whose worker process is no longer alive as ABORTED.
+
+        Any scan still recorded as RUNNING, STARTING or ABORT-REQUESTED
+        when the application boots is, by definition, a zombie: the
+        worker that owned it died with the previous process (container
+        restart, OOM, crash) and there is nothing left to advance it.
+
+        Returns:
+            list: GUIDs of the scans that were reconciled.
+        """
+        with self.dbhLock:
+            try:
+                rows = self.dbh.execute(
+                    "SELECT guid FROM tbl_scan_instance "
+                    "WHERE status IN ('RUNNING', 'STARTING', 'ABORT-REQUESTED')"
+                ).fetchall()
+                guids = [r[0] for r in rows]
+                if guids:
+                    self.dbh.execute(
+                        "UPDATE tbl_scan_instance SET status='ABORTED', ended = ? "
+                        "WHERE status IN ('RUNNING', 'STARTING', 'ABORT-REQUESTED')",
+                        (time.time() * 1000,)
+                    )
+                    self.conn.commit()
+                return guids
+            except sqlite3.Error:
+                # Best-effort cleanup: never block app startup on this.
+                return []
+
     def scanInstanceGet(self, instanceId: str) -> list:
         """Return info about a scan instance (name, target, created, started, ended, status)
 
