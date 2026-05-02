@@ -1,13 +1,21 @@
 # SpiderFoot Revival
 
-Self-hosted OSINT automation platform forked from [SpiderFoot](https://github.com/smicallef/spiderfoot). Major overhaul — new UI, new modules, modernized stack. Current version: **5.0.3**.
+Self-hosted OSINT automation platform forked from [SpiderFoot](https://github.com/smicallef/spiderfoot). Major overhaul — new UI, new modules, modernized stack. Current version: **5.1.0**.
 
 ## Quick Start
 
 ```bash
+# Slim image — Python deps only
 docker build -t spiderfoot-revival .
 docker run -p 5001:5001 spiderfoot-revival
 # Visit http://localhost:5001
+```
+
+For the local-tool modules (BBOT, nmap, nuclei, dnstwist, etc.) build the full image:
+
+```bash
+docker build -f Dockerfile.full -t spiderfoot-full .
+docker run -p 5001:5001 -v ~/.spiderfoot:/var/lib/spiderfoot spiderfoot-full
 ```
 
 ## Project Structure
@@ -17,13 +25,13 @@ spiderfoot/
   sf.py                          # Main entry point (CLI + web server)
   sflib.py                       # Core library facade (delegates to net/*)
   sfscan.py                      # Scan engine and module orchestration
-  modules/                       # 244 OSINT modules (sfp_*.py)
+  modules/                       # 245 OSINT modules (sfp_*.py)
   spiderfoot/
     app.py                       # Flask app factory, auth (bcrypt), CSRF
     db.py                        # SQLite database layer
     plugin.py                    # Base plugin class (SpiderFootPlugin)
     correlation.py               # YAML-based correlation engine
-    __version__.py               # Version (5.0.3)
+    __version__.py               # Version (5.1.0)
     net/                         # Network utilities (extracted from sflib.py)
       http.py                    # HTTP client (fetchUrl, sessions, proxy)
       dns.py                     # DNS resolution and validation
@@ -90,3 +98,7 @@ spiderfoot/
 - **Event badge colors**: Defined in `event_badge_color()` in `services/event_service.py` — computed server-side, NOT in Jinja2 templates (Jinja2 `.startswith()` is unreliable in sandboxed Flask).
 - **Tailwind CDN safelist**: Classes used only in HTMX-swapped content (not in initial HTML) MUST be added to the `safelist` array in `base.html`'s Tailwind config. Firefox caches the JIT stylesheet and won't regenerate for dynamically loaded classes.
 - **Local tool detection**: Modules with `'tool'` in their `flags` metadata or `sfp_tool_*` prefix are shown in the Local Tools section. Set `isLocalTool` in `ui.py:_build_modules_data()`.
+- **BBOT runtime args must include `--no-deps`**: BBOT's first run as a non-root user installs core deps (openssl-dev) and per-module deps via Ansible with `become: true`. The container's `spiderfoot` user has no sudo, so omitting `--no-deps` causes a silent hang on a `getpass` prompt and the SpiderFoot module sees empty stdout. `Dockerfile.full` pre-installs deps as root and copies `/root/.bbot` to `/home/spiderfoot/.bbot` so the runtime cache hit skips the install path.
+- **New event types need the `eventDetails` sync**: `db.py:eventDetails` is now imported into `tbl_event_types` on every startup (not just init), so adding a new event type to that list is enough — existing DBs get migrated. The `tbl_scan_results.type` foreign key requires the row to exist before any module can emit the type.
+- **Zombie scans on boot**: `start_web_server` calls `SpiderFootDb.scanInstanceReconcileZombies()` once at startup, rewriting any RUNNING/STARTING/ABORT-REQUESTED rows to ABORTED. Don't call it from `SpiderFootDb.__init__` — scan workers spawn their own DB handles and would mark their own just-started scan as a zombie.
+- **API keys card builder collapses by module**: `fragments.py:_build_api_card_data` returns one card per module, with a `fields` list of every credential opt (any opt name containing `api_key`/`apikey`). Modules that need username + key (Dehashed, Trashpanda, Censys, Twilio, etc.) render as a single card with stacked labeled inputs — never one card per opt.
