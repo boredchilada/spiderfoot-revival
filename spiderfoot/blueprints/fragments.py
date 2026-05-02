@@ -392,6 +392,7 @@ def _build_api_card_data(sf_config: dict, group_by: str = 'category') -> list:
         data_source = meta.get('dataSource', {})
         website = data_source.get('website', '')
         opts = mod_cfg.get('opts', {})
+        optdescs = mod_cfg.get('optdescs', {})
 
         # Determine group based on grouping mode
         if group_by == 'usecase':
@@ -401,20 +402,32 @@ def _build_api_card_data(sf_config: dict, group_by: str = 'category') -> list:
         else:
             group = categories[0] if categories else 'Other'
 
+        # Collect all credential-like opts for this module into a single card
+        # (modules with two or more credential fields, e.g. username + key,
+        # used to render as multiple cards with the same service name).
+        fields = []
         for opt_key, opt_val in opts.items():
             key_lower = opt_key.lower()
             if 'api_key' in key_lower or 'apikey' in key_lower:
                 value = str(opt_val) if opt_val is not None else ''
-                configured = bool(value and value.strip())
-                raw_cards.append({
-                    'mod_name': mod_name,
-                    'service_name': service_name,
+                fields.append({
                     'opt_key': opt_key,
+                    'label': optdescs.get(opt_key, opt_key),
                     'value': value,
-                    'configured': configured,
-                    'group': group,
-                    'website': website,
+                    'configured': bool(value and value.strip()),
                 })
+
+        if not fields:
+            continue
+
+        raw_cards.append({
+            'mod_name': mod_name,
+            'service_name': service_name,
+            'fields': fields,
+            'configured': all(f['configured'] for f in fields),
+            'group': group,
+            'website': website,
+        })
 
     # Group cards
     groups = {}
