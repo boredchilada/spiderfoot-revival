@@ -2,6 +2,23 @@
 
 All notable changes to the SpiderFoot Revival project.
 
+## [5.1.0] - 2026-05-02
+
+### New Modules
+
+- **sfp_ransomwarelive** — queries the free ransomware.live v2 API to flag domains and company names appearing on tracked ransomware extortion leak sites. Configurable allowlist of input event types, 24h response cache, and a 65s inter-call throttle to respect the free API's 1 req/min limit. Adds the `RANSOMWARE_VICTIM` event type.
+
+### Fixes
+
+- **BBOT modules silently produced no output**. The four `sfp_tool_bbot_*` modules were hanging on a hidden `sudo` prompt: BBOT's first run as a non-root user installs core deps (openssl-dev) and per-module deps via Ansible with `become: true`, and the `spiderfoot` user has no sudo. SpiderFoot then saw empty stdout and emitted nothing. Modules now pass `--no-deps` on every invocation, and `Dockerfile.full` pre-installs all module deps as root and copies the resulting cache into the spiderfoot user's home so the runtime cache hit skips the install path entirely.
+- **Zombie scans on web-server boot**. After abnormal exit (container restart, OOM, crash) any in-flight scans were left in `tbl_scan_instance` with `status='RUNNING'` / `'STARTING'` / `'ABORT-REQUESTED'`, lingering forever in the dashboard. `start_web_server` now calls a one-shot `SpiderFootDb.scanInstanceReconcileZombies()` that rewrites those rows to `ABORTED` with a current-time `ended` timestamp before the app starts serving.
+- **Duplicate cards in the API keys page**. Modules with two or more credential opts (Dehashed, Trashpanda, Censys, Twilio, IBM X-Force, etc. — 13 total) used to render as one card per credential field, all sharing the same service name. They now collapse into a single labeled card per module.
+- **`Dockerfile.full` build broken on current Debian**. Pinned `python:3.11` (lxml 4.x has no wheels on 3.13), dropped the broken `cmdtest`/`apt-key` yarn dance for a NodeSource Node 20 install, skipped the now-archived `AliasIO/wappalyzer` repo, and switched wafw00f to `pip install` (upstream removed setup.py).
+
+### Schema
+
+- Event-type sync in `db.py` now runs on every startup, not just on fresh DB init, so newly added event types (e.g. `RANSOMWARE_VICTIM`) are registered into existing databases on upgrade. Each `INSERT` is best-effort; duplicates are silently skipped.
+
 ## [5.0.3] - 2026-04-12
 
 ### UI Fixes

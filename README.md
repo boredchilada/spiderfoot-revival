@@ -4,14 +4,14 @@ Self-hosted OSINT automation platform. Forked from [SpiderFoot](https://github.c
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.9+-green)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-5.0.3-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.1.0-blue.svg)](CHANGELOG.md)
 
 ## What Changed from Upstream
 
 - **Frontend rewrite**: CherryPy/jQuery/Bootstrap replaced with Flask/Tailwind CSS/HTMX/Alpine.js
 - **Dark SOC-themed UI** with collapsible sidebar, category-grouped results, and HTMX-driven interactions
 - **Module audit**: 11 dead modules removed, 6 broken APIs fixed, 22 new modules added
-- **244 total modules** covering passive recon, breach data, threat intel, cloud discovery, and vulnerability scanning
+- **245 total modules** covering passive recon, breach data, threat intel, cloud discovery, and vulnerability scanning
 - **BBOT integration**: 4 wrapper modules providing access to 50+ BBOT sources
 - **Full REST API** for programmatic scan management and data export
 
@@ -25,6 +25,15 @@ docker run -p 5001:5001 spiderfoot-revival
 ```
 
 Visit [http://localhost:5001](http://localhost:5001)
+
+The default image is the slim Alpine build — Python deps only. To get the local-tool modules (BBOT, nmap, nuclei, dnstwist, whatweb, retire, testssl.sh, etc.) build the full image instead:
+
+```bash
+docker build -f Dockerfile.full -t spiderfoot-full .
+docker run -p 5001:5001 -v /my/data:/var/lib/spiderfoot spiderfoot-full
+```
+
+For BBOT active port scanning (masscan SYN scans) add `--cap-add=NET_RAW`; without it BBOT falls back to TCP-connect scans.
 
 ### Docker with persistent storage
 
@@ -54,7 +63,7 @@ On startup, SpiderFoot loads this file and enforces HTTP Basic Auth on all endpo
 
 ## Features
 
-- **244 OSINT modules** across passive recon, active scanning, breach data, and threat intelligence
+- **245 OSINT modules** across passive recon, active scanning, breach data, and threat intelligence
 - **Event-driven pipeline** — modules produce and consume typed events, cascading discovery automatically
 - **Web UI** — dark theme, real-time scan progress, categorized results, expandable event details
 - **REST API** — full scan lifecycle management, JSON/CSV/GEXF export, config import/export
@@ -104,6 +113,7 @@ SpiderFoot can scan:
 | RansomLook | Ransomware victim tracking | Free, no key |
 | C2-Tracker | Live C2 server feeds | Free, no key |
 | Vulners | CVE/exploit database | Free tier with key |
+| Ransomware.live | Ransomware leak-site victim lookup | Free, no key (rate-limited, personal use) |
 
 ### Removed Modules (11)
 
@@ -143,7 +153,7 @@ See [CLAUDE_TECHNICAL.md](CLAUDE_TECHNICAL.md) for the full API reference.
 sf.py                          # Entry point (CLI + web server)
 sflib.py                       # Core library facade (delegates to net/*)
 sfscan.py                      # Scan engine and module orchestration
-modules/                       # 244 OSINT modules (sfp_*.py)
+modules/                       # 245 OSINT modules (sfp_*.py)
 spiderfoot/
   app.py                       # Flask app factory, auth, CSRF
   db.py                        # SQLite database layer
@@ -176,9 +186,15 @@ correlations/                  # YAML correlation rules
 
 ## Optional Dependencies
 
-- **bbot** — Required for the 4 `sfp_tool_bbot_*` modules. Install separately: `pip install bbot`. These modules degrade gracefully if bbot is not available.
-- **nmap** — Required for `sfp_tool_nmap`. Install via system package manager.
-- **whatweb** — Required for `sfp_tool_whatweb`. Install via system package manager.
+The local-tool modules (`sfp_tool_*`) shell out to external CLI binaries. Use `Dockerfile.full` to get all of them pre-installed, or install them yourself for local development:
+
+- **bbot** — `pip install bbot && bbot --install-all-deps -y` (the second step pulls down per-module deps; without it bbot will try to invoke `sudo` at scan time)
+- **nmap**, **nbtscan**, **onesixtyone** — system package manager
+- **nuclei**, **fingerprintx** — Go binaries from ProjectDiscovery / fullhunt-io releases
+- **whatweb** — Ruby; `gem install whatweb` or clone from upstream
+- **retire** — `npm install -g retire`
+- **testssl.sh**, **CMSeeK** — git clone the upstream repos
+- **dnstwist**, **wafw00f**, **snallygaster**, **trufflehog** — `pip install <name>`
 
 ## Configuration
 
