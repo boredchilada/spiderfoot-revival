@@ -138,11 +138,11 @@ class sfp_example(SpiderFootPlugin):
 | POST | `/api/savesettings` | Import config (JSON or CFG file) |
 | GET | `/api/modules` | List all available modules |
 
-## Current Module Count: 244
+## Current Module Count: 245
 
 ### By API Model
 - FREE_NOAUTH_UNLIMITED: ~35 modules
-- FREE_NOAUTH_LIMITED: ~10 modules
+- FREE_NOAUTH_LIMITED: ~11 modules
 - FREE_AUTH_LIMITED: ~55 modules
 - FREE_AUTH_UNLIMITED: ~15 modules
 - COMMERCIAL_ONLY: ~10 modules
@@ -151,6 +151,9 @@ class sfp_example(SpiderFootPlugin):
 
 ### New in v5.0.0 (22 modules)
 Shodan InternetDB, LeakCheck, Hudson Rock, Criminal IP, Netlas.io, Validin, OpenSanctions, WhoisXML API, BeVigil, Postman, ZoomEye, FOFA, Snusbase, BBOT (4 wrappers), User Scanner, MISP, RansomLook, C2-Tracker, Vulners
+
+### New in v5.1.0 (1 module)
+Ransomware.live — leak-site victim lookup via the free v2 API. Adds the `RANSOMWARE_VICTIM` event type. Watches `DOMAIN_NAME` / `COMPANY_NAME` by default (configurable allowlist), 24h response cache, 65s inter-call throttle to respect the free 1 req/min limit.
 
 ## Scan Lifecycle
 
@@ -172,8 +175,12 @@ STARTING → RUNNING → FINISHED
 ### Known Limitation: No Per-Module Timeout
 - `_fetchtimeout` (default 5s) only applies to individual HTTP requests via `fetchUrl()`
 - There is NO timeout on module execution itself — a module iterating a /16 netblock or running BBOT can run for hours
-- Stuck scans: if the scan process crashes (Docker restart, OOM), the DB status stays `RUNNING` forever
 - Workaround: manually `POST /api/stopscan?id=X` to set `ABORT-REQUESTED`
+
+### Zombie Scan Reconciliation
+- If the scan process dies abnormally (Docker restart, OOM, crash) the DB row stays `RUNNING` / `STARTING` / `ABORT-REQUESTED` indefinitely
+- `start_web_server` calls `SpiderFootDb.scanInstanceReconcileZombies()` once before `create_app()`, rewriting all such rows to `ABORTED` with the current timestamp on `ended`
+- The reconciler is intentionally NOT in `SpiderFootDb.__init__` — scan workers spawn their own DB handle and would mark their own just-started scan as a zombie
 
 ### Config Import/Export
 - `GET /api/optsexport` → text/plain CFG file, format: `modulename:optionname=value` per line
@@ -233,15 +240,24 @@ ORDER BY r.generated DESC
 
 ## Docker
 
+Two images:
+
 ```bash
+# Slim — Python deps only (Alpine 3.18, multi-stage build, non-root)
 docker build -t spiderfoot-revival .
-docker run -p 5001:5001 -v /my/data:/var/lib/spiderfoot spiderfoot-revival
+docker run -p 5001:5001 -v ~/.spiderfoot:/var/lib/spiderfoot spiderfoot-revival
+
+# Full — Python + every local-tool CLI binary the modules wrap
+docker build -f Dockerfile.full -t spiderfoot-full .
+docker run -p 5001:5001 -v ~/.spiderfoot:/var/lib/spiderfoot spiderfoot-full
 ```
 
-The Dockerfile uses Alpine 3.18 with a multi-stage build. The app runs as non-root user `spiderfoot`.
+The full image is `python:3.11`-based (lxml<5 has no wheels on 3.13) and ships nmap, nuclei, whatweb, dnstwist, cmseek, wafw00f, onesixtyone, nbtscan, retire, testssl.sh, snallygaster, trufflehog, and BBOT with all module deps pre-installed.
+
+For BBOT active port scanning (masscan SYN scans) add `--cap-add=NET_RAW`; without it BBOT falls back to TCP-connect.
 
 ### Optional Dependencies
-- **bbot**: Required for `sfp_tool_bbot_*` modules. Too heavy for default install (~500MB+ with deps). Install manually: `pip install bbot`. Modules degrade gracefully if bbot is missing (set `errorState = True` and skip).
+- **bbot**: Required for `sfp_tool_bbot_*` modules. Pre-installed in `Dockerfile.full`. For local dev: `pip install bbot && bbot --install-all-deps -y`. Modules pass `--no-deps` at runtime; if you skip the install step BBOT will hang on a sudo prompt and silently emit nothing.
 - **user-scanner**: Included in `requirements.txt`. Used by `sfp_userscanner` for email registration + username checking.
 
 ### Event Type Reference (common mistakes)
