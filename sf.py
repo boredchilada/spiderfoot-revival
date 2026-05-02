@@ -487,6 +487,19 @@ def start_web_server(sfWebUiConfig: dict, sfConfig: dict, loggingQueue=None) -> 
     print("*************************************************************")
     print("")
 
+    # Reconcile any zombie scans left over from a previous process: if a
+    # scan is still marked RUNNING / STARTING / ABORT-REQUESTED at boot,
+    # its worker is gone and it can't progress, so mark it ABORTED.
+    try:
+        zombies = SpiderFootDb(sfConfig).scanInstanceReconcileZombies()
+        if zombies:
+            log.warning(
+                f"Reconciled {len(zombies)} zombie scan(s) left over from a "
+                f"previous run: {', '.join(zombies)}"
+            )
+    except Exception as e:
+        log.warning(f"Zombie scan reconciliation skipped: {e}")
+
     app = create_app(config=sfConfig)
     app.config['SF_LOGGING_QUEUE'] = loggingQueue
     app.run(host=web_host, port=int(web_port), debug=False, use_reloader=False)
