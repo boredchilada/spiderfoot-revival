@@ -138,7 +138,7 @@ class sfp_example(SpiderFootPlugin):
 | POST | `/api/savesettings` | Import config (JSON or CFG file) |
 | GET | `/api/modules` | List all available modules |
 
-## Current Module Count: 245
+## Current Module Count: 244
 
 ### By API Model
 - FREE_NOAUTH_UNLIMITED: ~35 modules

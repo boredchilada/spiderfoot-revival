@@ -11,7 +11,7 @@ Self-hosted OSINT automation platform. Forked from [SpiderFoot](https://github.c
 - **Frontend rewrite**: CherryPy/jQuery/Bootstrap replaced with Flask/Tailwind CSS/HTMX/Alpine.js
 - **Dark SOC-themed UI** with collapsible sidebar, category-grouped results, and HTMX-driven interactions
 - **Module audit**: 11 dead modules removed, 6 broken APIs fixed, 22 new modules added
-- **245 total modules** covering passive recon, breach data, threat intel, cloud discovery, and vulnerability scanning
+- **244 total modules** covering passive recon, breach data, threat intel, cloud discovery, and vulnerability scanning
 - **BBOT integration**: 4 wrapper modules providing access to 50+ BBOT sources
 - **Full REST API** for programmatic scan management and data export
 
@@ -63,7 +63,7 @@ On startup, SpiderFoot loads this file and enforces HTTP Basic Auth on all endpo
 
 ## Features
 
-- **245 OSINT modules** across passive recon, active scanning, breach data, and threat intelligence
+- **244 OSINT modules** across passive recon, active scanning, breach data, and threat intelligence
 - **Event-driven pipeline** — modules produce and consume typed events, cascading discovery automatically
 - **Web UI** — dark theme, real-time scan progress, categorized results, expandable event details
 - **REST API** — full scan lifecycle management, JSON/CSV/GEXF export, config import/export
@@ -153,7 +153,7 @@ See [CLAUDE_TECHNICAL.md](CLAUDE_TECHNICAL.md) for the full API reference.
 sf.py                          # Entry point (CLI + web server)
 sflib.py                       # Core library facade (delegates to net/*)
 sfscan.py                      # Scan engine and module orchestration
-modules/                       # 245 OSINT modules (sfp_*.py)
+modules/                       # 244 OSINT modules (sfp_*.py)
 spiderfoot/
   app.py                       # Flask app factory, auth, CSRF
   db.py                        # SQLite database layer

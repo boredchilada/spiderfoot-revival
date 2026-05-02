@@ -25,7 +25,7 @@ spiderfoot/
   sf.py                          # Main entry point (CLI + web server)
   sflib.py                       # Core library facade (delegates to net/*)
   sfscan.py                      # Scan engine and module orchestration
-  modules/                       # 245 OSINT modules (sfp_*.py)
+  modules/                       # 244 OSINT modules (sfp_*.py)
   spiderfoot/
     app.py                       # Flask app factory, auth (bcrypt), CSRF
     db.py                        # SQLite database layer
@@ -101,4 +101,4 @@ spiderfoot/
 - **BBOT runtime args must include `--no-deps`**: BBOT's first run as a non-root user installs core deps (openssl-dev) and per-module deps via Ansible with `become: true`. The container's `spiderfoot` user has no sudo, so omitting `--no-deps` causes a silent hang on a `getpass` prompt and the SpiderFoot module sees empty stdout. `Dockerfile.full` pre-installs deps as root and copies `/root/.bbot` to `/home/spiderfoot/.bbot` so the runtime cache hit skips the install path.
 - **New event types need the `eventDetails` sync**: `db.py:eventDetails` is now imported into `tbl_event_types` on every startup (not just init), so adding a new event type to that list is enough — existing DBs get migrated. The `tbl_scan_results.type` foreign key requires the row to exist before any module can emit the type.
 - **Zombie scans on boot**: `start_web_server` calls `SpiderFootDb.scanInstanceReconcileZombies()` once at startup, rewriting any RUNNING/STARTING/ABORT-REQUESTED rows to ABORTED. Don't call it from `SpiderFootDb.__init__` — scan workers spawn their own DB handles and would mark their own just-started scan as a zombie.
-- **API keys card builder collapses by module**: `fragments.py:_build_api_card_data` returns one card per module, with a `fields` list of every credential opt (any opt name containing `api_key`/`apikey`). Modules that need username + key (Dehashed, Trashpanda, Censys, Twilio, etc.) render as a single card with stacked labeled inputs — never one card per opt.
+- **API keys card builder collapses by module**: `fragments.py:_build_api_card_data` returns one card per module, with a `fields` list of every credential opt (any opt name containing `api_key`/`apikey`). Modules that need username + key (Dehashed, Censys, Twilio, IBM X-Force, etc.) render as a single card with stacked labeled inputs — never one card per opt.
