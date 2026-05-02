@@ -226,6 +226,7 @@ class SpiderFootDb:
         ['PROVIDER_HOSTING', 'Hosting Provider', 0, 'ENTITY'],
         ['PROVIDER_TELCO', 'Telecommunications Provider', 0, 'ENTITY'],
         ['PUBLIC_CODE_REPO', 'Public Code Repository', 0, 'ENTITY'],
+        ['RANSOMWARE_VICTIM', 'Ransomware Leak-Site Victim', 0, 'DESCRIPTOR'],
         ['RAW_RIR_DATA', 'Raw Data from RIRs/APIs', 1, 'DATA'],
         ['RAW_DNS_RECORDS', 'Raw DNS Records', 1, 'DATA'],
         ['RAW_FILE_META_DATA', 'Raw File Meta Data', 1, 'DATA'],
@@ -375,22 +376,24 @@ class SpiderFootDb:
                                   "SpiderFoot wasn't able to migrate you, so you'll need to delete "
                                   "your SpiderFoot database in order to proceed.") from None
 
-            if init:
-                for row in self.eventDetails:
-                    event = row[0]
-                    event_descr = row[1]
-                    event_raw = row[2]
-                    event_type = row[3]
-                    qry = "INSERT INTO tbl_event_types (event, event_descr, event_raw, event_type) VALUES (?, ?, ?, ?)"
+            # Always sync eventDetails into tbl_event_types so that existing
+            # databases pick up newly added event types on upgrade. Each
+            # INSERT is best-effort; duplicates are silently skipped.
+            for row in self.eventDetails:
+                event = row[0]
+                event_descr = row[1]
+                event_raw = row[2]
+                event_type = row[3]
+                qry = "INSERT INTO tbl_event_types (event, event_descr, event_raw, event_type) VALUES (?, ?, ?, ?)"
 
-                    try:
-                        self.dbh.execute(qry, (
-                            event, event_descr, event_raw, event_type
-                        ))
-                        self.conn.commit()
-                    except Exception:
-                        continue
-                self.conn.commit()
+                try:
+                    self.dbh.execute(qry, (
+                        event, event_descr, event_raw, event_type
+                    ))
+                    self.conn.commit()
+                except Exception:
+                    continue
+            self.conn.commit()
 
     #
     # Back-end database operations
