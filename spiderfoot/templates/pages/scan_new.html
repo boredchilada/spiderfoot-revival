@@ -15,8 +15,11 @@
 <script>
   window.__SF_MODULES__ = {{ modules | tojson }};
 </script>
+<script>
+  window.__SF_PRESETS__ = {{ presets | tojson }};
+</script>
 <div class="max-w-4xl mx-auto"
-     x-data="scanForm(window.__SF_MODULES__)">
+     x-data="scanForm(window.__SF_MODULES__, window.__SF_PRESETS__)">
 
   <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-6">New Scan</h1>
 
