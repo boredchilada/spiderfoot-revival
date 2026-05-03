@@ -166,14 +166,14 @@
     <div class="flex gap-2 flex-wrap">
       {# Tab helper macro-style: repeated for each use case #}
       {% for uc, label, desc in [
-          ('footprint',   'Footprint',   'Discover public info about a target'),
-          ('investigate', 'Investigate', 'Deep recon including history'),
-          ('passive',     'Passive',     'Safe — no direct target contact'),
-          ('custom',      'Custom',      'Pick modules manually'),
+          ('builtin:footprint',   'Footprint',   'Discover public info about a target'),
+          ('builtin:investigate', 'Investigate', 'Deep recon including history'),
+          ('builtin:passive',     'Passive',     'Safe — no direct target contact'),
+          ('__custom__',          'Custom',      'Pick modules manually'),
       ] %}
       <button type="button"
-              @click="selectUseCase('{{ uc }}')"
-              :class="useCase === '{{ uc }}'
+              @click="applyPreset('{{ uc }}')"
+              :class="activePresetId === '{{ uc }}'
                 ? 'bg-sf-accent text-white border-sf-accent shadow-sm'
                 : 'bg-white dark:bg-sf-elevated text-slate-600 dark:text-slate-300 border-slate-300 dark:border-sf-border hover:border-sf-accent hover:text-sf-accent'"
               class="px-4 py-2 rounded-md border text-sm font-medium transition-colors duration-150">
