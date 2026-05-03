@@ -145,65 +145,74 @@ def seed_builtin_presets(dbh, modules: dict) -> None:
     """
     now_ms = int(time.time() * 1000)
 
+    # One snapshot of existing presets; we update it locally as we rename.
+    existing_by_id = {row['id']: row for row in dbh.presetList()}
+
     for preset_def in BUILTIN_PRESETS:
         preset_id = preset_def['id']
-        name = preset_def['name']
-        description = preset_def.get('description')
-        sort_order = preset_def['sort_order']
+        try:
+            name = preset_def['name']
+            description = preset_def.get('description')
+            sort_order = preset_def['sort_order']
 
-        valid_modules, dropped = _resolve_preset_modules(preset_def, modules)
-        if dropped:
-            log.warning(
-                "Built-in preset %s references %d unknown module(s): %s",
-                preset_id, len(dropped), ', '.join(dropped)
-            )
-
-        # Resolve name collision: any *user* preset (different id) with the
-        # same name must be renamed before we upsert.
-        existing = dbh.presetList()
-        for row in existing:
-            if (row['kind'] == 'user'
-                    and row['id'] != preset_id
-                    and row['name'].lower() == name.lower()):
-                renamed = f"{row['name']} (user)"
+            valid_modules, dropped = _resolve_preset_modules(preset_def, modules)
+            if dropped:
                 log.warning(
-                    "Renaming user preset %s '%s' -> '%s' (collides with new built-in)",
-                    row['id'], row['name'], renamed
+                    "Built-in preset %s references %d unknown module(s): %s",
+                    preset_id, len(dropped), ', '.join(dropped)
                 )
-                dbh.presetUpdate(
-                    preset_id=row['id'],
-                    name=renamed,
-                    description=row['description'],
-                    modules=row['modules'],
+
+            # Resolve name collision: any *user* preset (different id) with the
+            # same name must be renamed before we upsert.
+            for row in list(existing_by_id.values()):
+                if (row['kind'] == 'user'
+                        and row['id'] != preset_id
+                        and row['name'].lower() == name.lower()):
+                    renamed = f"{row['name']} (user)"
+                    log.warning(
+                        "Renaming user preset %s '%s' -> '%s' (collides with new built-in)",
+                        row['id'], row['name'], renamed
+                    )
+                    dbh.presetUpdate(
+                        preset_id=row['id'],
+                        name=renamed,
+                        description=row['description'],
+                        modules=row['modules'],
+                        now_ms=now_ms,
+                    )
+                    # Reflect the rename in our in-memory snapshot so subsequent
+                    # built-ins don't try to rename the same row again.
+                    existing_by_id[row['id']]['name'] = renamed
+
+            # Upsert by id: create if missing, update if present (including sort_order).
+            existing_self = existing_by_id.get(preset_id)
+            if existing_self is None:
+                dbh.presetCreate(
+                    preset_id=preset_id,
+                    name=name,
+                    description=description,
+                    kind='builtin',
+                    sort_order=sort_order,
+                    modules=valid_modules,
                     now_ms=now_ms,
                 )
-
-        # Upsert by id: try update, fall back to insert.
-        existing_self = dbh.presetGet(preset_id)
-        if existing_self is None:
-            dbh.presetCreate(
-                preset_id=preset_id,
-                name=name,
-                description=description,
-                kind='builtin',
-                sort_order=sort_order,
-                modules=valid_modules,
-                now_ms=now_ms,
-            )
-        else:
-            # presetUpdate updates name/description/modules + updated_at.
-            # sort_order also needs refresh.
-            dbh.presetUpdate(
-                preset_id=preset_id,
-                name=name,
-                description=description,
-                modules=valid_modules,
-                now_ms=now_ms,
-            )
-            # Refresh sort_order separately (presetUpdate doesn't touch it).
-            with dbh.dbhLock:
-                dbh.dbh.execute(
-                    "UPDATE tbl_scan_preset SET sort_order = ? WHERE id = ?",
-                    (sort_order, preset_id),
+                existing_by_id[preset_id] = {
+                    'id': preset_id, 'kind': 'builtin', 'name': name,
+                    'description': description, 'modules': valid_modules,
+                    'sort_order': sort_order, 'is_default': 0,
+                }
+            else:
+                dbh.presetUpdate(
+                    preset_id=preset_id,
+                    name=name,
+                    description=description,
+                    modules=valid_modules,
+                    now_ms=now_ms,
+                    sort_order=sort_order,
                 )
-                dbh.conn.commit()
+        except Exception as e:
+            log.error(
+                "Failed to seed built-in preset %s: %s — continuing with remaining presets",
+                preset_id, e, exc_info=True,
+            )
+            continue

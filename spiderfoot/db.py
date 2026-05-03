@@ -550,15 +550,24 @@ class SpiderFootDb:
         description: typing.Optional[str],
         modules: list,
         now_ms: int,
+        sort_order: typing.Optional[int] = None,
     ) -> None:
         """Replace name, description, modules, and updated_at. Does not change
-        kind, sort_order, is_default, or created_at."""
+        kind, is_default, or created_at. If sort_order is provided, updates
+        that too; if None, sort_order is left unchanged."""
         with self.dbhLock:
-            self.dbh.execute(
-                "UPDATE tbl_scan_preset SET name = ?, description = ?, "
-                "updated_at = ? WHERE id = ?",
-                (name, description, now_ms, preset_id),
-            )
+            if sort_order is None:
+                self.dbh.execute(
+                    "UPDATE tbl_scan_preset SET name = ?, description = ?, "
+                    "updated_at = ? WHERE id = ?",
+                    (name, description, now_ms, preset_id),
+                )
+            else:
+                self.dbh.execute(
+                    "UPDATE tbl_scan_preset SET name = ?, description = ?, "
+                    "updated_at = ?, sort_order = ? WHERE id = ?",
+                    (name, description, now_ms, sort_order, preset_id),
+                )
             self.dbh.execute(
                 "DELETE FROM tbl_scan_preset_module WHERE preset_id = ?",
                 (preset_id,),

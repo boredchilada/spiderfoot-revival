@@ -198,3 +198,23 @@ class TestPresetDefault(unittest.TestCase):
         self.db.presetSetDefault('user:a')
         self.db.presetDelete('user:a')
         self.assertIsNone(self.db.presetGetDefault())
+
+    def test_presetUpdate_changes_sort_order_when_provided(self):
+        now = int(time.time() * 1000)
+        self.db.presetCreate('user:s', 'S', None, 'user', 5, [], now)
+        self.db.presetUpdate(
+            preset_id='user:s', name='S2', description=None, modules=[],
+            now_ms=now + 1, sort_order=99,
+        )
+        row = self.db.presetGet('user:s')
+        self.assertEqual(row['sort_order'], 99)
+
+    def test_presetUpdate_leaves_sort_order_when_omitted(self):
+        now = int(time.time() * 1000)
+        self.db.presetCreate('user:t', 'T', None, 'user', 7, [], now)
+        self.db.presetUpdate(
+            preset_id='user:t', name='T2', description=None, modules=[],
+            now_ms=now + 1,
+        )
+        row = self.db.presetGet('user:t')
+        self.assertEqual(row['sort_order'], 7)
