@@ -547,6 +547,96 @@
 
   </div>
 
+  {# ================================================================ Manage presets modal #}
+  {# Opens when manageOpen=true (set by the More dropdown footer).
+     Click outside or Escape to close. #}
+  <div x-show="manageOpen" x-cloak x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+       @click.self="manageOpen = false"
+       @keydown.escape.window="manageOpen = false">
+    <div class="bg-white dark:bg-sf-surface w-full max-w-2xl mx-4 rounded-lg
+                border border-slate-200 dark:border-sf-border shadow-xl
+                max-h-[85vh] overflow-y-auto">
+
+      <div class="px-5 py-4 border-b border-slate-200 dark:border-sf-border
+                  flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100">
+          Manage presets
+        </h2>
+        <button type="button" @click="manageOpen = false"
+                class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl leading-none">
+          &times;
+        </button>
+      </div>
+
+      <div class="p-5 space-y-6">
+
+        {# Yours section #}
+        <div>
+          <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Your presets</h3>
+          <template x-if="presets.filter(p => p.kind === 'user').length === 0">
+            <p class="text-sm text-slate-400 italic">No saved presets yet.</p>
+          </template>
+          <template x-for="p in presets.filter(p => p.kind === 'user')" :key="p.id">
+            <div class="flex items-center gap-3 py-2 border-b border-slate-100 dark:border-sf-border/50 last:border-b-0">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-slate-700 dark:text-slate-200" x-text="p.name"></p>
+                <p class="text-xs text-slate-400" x-text="`${p.module_count} modules`"></p>
+              </div>
+              <button type="button"
+                      @click="setDefaultPreset(p.id)"
+                      :disabled="p.is_default"
+                      :class="p.is_default
+                        ? 'text-amber-400 cursor-default'
+                        : 'text-slate-400 hover:text-amber-400'"
+                      class="text-xs px-2 py-1 transition-colors"
+                      :title="p.is_default ? 'Current default' : 'Set as default'">
+                &#9733; <span x-text="p.is_default ? 'Default' : 'Set default'"></span>
+              </button>
+              <button type="button"
+                      @click="deletePreset(p.id)"
+                      class="text-xs px-2 py-1 text-red-400 hover:text-red-500 transition-colors">
+                Delete
+              </button>
+            </div>
+          </template>
+          <template x-if="presets.some(p => p.is_default)">
+            <button type="button"
+                    @click="clearDefaultPreset()"
+                    class="mt-3 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+              Clear default (use last-used / Footprint instead)
+            </button>
+          </template>
+        </div>
+
+        {# Built-in section #}
+        <div>
+          <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Built-in presets</h3>
+          <p class="text-xs text-slate-400 mb-2">
+            Built-ins are read-only. You can mark any of them as your default.
+          </p>
+          <template x-for="p in presets.filter(p => p.kind === 'builtin')" :key="p.id">
+            <div class="flex items-center gap-3 py-2 border-b border-slate-100 dark:border-sf-border/50 last:border-b-0">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-slate-700 dark:text-slate-200" x-text="p.name"></p>
+                <p class="text-xs text-slate-400" x-text="p.description || `${p.module_count} modules`"></p>
+              </div>
+              <button type="button"
+                      @click="setDefaultPreset(p.id)"
+                      :disabled="p.is_default"
+                      :class="p.is_default
+                        ? 'text-amber-400 cursor-default'
+                        : 'text-slate-400 hover:text-amber-400'"
+                      class="text-xs px-2 py-1 transition-colors">
+                &#9733; <span x-text="p.is_default ? 'Default' : 'Set default'"></span>
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+
   {# ================================================================ Toast notification #}
   <div x-show="toastMsg" x-transition
        :class="toastType === 'error'
