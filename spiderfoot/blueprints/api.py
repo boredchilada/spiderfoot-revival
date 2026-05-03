@@ -14,6 +14,7 @@ import multiprocessing as mp
 import re
 import string
 import time
+import uuid
 from copy import deepcopy
 from io import BytesIO, StringIO
 from operator import itemgetter
@@ -23,6 +24,7 @@ from flask import Blueprint, Response, current_app, jsonify, request
 import openpyxl
 
 from spiderfoot import SpiderFootDb, SpiderFootHelpers, __version__
+from spiderfoot.services.preset_service import validate_module_names
 
 api_bp = Blueprint('api', __name__)
 
@@ -1580,3 +1582,78 @@ def scanvizmulti():
             'Pragma': 'no-cache'
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Scan presets
+# ---------------------------------------------------------------------------
+
+
+def _serialize_preset(r):
+    return {
+        'id': r['id'],
+        'name': r['name'],
+        'description': r['description'],
+        'kind': r['kind'],
+        'is_default': bool(r['is_default']),
+        'sort_order': r['sort_order'],
+        'module_count': len(r['modules']),
+        'modules': r['modules'],
+    }
+
+
+@api_bp.route('/presets', methods=['GET'])
+def presets_list():
+    """List all scan presets (built-in + user)."""
+    dbh = get_db()
+    return jsonify([_serialize_preset(r) for r in dbh.presetList()])
+
+
+@api_bp.route('/presets/<path:preset_id>', methods=['GET'])
+def presets_get(preset_id):
+    """Get a single preset by id."""
+    dbh = get_db()
+    r = dbh.presetGet(preset_id)
+    if r is None:
+        return jsonify_error('404', f"Preset {preset_id} not found")
+    return jsonify(_serialize_preset(r))
+
+
+@api_bp.route('/presets', methods=['POST'])
+def presets_create():
+    """Create a user preset."""
+    dbh = get_db()
+    body = request.get_json(silent=True) or {}
+    name = (body.get('name') or '').strip()
+    description = body.get('description')
+    modules = body.get('modules') or []
+
+    if not name or len(name) > 60:
+        return jsonify_error('400', "Name must be 1-60 characters")
+    if not isinstance(modules, list):
+        return jsonify_error('400', "modules must be a list")
+
+    sf_modules = get_config().get('__modules__') or {}
+    valid, invalid = validate_module_names(modules, sf_modules)
+    if invalid:
+        return jsonify_error('400', f"Unknown modules: {', '.join(invalid)}")
+
+    for existing in dbh.presetList():
+        if existing['name'].lower() == name.lower():
+            return jsonify_error('400', f"A preset named '{existing['name']}' already exists")
+
+    preset_id = f"user:{uuid.uuid4().hex}"
+    now_ms = int(time.time() * 1000)
+    try:
+        dbh.presetCreate(
+            preset_id=preset_id,
+            name=name,
+            description=description,
+            kind='user',
+            sort_order=0,
+            modules=valid,
+            now_ms=now_ms,
+        )
+    except Exception as e:
+        return jsonify_error('500', f"Failed to create preset: {e}")
+    return jsonify(_serialize_preset(dbh.presetGet(preset_id))), 201
