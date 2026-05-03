@@ -340,6 +340,59 @@ window.scanForm = (initialModules, presets) => ({
       }
     },
 
+    async deletePreset(presetId) {
+      if (!confirm('Delete this preset? This cannot be undone.')) return;
+      try {
+        const resp = await fetch(`/api/presets/${encodeURIComponent(presetId)}`, {
+          method: 'DELETE',
+          headers: this._csrfHeaders(),
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          const msg = err?.error?.message || `Delete failed (${resp.status})`;
+          this.showToast(msg, 'error');
+          return;
+        }
+        await this._refreshPresets();
+        // If the deleted preset was active, fall back to Footprint
+        if (this.activePresetId === presetId) {
+          this.applyPreset('builtin:footprint');
+        }
+        this.showToast('Preset deleted', 'success');
+      } catch (e) {
+        this.showToast(`Delete failed: ${e.message}`, 'error');
+      }
+    },
+
+    async setDefaultPreset(presetId) {
+      try {
+        const resp = await fetch(
+          `/api/presets/${encodeURIComponent(presetId)}/default`,
+          { method: 'POST', headers: this._csrfHeaders() }
+        );
+        if (!resp.ok) {
+          this.showToast(`Failed to set default (${resp.status})`, 'error');
+          return;
+        }
+        await this._refreshPresets();
+        this.showToast('Default preset updated', 'success');
+      } catch (e) {
+        this.showToast(`Failed to set default: ${e.message}`, 'error');
+      }
+    },
+
+    async clearDefaultPreset() {
+      try {
+        const resp = await fetch('/api/presets/default', {
+          method: 'DELETE',
+          headers: this._csrfHeaders(),
+        });
+        if (!resp.ok) return;
+        await this._refreshPresets();
+        this.showToast('Default preset cleared', 'success');
+      } catch (e) { /* ignore */ }
+    },
+
     async _refreshPresets() {
       try {
         const resp = await fetch('/api/presets');
