@@ -4,13 +4,16 @@
  * Defined as a plain window function so it's available when Alpine
  * evaluates x-data="scanForm(...)". No event registration needed.
  */
-window.scanForm = (initialModules) => ({
+window.scanForm = (initialModules, presets) => ({
     // ------------------------------------------------------------------ state
     target: '',
     scanName: '',
     targetType: '',
     useCase: 'footprint',
     moduleSearch: '',
+    presets: presets || [],
+    activePresetId: 'builtin:footprint',
+    appliedSnapshot: [],  // module names enabled at last preset apply
 
     /**
      * modules — keyed by module name (sfp_xxx).
