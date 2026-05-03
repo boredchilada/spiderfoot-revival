@@ -17,6 +17,15 @@ frag_bp = Blueprint('frag', __name__)
 log = logging.getLogger(f"spiderfoot.{__name__}")
 
 
+@frag_bp.after_request
+def _no_store_fragments(response):
+    # HTMX-swapped fragments must never be cached by the browser, otherwise
+    # template edits (e.g. graph layout fix) appear stale until the user
+    # clears site data. Fragments are cheap to re-render.
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
+
+
 def _get_db():
     """Create a SpiderFootDb handle using the current app config."""
     return SpiderFootDb(current_app.config['SF_CONFIG'])

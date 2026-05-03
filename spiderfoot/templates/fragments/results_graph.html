@@ -1,7 +1,8 @@
 {# Graph tab — interactive Cytoscape rendering of scan results #}
 {# scan_id: current scan ID #}
 
-<div class="flex flex-col h-[calc(100vh-220px)] min-h-[500px]"
+<div class="flex flex-col"
+     style="height: calc(100vh - 220px); min-height: 600px;"
      x-data="scanGraph('{{ scan_id }}')"
      x-init="init()">
 
@@ -45,6 +46,28 @@
                 hover:bg-slate-200 dark:hover:bg-sf-border">
         Export GEXF
       </a>
+
+      {# Reset positions cached in sessionStorage and re-run layout. #}
+      <button @click="resetLayout()" type="button"
+              title="Discard saved positions and re-run the layout"
+              class="text-xs px-2 py-1.5 rounded-md
+                     bg-slate-100 dark:bg-sf-elevated
+                     text-slate-700 dark:text-slate-200
+                     border border-slate-300 dark:border-sf-border
+                     hover:bg-slate-200 dark:hover:bg-sf-border">
+        Re-layout
+      </button>
+
+      {# Only shown if user manually hid nodes via right-click. #}
+      <button x-show="hiddenNodeIds.size > 0" x-cloak
+              @click="unhideAll()" type="button"
+              class="text-xs px-2 py-1.5 rounded-md
+                     bg-amber-100 dark:bg-amber-900/40
+                     text-amber-800 dark:text-amber-200
+                     border border-amber-300 dark:border-amber-700
+                     hover:bg-amber-200 dark:hover:bg-amber-900/60">
+        Show <span x-text="hiddenNodeIds.size"></span> hidden
+      </button>
     </div>
 
     <div class="text-xs text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
@@ -68,10 +91,11 @@
   </div>
 
   {# Main: graph + side panel #}
-  <div class="flex flex-1 min-h-0">
+  <div class="flex flex-1" style="min-height: 0;">
     {# Graph canvas #}
-    <div class="flex-1 relative bg-slate-50 dark:bg-sf-bg">
-      <div id="graph-canvas" class="absolute inset-0"></div>
+    <div class="relative bg-slate-50 dark:bg-sf-bg" style="flex: 1 1 0%; min-width: 0;">
+      <div id="graph-canvas" style="position: absolute; inset: 0;"
+           @contextmenu.prevent></div>
 
       {# Loading overlay #}
       <div x-show="loading" x-cloak
@@ -148,6 +172,32 @@
       </template>
     </aside>
   </div>
+
+  {# Right-click context menu — positioned at viewport coords from cxttap. #}
+  <div x-show="ctx.open" x-cloak
+       @click.outside="ctx.open = false"
+       @keydown.escape.window="ctx.open = false"
+       :style="`position: fixed; left: ${ctx.x}px; top: ${ctx.y}px; z-index: 50;`"
+       class="bg-white dark:bg-sf-surface border border-slate-300 dark:border-sf-border rounded-md shadow-lg py-1 min-w-[180px] text-slate-800 dark:text-slate-100">
+    <div class="px-3 py-1 text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 truncate" x-text="ctx.label"></div>
+    <div class="border-t border-slate-200 dark:border-sf-border my-1"></div>
+    <button @click="ctxFocusNeighborhood()" type="button"
+            class="block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-sf-elevated">
+      Focus neighborhood
+    </button>
+    <button @click="ctxHideNode()" type="button"
+            class="block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-sf-elevated">
+      Hide this node
+    </button>
+    <button @click="ctxHideNeighborhood()" type="button"
+            class="block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-sf-elevated">
+      Hide non-neighbors
+    </button>
+    <button @click="ctxCopyValue()" type="button"
+            class="block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-sf-elevated">
+      Copy value
+    </button>
+  </div>
 </div>
 
 {# Lazily load Cytoscape + fcose extension. Idempotent: subsequent tab visits #}
@@ -180,8 +230,11 @@
 
 <script>
 function scanGraph(scanId) {
+  // Cytoscape instance lives in a closure variable so Alpine's reactive
+  // Proxy never wraps it — wrapping breaks the renderer (canvas stays blank
+  // even though cy.nodes() returns the right count).
+  let cy = null;
   return {
-    cy: null,
     loading: true,
     loadingMessage: 'Loading graph data...',
     totalNodes: 0,
@@ -190,7 +243,10 @@ function scanGraph(scanId) {
     search: '',
     selected: null,
     hiddenCats: new Set(),
+    hiddenNodeIds: new Set(),         // manually hidden via right-click menu
     categories: [],
+    ctx: { open: false, x: 0, y: 0, nodeId: null, label: '' },
+    POS_KEY: `sf_graph_pos_${scanId}`,
 
     // Mirrors EVENT_CATEGORIES from event_service.py — keep in sync.
     CATEGORY_MAP: {
@@ -253,7 +309,19 @@ function scanGraph(scanId) {
     },
 
     init() {
-      const start = () => this.fetchAndRender();
+      const start = () => {
+        // Defer until the canvas has real dimensions. Cytoscape captures the
+        // container size at construction time and won't redraw at zero size.
+        const tryStart = () => {
+          const el = document.getElementById('graph-canvas');
+          if (el && el.clientWidth > 0 && el.clientHeight > 0) {
+            this.fetchAndRender();
+          } else {
+            requestAnimationFrame(tryStart);
+          }
+        };
+        requestAnimationFrame(tryStart);
+      };
       if (window.cytoscape) start();
       else window.addEventListener('cytoscape-ready', start, { once: true });
     },
@@ -279,6 +347,21 @@ function scanGraph(scanId) {
 
         this.loadingMessage = `Laying out ${nodes.length} nodes...`;
 
+        // Pre-compute degree from the edges so we can size hubs larger than
+        // leaves. Done client-side because the API doesn't include degree.
+        const degree = {};
+        for (const n of nodes) degree[n.id] = 0;
+        for (const e of edges) {
+          degree[e.source] = (degree[e.source] || 0) + 1;
+          degree[e.target] = (degree[e.target] || 0) + 1;
+        }
+        const nodeSize = (n) => {
+          if (n.is_root) return 32;
+          // sqrt scaling so a node with degree 16 is ~2x a degree-1 leaf,
+          // not 16x. Capped at 36 so monster hubs stay on screen.
+          return Math.min(36, 12 + Math.sqrt(degree[n.id] || 0) * 4);
+        };
+
         const elements = [];
         for (const n of nodes) {
           const cat = n.is_root ? 'root' : this.typeToCategory(n.type);
@@ -289,7 +372,10 @@ function scanGraph(scanId) {
               fullLabel: n.label,
               type: n.type,
               category: cat,
+              color: this.CATEGORY_MAP[cat].color,
               isRoot: !!n.is_root,
+              size: nodeSize(n),
+              degree: degree[n.id] || 0,
             }
           });
         }
@@ -299,7 +385,7 @@ function scanGraph(scanId) {
           });
         }
 
-        this.cy = window.cytoscape({
+        cy = window.cytoscape({
           container: document.getElementById('graph-canvas'),
           elements,
           minZoom: 0.05,
@@ -309,11 +395,10 @@ function scanGraph(scanId) {
             {
               selector: 'node',
               style: {
-                'background-color': (ele) => this.CATEGORY_MAP[ele.data('category')].color,
-                'label': (ele) => {
-                  const l = ele.data('label') || '';
-                  return l.length > 32 ? l.substring(0, 30) + '…' : l;
-                },
+                'background-color': 'data(color)',
+                'width': 'data(size)',
+                'height': 'data(size)',
+                'label': 'data(label)',
                 'color': '#1e293b',
                 'font-size': 10,
                 'font-family': 'ui-monospace, monospace',
@@ -326,19 +411,22 @@ function scanGraph(scanId) {
                 'text-outline-width': 2,
                 'border-width': 1,
                 'border-color': '#fff',
-                'width': 14,
-                'height': 14,
+                // Hide labels when zoomed out — labels are unreadable below
+                // ~6px effective size and just create overlap mush. They snap
+                // back as the user zooms in.
+                'min-zoomed-font-size': 6,
               },
             },
             {
               selector: 'node[?isRoot]',
               style: {
-                'width': 28, 'height': 28,
                 'border-width': 3,
                 'border-color': '#f59e0b',
                 'font-size': 12,
                 'font-weight': 'bold',
                 'z-index': 10,
+                // Root label should remain visible at deeper zoom-out.
+                'min-zoomed-font-size': 4,
               },
             },
             {
@@ -387,15 +475,53 @@ function scanGraph(scanId) {
 
         // Style overrides for dark mode (text outline + label color).
         if (document.documentElement.classList.contains('dark')) {
-          this.cy.style()
+          cy.style()
             .selector('node').style({ 'color': '#e2e8f0', 'text-outline-color': '#0f172a' })
             .selector('edge').style({ 'line-color': '#475569', 'target-arrow-color': '#475569' })
             .selector('edge.dimmed').style({ 'opacity': 0.08 })
             .update();
         }
 
-        this.cy.on('tap', 'node', (evt) => this.selectNode(evt.target));
-        this.cy.on('tap', (evt) => { if (evt.target === this.cy) this.clearSelection(); });
+        cy.on('tap', 'node', (evt) => this.selectNode(evt.target));
+        cy.on('tap', (evt) => {
+          if (evt.target === cy) this.clearSelection();
+          this.ctx.open = false;
+        });
+
+        // Right-click on a node: open the context menu near the cursor.
+        cy.on('cxttap', 'node', (evt) => {
+          const oe = evt.originalEvent;
+          this.ctx = {
+            open: true,
+            x: oe.clientX,
+            y: oe.clientY,
+            nodeId: evt.target.id(),
+            label: evt.target.data('fullLabel') || evt.target.id(),
+          };
+        });
+        cy.on('cxttap', (evt) => {
+          if (evt.target === cy) this.ctx.open = false;
+        });
+
+        // Expose for ad-hoc console debugging (window._sf_cy.fit(), etc.).
+        window._sf_cy = cy;
+
+        // Diagnostics — visible in browser console.
+        console.log('[graph] cy created:', {
+          nodes: cy.nodes().length,
+          edges: cy.edges().length,
+          containerSize: cy.container() ? `${cy.container().clientWidth}x${cy.container().clientHeight}` : 'no container',
+          fcoseRegistered: !!window.cytoscapeFcose,
+        });
+
+        // Keep the canvas in sync if the window or its container resizes
+        // (side panel collapse, devtools open, browser resize, etc.).
+        const onResize = () => { if (cy) cy.resize(); };
+        window.addEventListener('resize', onResize);
+        if (window.ResizeObserver) {
+          const ro = new ResizeObserver(onResize);
+          ro.observe(document.getElementById('graph-canvas'));
+        }
 
         this.computeCategories();
         this.runLayout();
@@ -406,26 +532,78 @@ function scanGraph(scanId) {
       }
     },
 
-    runLayout() {
-      if (!this.cy) return;
+    // Build a stable signature so we can invalidate cached positions when
+    // the underlying graph changes (new scan results, nodes added/removed).
+    graphSignature() {
+      if (!cy) return '';
+      return cy.nodes().map((n) => n.id()).sort().join(',');
+    },
+
+    saveLayout() {
+      if (!cy) return;
+      try {
+        const positions = {};
+        cy.nodes().forEach((n) => { positions[n.id()] = n.position(); });
+        sessionStorage.setItem(this.POS_KEY, JSON.stringify({
+          sig: this.graphSignature(),
+          layout: this.layoutName,
+          positions,
+        }));
+      } catch (e) { /* sessionStorage may be unavailable; ignore */ }
+    },
+
+    restoreLayout() {
+      if (!cy) return false;
+      try {
+        const raw = sessionStorage.getItem(this.POS_KEY);
+        if (!raw) return false;
+        const obj = JSON.parse(raw);
+        if (obj.sig !== this.graphSignature()) return false;
+        cy.batch(() => {
+          cy.nodes().forEach((n) => {
+            const p = obj.positions[n.id()];
+            if (p) n.position(p);
+          });
+        });
+        return true;
+      } catch (e) { return false; }
+    },
+
+    resetLayout() {
+      try { sessionStorage.removeItem(this.POS_KEY); } catch (e) {}
+      this.runLayout({ force: true });
+    },
+
+    runLayout(opts = {}) {
+      if (!cy) return;
+
+      // Try to restore cached positions first — avoids re-randomizing on
+      // every tab switch.
+      if (!opts.force && this.restoreLayout()) {
+        this.loading = false;
+        cy.resize();
+        cy.fit(cy.nodes().not('.hidden'), 60);
+        return;
+      }
+
       this.loading = true;
       this.loadingMessage = `Running ${this.layoutName} layout...`;
 
-      const visible = this.cy.nodes().not('.hidden');
+      const visible = cy.nodes().not('.hidden');
       const nodeCount = visible.length;
 
       const layoutOpts = (() => {
         if (this.layoutName === 'fcose') {
+          // Keep options minimal — extra knobs (nodeSeparation, packComponents,
+          // gravityRange) silently break fcose on small graphs and produce
+          // stratified rows instead of an organic web. Defaults look great.
           return {
             name: 'fcose',
             quality: nodeCount > 600 ? 'draft' : 'default',
             randomize: true,
             animate: false,
-            nodeRepulsion: 4500,
-            idealEdgeLength: 80,
-            edgeElasticity: 0.45,
-            gravity: 0.25,
-            packComponents: true,
+            nodeRepulsion: nodeCount < 80 ? 8000 : 4500,
+            idealEdgeLength: nodeCount < 80 ? 120 : 80,
           };
         }
         if (this.layoutName === 'breadthfirst') {
@@ -450,19 +628,40 @@ function scanGraph(scanId) {
         return { name: this.layoutName, animate: false };
       })();
 
-      const layout = visible.layout(layoutOpts);
+      // fcose has TWO traps:
+      //   1. visible.layout(...) silently falls back to a grid (calling on a
+      //      sub-collection doesn't run fcose properly).
+      //   2. cy.layout({...opts, eles: ...}) ALSO silently breaks — passing
+      //      `eles` (even cy.nodes()) leaves nodes unplaced.
+      // The only reliable form is plain cy.layout(opts). Hidden nodes are
+      // already excluded from rendering via the `node.hidden` display:none
+      // style, so laying out all nodes is fine.
+      const layout = (this.layoutName === 'fcose')
+        ? cy.layout(layoutOpts)
+        : visible.layout(layoutOpts);
       layout.one('layoutstop', () => {
         this.loading = false;
-        this.cy.fit(visible, 60);
+        // Force the canvas backing store to match container size before fit,
+        // otherwise nodes can land outside the viewport.
+        cy.resize();
+        cy.fit(visible, 60);
+        this.saveLayout();
       });
       // Some layouts complete synchronously — fall back to a tick.
-      setTimeout(() => { if (this.loading) this.loading = false; }, 200);
+      setTimeout(() => {
+        if (this.loading) {
+          this.loading = false;
+          cy.resize();
+          cy.fit(visible, 60);
+          this.saveLayout();
+        }
+      }, 300);
       layout.run();
     },
 
     computeCategories() {
       const counts = {};
-      this.cy.nodes().forEach((n) => {
+      cy.nodes().forEach((n) => {
         const c = n.data('category');
         counts[c] = (counts[c] || 0) + 1;
       });
@@ -480,26 +679,73 @@ function scanGraph(scanId) {
     },
 
     applyVisibility() {
-      if (!this.cy) return;
-      this.cy.batch(() => {
-        this.cy.nodes().forEach((n) => {
+      if (!cy) return;
+      const search = this.search ? this.search.toLowerCase() : '';
+      cy.batch(() => {
+        cy.nodes().forEach((n) => {
           const hide = this.hiddenCats.has(n.data('category')) ||
-                       (this.search && !n.data('label').toLowerCase().includes(this.search.toLowerCase()));
+                       this.hiddenNodeIds.has(n.id()) ||
+                       (search && !n.data('label').toLowerCase().includes(search));
           n.toggleClass('hidden', hide);
         });
       });
-      this.visibleNodes = this.cy.nodes().not('.hidden').length;
+      this.visibleNodes = cy.nodes().not('.hidden').length;
     },
 
     applySearch() {
       this.applyVisibility();
     },
 
+    unhideAll() {
+      this.hiddenNodeIds = new Set();
+      this.applyVisibility();
+    },
+
+    // ---- Right-click context menu actions ----
+    ctxFocusNeighborhood() {
+      const n = cy.getElementById(this.ctx.nodeId);
+      this.ctx.open = false;
+      if (!n.length) return;
+      this.selectNode(n);
+      cy.animate({ center: { eles: n.closedNeighborhood() }, zoom: Math.max(cy.zoom(), 1.0) },
+                 { duration: 250 });
+    },
+
+    ctxHideNode() {
+      const id = this.ctx.nodeId;
+      this.ctx.open = false;
+      if (!id) return;
+      this.hiddenNodeIds.add(id);
+      this.hiddenNodeIds = new Set(this.hiddenNodeIds);  // reactivity
+      this.applyVisibility();
+    },
+
+    ctxHideNeighborhood() {
+      const n = cy.getElementById(this.ctx.nodeId);
+      this.ctx.open = false;
+      if (!n.length) return;
+      const keep = new Set();
+      n.closedNeighborhood().nodes().forEach((x) => keep.add(x.id()));
+      cy.nodes().forEach((x) => { if (!keep.has(x.id())) this.hiddenNodeIds.add(x.id()); });
+      this.hiddenNodeIds = new Set(this.hiddenNodeIds);
+      this.applyVisibility();
+    },
+
+    ctxCopyValue() {
+      const n = cy.getElementById(this.ctx.nodeId);
+      this.ctx.open = false;
+      if (!n.length) return;
+      const text = n.data('fullLabel') || n.id();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+    },
+
     selectNode(node) {
       const id = node.id();
       const neighborhood = node.closedNeighborhood();
-      this.cy.batch(() => {
-        this.cy.elements().addClass('dimmed').removeClass('highlight');
+      cy.batch(() => {
+        cy.elements().addClass('dimmed').removeClass('highlight');
         neighborhood.removeClass('dimmed').addClass('highlight');
       });
 
@@ -519,21 +765,21 @@ function scanGraph(scanId) {
     },
 
     focusNode(id) {
-      const n = this.cy.getElementById(id);
+      const n = cy.getElementById(id);
       if (!n || !n.length) return;
       this.selectNode(n);
-      this.cy.animate({ center: { eles: n }, zoom: Math.max(this.cy.zoom(), 1.2) }, { duration: 250 });
+      cy.animate({ center: { eles: n }, zoom: Math.max(cy.zoom(), 1.2) }, { duration: 250 });
     },
 
     clearSelection() {
-      if (!this.cy) return;
-      this.cy.elements().removeClass('dimmed').removeClass('highlight');
+      if (!cy) return;
+      cy.elements().removeClass('dimmed').removeClass('highlight');
       this.selected = null;
     },
 
     fit() {
-      if (!this.cy) return;
-      this.cy.fit(this.cy.nodes().not('.hidden'), 60);
+      if (!cy) return;
+      cy.fit(cy.nodes().not('.hidden'), 60);
     },
   };
 }
