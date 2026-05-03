@@ -120,3 +120,68 @@ class TestPresetAPI(unittest.TestCase):
             headers=_BYPASS_HEADERS,
         )
         self.assertEqual(resp.status_code, 400)
+
+    # ------------------------------------------------------------------
+    # Update / delete / set-default helpers + tests
+    # ------------------------------------------------------------------
+
+    def _auth_headers(self):
+        return _BYPASS_HEADERS
+
+    def _create_user_preset(self, name='Mine', modules=None):
+        resp = self.client.post('/api/presets', json={
+            'name': name, 'modules': modules or ['sfp_crt'],
+        }, headers=self._auth_headers())
+        self.assertEqual(resp.status_code, 201)
+        return json.loads(resp.data)['id']
+
+    def test_PATCH_preset_updates_modules(self):
+        pid = self._create_user_preset()
+        resp = self.client.patch(f'/api/presets/{pid}', json={
+            'name': 'Renamed', 'modules': ['sfp_dnsresolve', 'sfp_sslcert'],
+        }, headers=self._auth_headers())
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(data['name'], 'Renamed')
+        self.assertEqual(sorted(data['modules']), ['sfp_dnsresolve', 'sfp_sslcert'])
+
+    def test_PATCH_preset_403_on_builtin(self):
+        resp = self.client.patch('/api/presets/builtin:quick_recon', json={
+            'name': 'Hijacked', 'modules': ['sfp_crt'],
+        }, headers=self._auth_headers())
+        self.assertEqual(resp.status_code, 403)
+
+    def test_DELETE_preset_removes_it(self):
+        pid = self._create_user_preset(name='Doomed')
+        resp = self.client.delete(f'/api/presets/{pid}', headers=self._auth_headers())
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self.client.get(f'/api/presets/{pid}').status_code, 404)
+
+    def test_DELETE_preset_403_on_builtin(self):
+        resp = self.client.delete('/api/presets/builtin:quick_recon', headers=self._auth_headers())
+        self.assertEqual(resp.status_code, 403)
+
+    def test_POST_default_marks_preset_as_default(self):
+        pid = self._create_user_preset()
+        resp = self.client.post(f'/api/presets/{pid}/default', headers=self._auth_headers())
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(self.client.get(f'/api/presets/{pid}').data)
+        self.assertTrue(data['is_default'])
+
+    def test_POST_default_clears_prior_default(self):
+        a = self._create_user_preset(name='A', modules=['sfp_crt'])
+        b = self._create_user_preset(name='B', modules=['sfp_crt'])
+        self.client.post(f'/api/presets/{a}/default', headers=self._auth_headers())
+        self.client.post(f'/api/presets/{b}/default', headers=self._auth_headers())
+        a_data = json.loads(self.client.get(f'/api/presets/{a}').data)
+        b_data = json.loads(self.client.get(f'/api/presets/{b}').data)
+        self.assertFalse(a_data['is_default'])
+        self.assertTrue(b_data['is_default'])
+
+    def test_DELETE_default_clears_default_flag(self):
+        pid = self._create_user_preset()
+        self.client.post(f'/api/presets/{pid}/default', headers=self._auth_headers())
+        resp = self.client.delete('/api/presets/default', headers=self._auth_headers())
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(self.client.get(f'/api/presets/{pid}').data)
+        self.assertFalse(data['is_default'])
