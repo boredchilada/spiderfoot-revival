@@ -1,0 +1,28 @@
+id: ransomware_victim
+version: 1
+meta:
+  name: Target appears on a ransomware leak-site
+  description: >
+    The target's domain or company name was found in a posting on a
+    tracked ransomware extortion / data-leak site. Hits originate from
+    the ransomware.live module (sfp_ransomwarelive), which queries
+    ransomware.live's victim search API.
+
+    Why it matters: a posting on a ransomware crew's leak blog is a
+    near-certain indicator that the organisation has either been
+    breached and is being extorted, or that data attributed to them
+    has been published after a refused payment. This warrants
+    immediate incident-response engagement and verification with the
+    organisation's security team.
+
+    The full posting (group, attack date, claim URL, country, sector,
+    description) is captured in the underlying RANSOMWARE_VICTIM event.
+  risk: HIGH
+collections:
+  - collect:
+      - method: exact
+        field: type
+        value: RANSOMWARE_VICTIM
+aggregation:
+  field: data
+headline: "Ransomware leak-site posting found: {data}"

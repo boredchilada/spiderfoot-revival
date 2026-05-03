@@ -1,0 +1,30 @@
+id: shared_edge_density
+version: 1
+meta:
+  name: Target sits behind a high-density shared edge (CDN / proxy)
+  description: >
+    An IP address attributed to the target was found to be hosting an
+    unusually large number of unrelated sites. At this density (50+),
+    the IP is almost certainly a shared edge: a CDN PoP (Cloudflare,
+    Fastly, Akamai), a reverse-proxy gateway, or anycast infrastructure.
+
+    Why it matters: scan results that depend on per-IP reputation,
+    geolocation, or open-port enumeration will reflect the edge, not
+    the actual origin server. Treat IP-derived findings against this
+    address as belonging to the edge provider rather than the target.
+
+    Pair with the shared_hosting_environment rule, which flags lower-
+    density (10-49) shared hosts.
+  risk: INFO
+collections:
+  - collect:
+      - method: exact
+        field: type
+        value: CO_HOSTED_SITE
+aggregation:
+  field: source.data
+analysis:
+  - method: threshold
+    field: source.data
+    minimum: 50
+headline: "High-density shared edge detected at {source.data} — likely CDN / proxy"
