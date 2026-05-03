@@ -1,45 +1,540 @@
-{# Graph tab — placeholder for Sigma.js rendering #}
+{# Graph tab — interactive Cytoscape rendering of scan results #}
 {# scan_id: current scan ID #}
 
-<div class="p-6">
-  <div id="graph-container"
-       class="bg-slate-50 dark:bg-sf-elevated rounded-lg border border-slate-200 dark:border-sf-border"
-       style="min-height: 400px;"
-       x-data="{ nodeCount: null, loading: true }"
-       x-init="
-         fetch('/api/scanviz?id={{ scan_id }}&gexf=0')
-           .then(r => r.json())
-           .then(data => {
-             nodeCount = (data.nodes || []).length;
-             loading = false;
-           })
-           .catch(() => { loading = false; })
-       ">
-    <div class="flex flex-col items-center justify-center h-full py-16">
-      <svg class="w-12 h-12 text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-      </svg>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mb-2">Relationship Graph</p>
-      <template x-if="loading">
-        <p class="text-xs text-slate-400 dark:text-slate-500">Loading graph data...</p>
-      </template>
-      <template x-if="!loading && nodeCount !== null">
+<div class="flex flex-col h-[calc(100vh-220px)] min-h-[500px]"
+     x-data="scanGraph('{{ scan_id }}')"
+     x-init="init()">
+
+  {# Toolbar #}
+  <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-slate-200 dark:border-sf-border bg-white dark:bg-sf-surface">
+
+    <div class="flex items-center gap-2 min-w-0 flex-1">
+      <input type="text" x-model="search" @input.debounce.250ms="applySearch()"
+             placeholder="Search nodes..."
+             class="w-56 max-w-full text-sm rounded-md px-3 py-1.5
+                    border border-slate-300 dark:border-sf-border
+                    bg-white dark:bg-sf-elevated
+                    text-slate-800 dark:text-slate-100
+                    focus:outline-none focus:ring-2 focus:ring-sf-accent">
+
+      <select x-model="layoutName" @change="runLayout()"
+              class="text-sm rounded-md px-2 py-1.5
+                     border border-slate-300 dark:border-sf-border
+                     bg-white dark:bg-sf-elevated text-slate-800 dark:text-slate-100">
+        <option value="fcose">Organic (fcose)</option>
+        <option value="breadthfirst">Hierarchy</option>
+        <option value="concentric">Concentric</option>
+        <option value="circle">Circle</option>
+        <option value="grid">Grid</option>
+      </select>
+
+      <button @click="fit()" type="button"
+              class="text-xs px-2 py-1.5 rounded-md
+                     bg-slate-100 dark:bg-sf-elevated
+                     text-slate-700 dark:text-slate-200
+                     border border-slate-300 dark:border-sf-border
+                     hover:bg-slate-200 dark:hover:bg-sf-border">
+        Fit
+      </button>
+
+      <a :href="`/api/scanviz?id={{ scan_id }}&gexf=1`"
+         class="text-xs px-2 py-1.5 rounded-md
+                bg-slate-100 dark:bg-sf-elevated
+                text-slate-700 dark:text-slate-200
+                border border-slate-300 dark:border-sf-border
+                hover:bg-slate-200 dark:hover:bg-sf-border">
+        Export GEXF
+      </a>
+    </div>
+
+    <div class="text-xs text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
+      <span x-text="visibleNodes"></span> / <span x-text="totalNodes"></span> nodes
+    </div>
+  </div>
+
+  {# Category filter chips #}
+  <div class="flex flex-wrap gap-1.5 px-4 py-2 border-b border-slate-200 dark:border-sf-border bg-slate-50 dark:bg-sf-elevated/50">
+    <template x-for="cat in categories" :key="cat.key">
+      <button type="button" @click="toggleCategory(cat.key)"
+              class="text-xs px-2 py-1 rounded-full border transition-colors"
+              :class="hiddenCats.has(cat.key)
+                ? 'bg-transparent border-slate-300 dark:border-sf-border text-slate-400 dark:text-slate-500 line-through opacity-60'
+                : 'border-transparent text-white'"
+              :style="!hiddenCats.has(cat.key) ? `background-color: ${cat.color}` : ''">
+        <span x-text="cat.label"></span>
+        <span class="ml-1 opacity-75 font-mono" x-text="`(${cat.count})`"></span>
+      </button>
+    </template>
+  </div>
+
+  {# Main: graph + side panel #}
+  <div class="flex flex-1 min-h-0">
+    {# Graph canvas #}
+    <div class="flex-1 relative bg-slate-50 dark:bg-sf-bg">
+      <div id="graph-canvas" class="absolute inset-0"></div>
+
+      {# Loading overlay #}
+      <div x-show="loading" x-cloak
+           class="absolute inset-0 flex items-center justify-center bg-slate-50/80 dark:bg-sf-bg/80 backdrop-blur-sm">
         <div class="text-center">
-          <p class="text-xs text-slate-400 dark:text-slate-500 mb-3">
-            <span class="font-mono font-bold text-sf-accent" x-text="nodeCount"></span> nodes available.
-            Interactive rendering is coming in a future update.
+          <svg class="animate-spin h-8 w-8 text-sf-accent mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p class="text-sm text-slate-500 dark:text-slate-400" x-text="loadingMessage">Loading graph data...</p>
+        </div>
+      </div>
+
+      {# Empty state #}
+      <div x-show="!loading && totalNodes === 0" x-cloak
+           class="absolute inset-0 flex items-center justify-center">
+        <div class="text-center">
+          <p class="text-sm text-slate-500 dark:text-slate-400">No graph data yet.</p>
+          <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Relationships appear as the scan discovers entities.</p>
+        </div>
+      </div>
+    </div>
+
+    {# Side panel #}
+    <aside class="w-80 shrink-0 border-l border-slate-200 dark:border-sf-border bg-white dark:bg-sf-surface overflow-y-auto">
+      <template x-if="selected">
+        <div class="p-4">
+          <div class="flex items-start justify-between mb-3">
+            <p class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Selected node</p>
+            <button @click="clearSelection()" type="button"
+                    class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <p class="text-xs text-slate-500 dark:text-slate-400">Type</p>
+          <p class="text-sm font-mono text-slate-800 dark:text-slate-100 mb-3 break-all" x-text="selected.type"></p>
+
+          <p class="text-xs text-slate-500 dark:text-slate-400">Value</p>
+          <p class="text-sm font-mono text-slate-800 dark:text-slate-100 mb-3 break-all" x-text="selected.label"></p>
+
+          <p class="text-xs text-slate-500 dark:text-slate-400">Connections</p>
+          <p class="text-sm font-mono text-slate-800 dark:text-slate-100 mb-3" x-text="selected.degree"></p>
+
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Neighbors</p>
+          <ul class="text-xs space-y-1 max-h-64 overflow-y-auto">
+            <template x-for="n in selected.neighbors" :key="n.id">
+              <li>
+                <button @click="focusNode(n.id)" type="button"
+                        class="text-left hover:text-sf-accent w-full truncate"
+                        :title="n.label + ' (' + n.type + ')'">
+                  <span class="inline-block w-2 h-2 rounded-full mr-1.5 align-middle"
+                        :style="`background-color: ${categoryColor(n.type)}`"></span>
+                  <span class="font-mono" x-text="n.label"></span>
+                </button>
+              </li>
+            </template>
+          </ul>
+        </div>
+      </template>
+
+      <template x-if="!selected">
+        <div class="p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">Graph</p>
+          <p class="text-sm text-slate-600 dark:text-slate-300">
+            Click a node to inspect it. Drag to pan, scroll to zoom.
           </p>
-          <p class="text-xs text-slate-400/70 dark:text-slate-500/70">
-            In the meantime, you can export as
-            <a href="/scanviz?id={{ scan_id }}&gexf=1" class="text-sf-accent hover:underline">GEXF</a>
-            and open it in a graph tool like <span class="font-medium">Gephi</span> or <span class="font-medium">yEd</span>.
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-3">
+            Categories with no nodes are hidden. Toggle the chips above to filter.
           </p>
         </div>
       </template>
-      <template x-if="!loading && nodeCount === null">
-        <p class="text-xs text-slate-400 dark:text-slate-500">No graph data available yet. Data appears as the scan discovers relationships between entities.</p>
-      </template>
-    </div>
+    </aside>
   </div>
 </div>
+
+{# Lazily load Cytoscape + fcose extension. Idempotent: subsequent tab visits #}
+{# don't re-fetch (browser cache + window.cytoscape guard).                    #}
+<script>
+(function() {
+  if (window.__cytoscapeLoading || window.cytoscape) return;
+  window.__cytoscapeLoading = true;
+  function load(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src; s.async = false;
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  (async () => {
+    await load('/static/vendor/cytoscape.umd.js');
+    await load('/static/vendor/layout-base.js');
+    await load('/static/vendor/cose-base.js');
+    await load('/static/vendor/cytoscape-fcose.js');
+    if (window.cytoscape && window.cytoscapeFcose && !window.__fcoseRegistered) {
+      window.cytoscape.use(window.cytoscapeFcose);
+      window.__fcoseRegistered = true;
+    }
+    window.dispatchEvent(new CustomEvent('cytoscape-ready'));
+  })();
+})();
+</script>
+
+<script>
+function scanGraph(scanId) {
+  return {
+    cy: null,
+    loading: true,
+    loadingMessage: 'Loading graph data...',
+    totalNodes: 0,
+    visibleNodes: 0,
+    layoutName: 'fcose',
+    search: '',
+    selected: null,
+    hiddenCats: new Set(),
+    categories: [],
+
+    // Mirrors EVENT_CATEGORIES from event_service.py — keep in sync.
+    CATEGORY_MAP: {
+      'attack_surface': {
+        label: 'Attack Surface',
+        color: '#3b82f6',  // blue-500
+        types: ['INTERNET_NAME','INTERNET_NAME_UNRESOLVED','IP_ADDRESS','TCP_PORT_OPEN',
+                'TCP_PORT_OPEN_BANNER','UDP_PORT_OPEN','DOMAIN_NAME'],
+      },
+      'identities': {
+        label: 'Identities',
+        color: '#a855f7',  // purple-500
+        types: ['EMAILADDR','EMAILADDR_GENERIC','EMAILADDR_COMPROMISED','USERNAME',
+                'PHONE_NUMBER','HUMAN_NAME','ACCOUNT_EXTERNAL_OWNED','SOCIAL_MEDIA',
+                'LEAKSITE_CONTENT','LEAKSITE_URL','DARKNET_MENTION_CONTENT','PHONE_NUMBER_COMPROMISED'],
+      },
+      'infrastructure': {
+        label: 'Infrastructure',
+        color: '#14b8a6',  // teal-500
+        types: ['WEBSERVER_TECHNOLOGY','WEBSERVER_BANNER','WEBSERVER_HTTPHEADERS','OPERATING_SYSTEM',
+                'DEVICE_TYPE','SOFTWARE_USED','RAW_RIR_DATA','SSL_CERTIFICATE_ISSUED','SSL_CERTIFICATE_ISSUER',
+                'BGP_AS_MEMBER','COMPANY_NAME','PROVIDER_HOSTING','GEOINFO','DOMAIN_WHOIS','DOMAIN_REGISTRAR',
+                'CO_HOSTED_SITE','CO_HOSTED_SITE_DOMAIN','AFFILIATE_INTERNET_NAME','AFFILIATE_DOMAIN_NAME',
+                'NETBLOCK_OWNER','NETBLOCK_MEMBER','PROVIDER_DNS','PROVIDER_MAIL'],
+      },
+      'reputation': {
+        label: 'Reputation',
+        color: '#f59e0b',  // amber-500
+        types: ['MALICIOUS_IPADDR','MALICIOUS_INTERNET_NAME','MALICIOUS_AFFILIATE_IPADDR',
+                'MALICIOUS_NETBLOCK','MALICIOUS_SUBNET','BLACKLISTED_IPADDR','BLACKLISTED_INTERNET_NAME',
+                'BLACKLISTED_AFFILIATE_IPADDR','RANSOMWARE_VICTIM'],
+      },
+      'vulnerabilities': {
+        label: 'Vulnerabilities',
+        color: '#ef4444',  // red-500
+        types: ['VULNERABILITY_CVE_CRITICAL','VULNERABILITY_CVE_HIGH','VULNERABILITY_CVE_MEDIUM',
+                'VULNERABILITY_CVE_LOW','VULNERABILITY_GENERAL'],
+      },
+      'other': {
+        label: 'Other',
+        color: '#94a3b8',  // slate-400
+        types: [],
+      },
+      'root': {
+        label: 'Target',
+        color: '#fbbf24',  // amber-400 — distinct golden for the seed
+        types: ['ROOT'],
+      },
+    },
+
+    typeToCategory(type) {
+      for (const [key, info] of Object.entries(this.CATEGORY_MAP)) {
+        if (info.types.includes(type)) return key;
+      }
+      return 'other';
+    },
+
+    categoryColor(type) {
+      return this.CATEGORY_MAP[this.typeToCategory(type)].color;
+    },
+
+    init() {
+      const start = () => this.fetchAndRender();
+      if (window.cytoscape) start();
+      else window.addEventListener('cytoscape-ready', start, { once: true });
+    },
+
+    async fetchAndRender() {
+      try {
+        const resp = await fetch(`/api/scanviz?id=${encodeURIComponent(scanId)}&gexf=0`);
+        if (!resp.ok || resp.status === 204) {
+          this.loading = false;
+          this.totalNodes = 0;
+          return;
+        }
+        const data = await resp.json();
+        const nodes = data.nodes || [];
+        const edges = data.edges || [];
+        this.totalNodes = nodes.length;
+        this.visibleNodes = nodes.length;
+
+        if (nodes.length === 0) {
+          this.loading = false;
+          return;
+        }
+
+        this.loadingMessage = `Laying out ${nodes.length} nodes...`;
+
+        const elements = [];
+        for (const n of nodes) {
+          const cat = n.is_root ? 'root' : this.typeToCategory(n.type);
+          elements.push({
+            data: {
+              id: n.id,
+              label: n.label,
+              fullLabel: n.label,
+              type: n.type,
+              category: cat,
+              isRoot: !!n.is_root,
+            }
+          });
+        }
+        for (const e of edges) {
+          elements.push({
+            data: { id: 'e' + e.id, source: e.source, target: e.target }
+          });
+        }
+
+        this.cy = window.cytoscape({
+          container: document.getElementById('graph-canvas'),
+          elements,
+          minZoom: 0.05,
+          maxZoom: 4,
+          wheelSensitivity: 0.2,
+          style: [
+            {
+              selector: 'node',
+              style: {
+                'background-color': (ele) => this.CATEGORY_MAP[ele.data('category')].color,
+                'label': (ele) => {
+                  const l = ele.data('label') || '';
+                  return l.length > 32 ? l.substring(0, 30) + '…' : l;
+                },
+                'color': '#1e293b',
+                'font-size': 10,
+                'font-family': 'ui-monospace, monospace',
+                'text-wrap': 'ellipsis',
+                'text-max-width': 120,
+                'text-margin-y': -4,
+                'text-valign': 'bottom',
+                'text-halign': 'center',
+                'text-outline-color': '#fff',
+                'text-outline-width': 2,
+                'border-width': 1,
+                'border-color': '#fff',
+                'width': 14,
+                'height': 14,
+              },
+            },
+            {
+              selector: 'node[?isRoot]',
+              style: {
+                'width': 28, 'height': 28,
+                'border-width': 3,
+                'border-color': '#f59e0b',
+                'font-size': 12,
+                'font-weight': 'bold',
+                'z-index': 10,
+              },
+            },
+            {
+              selector: 'node.dimmed',
+              style: { 'opacity': 0.15 },
+            },
+            {
+              selector: 'node.highlight',
+              style: {
+                'border-width': 3,
+                'border-color': '#0ea5e9',
+                'z-index': 99,
+              },
+            },
+            {
+              selector: 'node.hidden',
+              style: { 'display': 'none' },
+            },
+            {
+              selector: 'edge',
+              style: {
+                'width': 1,
+                'line-color': '#cbd5e1',
+                'target-arrow-color': '#cbd5e1',
+                'target-arrow-shape': 'triangle',
+                'arrow-scale': 0.8,
+                'curve-style': 'bezier',
+                'opacity': 0.55,
+              },
+            },
+            {
+              selector: 'edge.dimmed',
+              style: { 'opacity': 0.05 },
+            },
+            {
+              selector: 'edge.highlight',
+              style: {
+                'line-color': '#0ea5e9',
+                'target-arrow-color': '#0ea5e9',
+                'opacity': 1,
+                'width': 2,
+              },
+            },
+          ],
+        });
+
+        // Style overrides for dark mode (text outline + label color).
+        if (document.documentElement.classList.contains('dark')) {
+          this.cy.style()
+            .selector('node').style({ 'color': '#e2e8f0', 'text-outline-color': '#0f172a' })
+            .selector('edge').style({ 'line-color': '#475569', 'target-arrow-color': '#475569' })
+            .selector('edge.dimmed').style({ 'opacity': 0.08 })
+            .update();
+        }
+
+        this.cy.on('tap', 'node', (evt) => this.selectNode(evt.target));
+        this.cy.on('tap', (evt) => { if (evt.target === this.cy) this.clearSelection(); });
+
+        this.computeCategories();
+        this.runLayout();
+      } catch (err) {
+        console.error('Graph load failed:', err);
+        this.loading = false;
+        this.loadingMessage = 'Failed to load graph data.';
+      }
+    },
+
+    runLayout() {
+      if (!this.cy) return;
+      this.loading = true;
+      this.loadingMessage = `Running ${this.layoutName} layout...`;
+
+      const visible = this.cy.nodes().not('.hidden');
+      const nodeCount = visible.length;
+
+      const layoutOpts = (() => {
+        if (this.layoutName === 'fcose') {
+          return {
+            name: 'fcose',
+            quality: nodeCount > 600 ? 'draft' : 'default',
+            randomize: true,
+            animate: false,
+            nodeRepulsion: 4500,
+            idealEdgeLength: 80,
+            edgeElasticity: 0.45,
+            gravity: 0.25,
+            packComponents: true,
+          };
+        }
+        if (this.layoutName === 'breadthfirst') {
+          const roots = visible.filter('[?isRoot]');
+          return {
+            name: 'breadthfirst',
+            roots: roots.length ? roots : visible.first(),
+            directed: true,
+            spacingFactor: 1.3,
+            animate: false,
+          };
+        }
+        if (this.layoutName === 'concentric') {
+          return {
+            name: 'concentric',
+            concentric: (n) => (n.data('isRoot') ? 999 : n.degree(false)),
+            levelWidth: () => 1,
+            minNodeSpacing: 30,
+            animate: false,
+          };
+        }
+        return { name: this.layoutName, animate: false };
+      })();
+
+      const layout = visible.layout(layoutOpts);
+      layout.one('layoutstop', () => {
+        this.loading = false;
+        this.cy.fit(visible, 60);
+      });
+      // Some layouts complete synchronously — fall back to a tick.
+      setTimeout(() => { if (this.loading) this.loading = false; }, 200);
+      layout.run();
+    },
+
+    computeCategories() {
+      const counts = {};
+      this.cy.nodes().forEach((n) => {
+        const c = n.data('category');
+        counts[c] = (counts[c] || 0) + 1;
+      });
+      const order = ['root','attack_surface','identities','infrastructure','reputation','vulnerabilities','other'];
+      this.categories = order
+        .filter((k) => counts[k])
+        .map((k) => ({ key: k, label: this.CATEGORY_MAP[k].label, color: this.CATEGORY_MAP[k].color, count: counts[k] }));
+    },
+
+    toggleCategory(key) {
+      if (this.hiddenCats.has(key)) this.hiddenCats.delete(key);
+      else this.hiddenCats.add(key);
+      this.hiddenCats = new Set(this.hiddenCats);  // trigger reactivity
+      this.applyVisibility();
+    },
+
+    applyVisibility() {
+      if (!this.cy) return;
+      this.cy.batch(() => {
+        this.cy.nodes().forEach((n) => {
+          const hide = this.hiddenCats.has(n.data('category')) ||
+                       (this.search && !n.data('label').toLowerCase().includes(this.search.toLowerCase()));
+          n.toggleClass('hidden', hide);
+        });
+      });
+      this.visibleNodes = this.cy.nodes().not('.hidden').length;
+    },
+
+    applySearch() {
+      this.applyVisibility();
+    },
+
+    selectNode(node) {
+      const id = node.id();
+      const neighborhood = node.closedNeighborhood();
+      this.cy.batch(() => {
+        this.cy.elements().addClass('dimmed').removeClass('highlight');
+        neighborhood.removeClass('dimmed').addClass('highlight');
+      });
+
+      const neighbors = node.neighborhood('node').map((n) => ({
+        id: n.id(),
+        label: n.data('label'),
+        type: n.data('type'),
+      }));
+
+      this.selected = {
+        id,
+        label: node.data('fullLabel'),
+        type: node.data('type'),
+        degree: node.degree(false),
+        neighbors,
+      };
+    },
+
+    focusNode(id) {
+      const n = this.cy.getElementById(id);
+      if (!n || !n.length) return;
+      this.selectNode(n);
+      this.cy.animate({ center: { eles: n }, zoom: Math.max(this.cy.zoom(), 1.2) }, { duration: 250 });
+    },
+
+    clearSelection() {
+      if (!this.cy) return;
+      this.cy.elements().removeClass('dimmed').removeClass('highlight');
+      this.selected = null;
+    },
+
+    fit() {
+      if (!this.cy) return;
+      this.cy.fit(this.cy.nodes().not('.hidden'), 60);
+    },
+  };
+}
+</script>

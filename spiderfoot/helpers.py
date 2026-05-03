@@ -544,75 +544,78 @@ class SpiderFootHelpers():
 
     @staticmethod
     def buildGraphJson(root: str, data: typing.List[str], flt: typing.Optional[typing.List[str]] = None) -> str:
-        """Convert supplied raw data into JSON format for SigmaJS.
+        """Convert supplied raw data into JSON format suitable for client-side
+        graph rendering (Cytoscape, Sigma, etc).
+
+        Each node carries the originating event type so the client can color
+        and filter by category. Layout coordinates are intentionally NOT set
+        here — the client runs its own layout algorithm.
 
         Args:
-            root (str): TBD
-            data (list[str]): Scan result as list
-            flt (list[str]): List of event types to include. If not set everything is included.
+            root (str | list[str]): Scan target value(s) — used to flag root nodes.
+            data (list): Scan result rows from scanResultEvent.
+            flt (list[str]): Optional event-type allowlist.
 
         Returns:
-            str: TBD
+            str: JSON {nodes: [...], edges: [...]} string.
         """
         if not flt:
             flt = []
+
+        # Build a data-string -> event-type lookup so we can attach the type
+        # to each node. A given data string may have been produced by multiple
+        # modules under different types; we keep the first non-INTERNAL one.
+        type_for: typing.Dict[str, str] = {}
+        for row in data:
+            if len(row) < 12:
+                continue
+            data_val = row[1]
+            event_type = row[4]
+            event_class = row[11]  # ENTITY / DESCRIPTOR / DATA / INTERNAL
+            if event_class == "INTERNAL":
+                continue
+            type_for.setdefault(data_val, event_type)
 
         mapping = SpiderFootHelpers.buildGraphData(data, flt)
         ret: _Graph = {}
         ret['nodes'] = list()
         ret['edges'] = list()
 
+        roots = root if isinstance(root, (list, set, tuple)) else [root]
+
         nodelist: typing.Dict[str, int] = dict()
         ecounter = 0
         ncounter = 0
+
+        def _add_node(value: str) -> int:
+            nonlocal ncounter
+            if value in nodelist:
+                return nodelist[value]
+            ncounter += 1
+            is_root = value in roots
+            ret['nodes'].append({
+                'id': str(ncounter),
+                'label': str(value),
+                'type': type_for.get(value, 'ROOT' if is_root else 'UNKNOWN'),
+                'is_root': bool(is_root),
+            })
+            nodelist[value] = ncounter
+            return ncounter
+
         for pair in mapping:
             (dst, src) = pair
-            col = "#000"
 
-            # Leave out this special case
             if dst == "ROOT" or src == "ROOT":
                 continue
 
-            if dst not in nodelist:
-                ncounter = ncounter + 1
+            dst_id = _add_node(dst)
+            src_id = _add_node(src)
 
-                if dst in root:
-                    col = "#f00"
-
-                ret['nodes'].append({
-                    'id': str(ncounter),
-                    'label': str(dst),
-                    'x': random.SystemRandom().randint(1, 1000),
-                    'y': random.SystemRandom().randint(1, 1000),
-                    'size': "1",
-                    'color': col
-                })
-
-                nodelist[dst] = ncounter
-
-            if src not in nodelist:
-                ncounter = ncounter + 1
-
-                if src in root:
-                    col = "#f00"
-
-                ret['nodes'].append({
-                    'id': str(ncounter),
-                    'label': str(src),
-                    'x': random.SystemRandom().randint(1, 1000),
-                    'y': random.SystemRandom().randint(1, 1000),
-                    'size': "1",
-                    'color': col
-                })
-
-                nodelist[src] = ncounter
-
-            ecounter = ecounter + 1
-
+            ecounter += 1
             ret['edges'].append({
                 'id': str(ecounter),
-                'source': str(nodelist[src]),
-                'target': str(nodelist[dst])
+                'source': str(src_id),
+                'target': str(dst_id),
             })
 
         return json.dumps(ret)

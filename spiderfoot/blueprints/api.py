@@ -1517,7 +1517,12 @@ def scanviz():
     root = scan[1]
 
     if gexf == "0":
-        return jsonify(SpiderFootHelpers.buildGraphJson([root], data))
+        # buildGraphJson already returns a JSON string; wrapping it in jsonify
+        # would double-encode it. Send as a raw application/json response.
+        return Response(
+            SpiderFootHelpers.buildGraphJson([root], data),
+            mimetype='application/json',
+        )
 
     fname = _safe_filename(scan_name) + "-SpiderFoot.gexf"
 
