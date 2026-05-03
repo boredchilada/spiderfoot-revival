@@ -1663,3 +1663,76 @@ def presets_create():
     except Exception as e:
         return jsonify_error('500', f"Failed to create preset: {e}")
     return jsonify(_serialize_preset(dbh.presetGet(preset_id))), 201
+
+
+@api_bp.route('/presets/<path:preset_id>', methods=['PATCH'])
+def presets_update(preset_id):
+    dbh = get_db()
+    existing = dbh.presetGet(preset_id)
+    if existing is None:
+        return jsonify_error('404', f"Preset {preset_id} not found")
+    if existing['kind'] == 'builtin':
+        return jsonify_error('403', "Built-in presets are read-only")
+
+    body = request.get_json(silent=True) or {}
+    name = (body.get('name') or existing['name']).strip()
+    description = body.get('description', existing['description'])
+    modules = body.get('modules', existing['modules'])
+
+    if not name or len(name) > 60:
+        return jsonify_error('400', "Name must be 1-60 characters")
+    if not isinstance(modules, list):
+        return jsonify_error('400', "modules must be a list")
+
+    sf_modules = get_config().get('__modules__') or {}
+    valid, invalid = validate_module_names(modules, sf_modules)
+    if invalid:
+        return jsonify_error('400', f"Unknown modules: {', '.join(invalid)}")
+
+    # Name conflict — but allow keeping the same name on this preset
+    for other in dbh.presetList():
+        if other['id'] == preset_id:
+            continue
+        if other['name'].lower() == name.lower():
+            return jsonify_error('400', f"A preset named '{other['name']}' already exists")
+
+    try:
+        dbh.presetUpdate(
+            preset_id=preset_id, name=name, description=description,
+            modules=valid, now_ms=int(time.time() * 1000),
+        )
+    except sqlite3.IntegrityError as e:
+        return jsonify_error('400', f"Constraint violation: {e}")
+    except Exception as e:
+        return jsonify_error('500', f"Failed to update preset: {e}")
+    return jsonify(_serialize_preset(dbh.presetGet(preset_id)))
+
+
+# IMPORTANT: register the LITERAL /presets/default route BEFORE the
+# <path:preset_id> route so Flask matches it first for DELETE.
+@api_bp.route('/presets/default', methods=['DELETE'])
+def presets_clear_default():
+    dbh = get_db()
+    dbh.presetClearDefault()
+    return jsonify({'status': 'ok'})
+
+
+@api_bp.route('/presets/<path:preset_id>', methods=['DELETE'])
+def presets_delete(preset_id):
+    dbh = get_db()
+    existing = dbh.presetGet(preset_id)
+    if existing is None:
+        return jsonify_error('404', f"Preset {preset_id} not found")
+    if existing['kind'] == 'builtin':
+        return jsonify_error('403', "Built-in presets cannot be deleted")
+    dbh.presetDelete(preset_id)
+    return jsonify({'status': 'ok'})
+
+
+@api_bp.route('/presets/<path:preset_id>/default', methods=['POST'])
+def presets_set_default(preset_id):
+    dbh = get_db()
+    if dbh.presetGet(preset_id) is None:
+        return jsonify_error('404', f"Preset {preset_id} not found")
+    dbh.presetSetDefault(preset_id)
+    return jsonify({'status': 'ok'})
