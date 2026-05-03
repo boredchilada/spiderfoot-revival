@@ -106,9 +106,8 @@ class SpiderFootDb:
         "CREATE INDEX idx_scan_results_srchash ON tbl_scan_results (scan_instance_id, source_event_hash)",
         "CREATE INDEX idx_scan_logs ON tbl_scan_log (scan_instance_id)",
         "CREATE INDEX idx_scan_correlation ON tbl_scan_correlation_results (scan_instance_id, id)",
-        "CREATE INDEX idx_scan_correlation_events ON tbl_scan_correlation_results_events (correlation_id)"
-        ,
-        "CREATE TABLE tbl_scan_preset ( \
+        "CREATE INDEX idx_scan_correlation_events ON tbl_scan_correlation_results_events (correlation_id)",
+        "CREATE TABLE IF NOT EXISTS tbl_scan_preset ( \
             id          TEXT PRIMARY KEY, \
             name        TEXT NOT NULL UNIQUE COLLATE NOCASE, \
             description TEXT, \
@@ -118,12 +117,12 @@ class SpiderFootDb:
             created_at  INTEGER NOT NULL, \
             updated_at  INTEGER NOT NULL \
         )",
-        "CREATE TABLE tbl_scan_preset_module ( \
+        "CREATE TABLE IF NOT EXISTS tbl_scan_preset_module ( \
             preset_id TEXT NOT NULL REFERENCES tbl_scan_preset(id) ON DELETE CASCADE, \
             module    TEXT NOT NULL, \
             PRIMARY KEY (preset_id, module) \
         )",
-        "CREATE UNIQUE INDEX idx_scan_preset_default ON tbl_scan_preset(is_default) WHERE is_default = 1"
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_scan_preset_default ON tbl_scan_preset(is_default) WHERE is_default = 1"
     ]
 
     eventDetails = [
