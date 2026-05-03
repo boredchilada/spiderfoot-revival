@@ -27,6 +27,16 @@ class TestValidateModuleNames(unittest.TestCase):
         self.assertEqual(sorted(valid), ['sfp_a', 'sfp_b'])
         self.assertEqual(invalid, [])
 
+    def test_preserves_first_seen_order(self):
+        """Documented contract: outputs reflect first-encounter order in input."""
+        modules = {'sfp_a': {}, 'sfp_b': {}, 'sfp_c': {}}
+        valid, invalid = validate_module_names(
+            ['sfp_c', 'sfp_x', 'sfp_a', 'sfp_y', 'sfp_b'], modules
+        )
+        # Insertion-order, not alphabetical
+        self.assertEqual(valid, ['sfp_c', 'sfp_a', 'sfp_b'])
+        self.assertEqual(invalid, ['sfp_x', 'sfp_y'])
+
 
 class TestBuiltinPresets(unittest.TestCase):
     def test_has_at_least_10_entries(self):
@@ -52,3 +62,15 @@ class TestBuiltinPresets(unittest.TestCase):
     def test_names_are_unique(self):
         names = [p['name'].lower() for p in BUILTIN_PRESETS]
         self.assertEqual(len(names), len(set(names)))
+
+    def test_no_intra_preset_duplicates(self):
+        """Each preset's modules list should have no repeats — duplicates
+        would confuse the seeder and inflate counts."""
+        for p in BUILTIN_PRESETS:
+            if 'modules' in p:
+                modules = p['modules']
+                self.assertEqual(
+                    len(modules), len(set(modules)),
+                    f"{p['id']} has duplicate module entries: "
+                    f"{[m for m in modules if modules.count(m) > 1]}"
+                )
