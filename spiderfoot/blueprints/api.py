@@ -12,6 +12,7 @@ import json
 import logging
 import multiprocessing as mp
 import re
+import sqlite3
 import string
 import time
 import uuid
@@ -1654,6 +1655,11 @@ def presets_create():
             modules=valid,
             now_ms=now_ms,
         )
+    except sqlite3.IntegrityError as e:
+        # UNIQUE/CHECK constraint violation — most likely a name collision
+        # that slipped past the prior presetList() check (TOCTOU race) or a
+        # CHECK violation on `kind`. Always a client-facing data issue.
+        return jsonify_error('400', f"Constraint violation: {e}")
     except Exception as e:
         return jsonify_error('500', f"Failed to create preset: {e}")
     return jsonify(_serialize_preset(dbh.presetGet(preset_id))), 201
