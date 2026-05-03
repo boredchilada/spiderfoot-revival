@@ -1,0 +1,30 @@
+id: typosquat_registered
+version: 1
+meta:
+  name: Look-alike domain is actually registered (active typosquat)
+  description: >
+    A domain that is a typographic variant of the target (SIMILARDOMAIN)
+    was found to also have WHOIS data attached (SIMILARDOMAIN_WHOIS),
+    confirming that someone has actually registered the look-alike
+    rather than it merely being a candidate string the scanner
+    enumerated.
+
+    Why it matters: most SIMILARDOMAIN findings are theoretical
+    permutations. The presence of WHOIS data elevates a hit from
+    "possible name to defensively register" to "active typosquat that
+    needs investigation." Typosquats are routinely used for phishing,
+    ad redirects, brand abuse, and BEC. Each confirmed registration
+    deserves a look at its current content, registrar, and registrant
+    contact for malicious intent.
+
+    Pivot from here to checking the typosquat's MX records, web
+    content, SSL cert, and whether it sends mail spoofing your brand.
+  risk: HIGH
+collections:
+  - collect:
+      - method: exact
+        field: type
+        value: SIMILARDOMAIN_WHOIS
+aggregation:
+  field: source.data
+headline: "Active typosquat registered: {source.data}"

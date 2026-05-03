@@ -1,0 +1,31 @@
+id: login_form_plaintext
+version: 1
+meta:
+  name: Login form served over plaintext HTTP
+  description: >
+    A page on the target was found to contain a password input field
+    while being served over plaintext HTTP rather than HTTPS. Any
+    credentials submitted from such a form are sent unencrypted and
+    can be trivially intercepted by anyone on the network path.
+
+    Why it matters: a public-facing login form on http:// is one of
+    the highest-impact, lowest-effort findings. It typically means
+    either the site has no TLS at all, or the form action submits to
+    an http endpoint, or a redirect to https is missing on the login
+    page itself. Browsers now actively warn users away from such
+    pages, which also damages trust.
+
+    Fix: serve the entire site over HTTPS, redirect plaintext to TLS
+    before any form rendering, and add HSTS to prevent downgrade.
+  risk: HIGH
+collections:
+  - collect:
+      - method: exact
+        field: type
+        value: URL_PASSWORD
+      - method: regex
+        field: data
+        value: ^http://.*
+aggregation:
+  field: data
+headline: "Login form served over plaintext HTTP: {data}"

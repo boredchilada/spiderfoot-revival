@@ -1,0 +1,49 @@
+id: risky_port_exposed
+version: 1
+meta:
+  name: A risky service port was found open on a target host
+  description: >
+    A TCP port commonly associated with services that should not be
+    Internet-exposed was found open. The list covers legacy plaintext
+    protocols (FTP, Telnet), Windows file-sharing (SMB, NetBIOS, RPC),
+    remote administration (RDP, VNC), database engines (MSSQL, MySQL,
+    PostgreSQL, MongoDB, Redis, Elasticsearch, CouchDB, Memcached),
+    and stack management consoles (Kibana).
+
+    Why it matters: any of these reachable from the public Internet
+    typically signals either a misconfiguration or an asset the owner
+    has forgotten about. Many of these protocols are routinely
+    targeted by mass scanners and ransomware actors looking for an
+    easy entry point.
+
+    A higher-severity rule (database_service_exposed) covers the
+    subset where authentication is frequently absent or weak.
+  risk: MEDIUM
+collections:
+  - collect:
+      - method: exact
+        field: type
+        value: TCP_PORT_OPEN
+      - method: regex
+        field: data
+        value:
+          - .*:21$
+          - .*:23$
+          - .*:135$
+          - .*:137$
+          - .*:139$
+          - .*:445$
+          - .*:1433$
+          - .*:1521$
+          - .*:3306$
+          - .*:3389$
+          - .*:5432$
+          - .*:5900$
+          - .*:5984$
+          - .*:6379$
+          - .*:9200$
+          - .*:11211$
+          - .*:27017$
+aggregation:
+  field: data
+headline: "Risky service port open on target: {data}"
