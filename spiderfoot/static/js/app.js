@@ -9,11 +9,11 @@ window.scanForm = (initialModules, presets) => ({
     target: '',
     scanName: '',
     targetType: '',
-    useCase: 'footprint',
     moduleSearch: '',
     presets: presets || [],
     activePresetId: 'builtin:footprint',
     appliedSnapshot: [],  // module names enabled at last preset apply
+    _suppressPersist: false,
 
     /**
      * modules — keyed by module name (sfp_xxx).
@@ -31,7 +31,10 @@ window.scanForm = (initialModules, presets) => ({
       this._restoreOrDefault();
 
       // Watch for module-enabled changes to persist last-used state
-      this.$watch('modules', () => this._persistLastUsed(), { deep: true });
+      this.$watch('modules', () => {
+        if (this._suppressPersist) return;
+        this._persistLastUsed();
+      }, { deep: true });
 
       // Watch target for auto-detection + private IP module filtering
       this.$watch('target', () => {
@@ -150,10 +153,17 @@ window.scanForm = (initialModules, presets) => ({
         this.applyPreset('builtin:footprint');
         return;
       }
-      // Toggle every module to match the preset's set
+      // Toggle every module to match the preset's set. Suppress per-mutation
+      // persistence to avoid hundreds of localStorage writes per click; we
+      // call _persistLastUsed once at the end.
       const wanted = new Set(preset.modules);
-      for (const key of Object.keys(this.modules)) {
-        this.modules[key].enabled = wanted.has(key);
+      this._suppressPersist = true;
+      try {
+        for (const key of Object.keys(this.modules)) {
+          this.modules[key].enabled = wanted.has(key);
+        }
+      } finally {
+        this._suppressPersist = false;
       }
       this.appliedSnapshot = preset.modules.slice().sort();
       this._persistLastUsed();
@@ -249,8 +259,13 @@ window.scanForm = (initialModules, presets) => ({
     /** Replace module selection with an explicit list (filter unknowns). */
     _restoreExactModules(moduleNames) {
       const wanted = new Set(moduleNames.filter(n => this.modules[n] !== undefined));
-      for (const key of Object.keys(this.modules)) {
-        this.modules[key].enabled = wanted.has(key);
+      this._suppressPersist = true;
+      try {
+        for (const key of Object.keys(this.modules)) {
+          this.modules[key].enabled = wanted.has(key);
+        }
+      } finally {
+        this._suppressPersist = false;
       }
     },
 
