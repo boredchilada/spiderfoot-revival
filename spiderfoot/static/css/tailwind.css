@@ -2656,6 +2656,10 @@ video {
   background-color: rgb(30 41 59 / var(--tw-bg-opacity, 1));
 }
 
+.dark\:bg-sf-elevated\/40:is(.dark *) {
+  background-color: rgb(30 41 59 / 0.4);
+}
+
 .dark\:bg-sf-elevated\/50:is(.dark *) {
   background-color: rgb(30 41 59 / 0.5);
 }

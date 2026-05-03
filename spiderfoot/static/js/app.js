@@ -270,6 +270,84 @@ window.scanForm = (initialModules, presets) => ({
       }
     },
 
+    // ==================================================== save / update / delete
+
+    /** CSRF header for mutation requests. */
+    _csrfHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || '',
+      };
+    },
+
+    async savePresetAs(name, description) {
+      const cleanName = (name || '').trim();
+      if (!cleanName) {
+        this.showToast('Please enter a name for this preset', 'error');
+        return false;
+      }
+      const modules = this._currentEnabledModules();
+      try {
+        const resp = await fetch('/api/presets', {
+          method: 'POST',
+          headers: this._csrfHeaders(),
+          body: JSON.stringify({ name: cleanName, description, modules }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          const msg = err?.error?.message || `Save failed (${resp.status})`;
+          this.showToast(msg, 'error');
+          return false;
+        }
+        const created = await resp.json();
+        // Refresh the in-memory preset list and switch to the new one
+        await this._refreshPresets();
+        this.applyPreset(created.id);
+        this.showToast(`Saved "${created.name}"`, 'success');
+        return true;
+      } catch (e) {
+        this.showToast(`Save failed: ${e.message}`, 'error');
+        return false;
+      }
+    },
+
+    async updateActivePreset() {
+      if (!this.activePreset || this.activePreset.kind !== 'user') return;
+      const modules = this._currentEnabledModules();
+      try {
+        const resp = await fetch(`/api/presets/${encodeURIComponent(this.activePresetId)}`, {
+          method: 'PATCH',
+          headers: this._csrfHeaders(),
+          body: JSON.stringify({
+            name: this.activePreset.name,
+            description: this.activePreset.description,
+            modules,
+          }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          const msg = err?.error?.message || `Update failed (${resp.status})`;
+          this.showToast(msg, 'error');
+          return;
+        }
+        const presetName = this.activePreset.name;
+        await this._refreshPresets();
+        // Re-apply to refresh snapshot (now == current selection => clean)
+        this.applyPreset(this.activePresetId);
+        this.showToast(`Updated "${presetName}"`, 'success');
+      } catch (e) {
+        this.showToast(`Update failed: ${e.message}`, 'error');
+      }
+    },
+
+    async _refreshPresets() {
+      try {
+        const resp = await fetch('/api/presets');
+        if (!resp.ok) return;
+        this.presets = await resp.json();
+      } catch (e) { /* keep stale */ }
+    },
+
     // --------------------------------------------------------- module helpers
     /** Count enabled modules in a given category. */
     enabledCount(category) {
