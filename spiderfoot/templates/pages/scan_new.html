@@ -183,6 +183,117 @@
       {% endfor %}
     </div>
 
+    {# More ▾ dropdown — shows all presets including user ones #}
+    <div class="relative inline-block ml-2"
+         x-data="{ open: false }"
+         @click.outside="open = false"
+         @keydown.escape.window="open = false">
+      <button type="button"
+              @click="open = !open"
+              class="px-4 py-2 rounded-md border border-slate-300 dark:border-sf-border
+                     text-sm font-medium text-slate-600 dark:text-slate-300
+                     hover:border-sf-accent hover:text-sf-accent
+                     bg-white dark:bg-sf-elevated transition-colors duration-150">
+        More
+        <svg class="inline w-3 h-3 ml-1 transition-transform"
+             :class="open && 'rotate-180'"
+             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+        </svg>
+      </button>
+
+      <div x-show="open" x-cloak x-transition
+           class="absolute z-30 mt-1 w-80 right-0
+                  bg-white dark:bg-sf-surface border border-slate-200 dark:border-sf-border
+                  rounded-md shadow-lg overflow-hidden">
+
+        <div class="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider
+                    text-slate-400 dark:text-slate-500">Built-in</div>
+        <template x-for="p in presets.filter(p => p.kind === 'builtin')" :key="p.id">
+          <button type="button"
+                  @click="applyPreset(p.id); open = false"
+                  class="w-full text-left px-3 py-2 flex items-start gap-2
+                         hover:bg-slate-100 dark:hover:bg-sf-elevated transition-colors">
+            <span class="mt-1 w-3 h-3 rounded-full border-2 shrink-0"
+                  :class="activePresetId === p.id
+                    ? 'border-sf-accent bg-sf-accent'
+                    : 'border-slate-300 dark:border-slate-600'"></span>
+            <span class="flex-1 min-w-0">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-200"
+                    x-text="p.name"></span>
+              <span x-show="p.is_default"
+                    class="ml-1 text-[10px] text-amber-400">★ default</span>
+              <span class="block text-xs text-slate-400" x-text="p.description"></span>
+              <span class="block text-[11px] text-slate-500 mt-0.5"
+                    x-text="`${p.module_count} module${p.module_count === 1 ? '' : 's'}`"></span>
+            </span>
+          </button>
+        </template>
+
+        <div class="border-t border-slate-200 dark:border-sf-border mt-1"></div>
+        <div class="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider
+                    text-slate-400 dark:text-slate-500">Yours</div>
+        <template x-if="presets.filter(p => p.kind === 'user').length === 0">
+          <p class="px-3 py-2 text-xs text-slate-400">
+            No saved presets yet. Use "Save current as preset" below the modules to save your selection.
+          </p>
+        </template>
+        <template x-for="p in presets.filter(p => p.kind === 'user')" :key="p.id">
+          <button type="button"
+                  @click="applyPreset(p.id); open = false"
+                  class="w-full text-left px-3 py-2 flex items-start gap-2
+                         hover:bg-slate-100 dark:hover:bg-sf-elevated transition-colors">
+            <span class="mt-1 w-3 h-3 rounded-full border-2 shrink-0"
+                  :class="activePresetId === p.id
+                    ? 'border-sf-accent bg-sf-accent'
+                    : 'border-slate-300 dark:border-slate-600'"></span>
+            <span class="flex-1 min-w-0">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-200"
+                    x-text="p.name"></span>
+              <span x-show="p.is_default"
+                    class="ml-1 text-[10px] text-amber-400">★ default</span>
+              <span class="block text-[11px] text-slate-500 mt-0.5"
+                    x-text="`${p.module_count} module${p.module_count === 1 ? '' : 's'}`"></span>
+            </span>
+          </button>
+        </template>
+
+        <div class="border-t border-slate-200 dark:border-sf-border"></div>
+        <button type="button"
+                @click="manageOpen = true; open = false"
+                class="w-full text-left px-3 py-2 text-xs text-sf-accent
+                       hover:bg-sf-accent/10 transition-colors">
+          Manage presets →
+        </button>
+      </div>
+    </div>
+
+    {# State indicator — three states: clean preset, dirty preset, ad-hoc Custom #}
+    <div class="mt-3 text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-2">
+      <template x-if="activePresetId === '__custom__'">
+        <span><span class="font-medium text-slate-600 dark:text-slate-300">Custom</span>
+              · <span x-text="totalEnabled()"></span> modules</span>
+      </template>
+      <template x-if="activePresetId !== '__custom__' && !isDirty">
+        <span><span x-text="activePreset ? activePreset.name : 'Footprint'"></span>
+              preset applied · <span x-text="totalEnabled()"></span> modules</span>
+      </template>
+      <template x-if="activePresetId !== '__custom__' && isDirty">
+        <span class="flex items-center gap-2">
+          <span>Custom (based on
+            <span class="font-medium" x-text="activePreset ? activePreset.name : ''"></span>)
+            · <span x-text="totalEnabled()"></span> modules ·
+            <span class="text-amber-400" x-text="`${changedCount} changed`"></span>
+          </span>
+          <button type="button"
+                  @click="applyPreset(activePresetId)"
+                  class="text-sf-accent hover:text-cyan-300 underline-offset-2 hover:underline">
+            Reset to <span x-text="activePreset ? activePreset.name : ''"></span>
+          </button>
+        </span>
+      </template>
+    </div>
+
   </div>
 
   {# ================================================================ Module groups #}

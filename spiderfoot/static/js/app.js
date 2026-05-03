@@ -14,6 +14,7 @@ window.scanForm = (initialModules, presets) => ({
     activePresetId: 'builtin:footprint',
     appliedSnapshot: [],  // module names enabled at last preset apply
     _suppressPersist: false,
+    manageOpen: false,
 
     /**
      * modules — keyed by module name (sfp_xxx).
