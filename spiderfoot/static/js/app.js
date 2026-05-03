@@ -27,8 +27,11 @@ window.scanForm = (initialModules, presets) => ({
 
     // ----------------------------------------------------------------- init
     init() {
-      // Apply default footprint selection on load
-      this.selectUseCase('footprint');
+      // Resolve the initial preset: last-used → DB default → Footprint
+      this._restoreOrDefault();
+
+      // Watch for module-enabled changes to persist last-used state
+      this.$watch('modules', () => this._persistLastUsed(), { deep: true });
 
       // Watch target for auto-detection + private IP module filtering
       this.$watch('target', () => {
@@ -123,26 +126,131 @@ window.scanForm = (initialModules, presets) => ({
       return colours[this.targetType] || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
     },
 
-    // --------------------------------------------------------- use-case tabs
+    // ==================================================== preset state model
+
     /**
-     * Select a use case and auto-toggle modules accordingly.
-     * 'custom' leaves current selection untouched.
+     * Apply a preset by id. Replaces the module selection with the preset's
+     * module list and updates the snapshot used to compute `dirty`.
+     *
+     * Special id '__custom__' clears the active preset without changing the
+     * module selection (the "Custom" chip).
      */
-    selectUseCase(uc) {
-      this.useCase = uc;
-      if (uc === 'custom') return;
-
-      // Map tab id -> useCases label used in module metadata
-      const ucMap = {
-        footprint:   'Footprint',
-        investigate: 'Investigate',
-        passive:     'Passive',
-      };
-      const label = ucMap[uc];
-      if (!label) return;
-
+    applyPreset(presetId) {
+      this.activePresetId = presetId;
+      if (presetId === '__custom__') {
+        // Custom: snapshot is whatever's currently selected, no module change
+        this.appliedSnapshot = this._currentEnabledModules();
+        this._persistLastUsed();
+        return;
+      }
+      const preset = this.presets.find(p => p.id === presetId);
+      if (!preset) {
+        // Stale reference — fall through to Footprint
+        console.warn(`Preset ${presetId} not found, falling back`);
+        this.applyPreset('builtin:footprint');
+        return;
+      }
+      // Toggle every module to match the preset's set
+      const wanted = new Set(preset.modules);
       for (const key of Object.keys(this.modules)) {
-        this.modules[key].enabled = this.modules[key].useCases.includes(label);
+        this.modules[key].enabled = wanted.has(key);
+      }
+      this.appliedSnapshot = preset.modules.slice().sort();
+      this._persistLastUsed();
+    },
+
+    /** Sorted list of currently-enabled module names. */
+    _currentEnabledModules() {
+      return Object.keys(this.modules)
+        .filter(k => this.modules[k].enabled)
+        .sort();
+    },
+
+    /** Has the selection diverged from `appliedSnapshot`? */
+    get isDirty() {
+      const cur = this._currentEnabledModules();
+      if (cur.length !== this.appliedSnapshot.length) return true;
+      for (let i = 0; i < cur.length; i++) {
+        if (cur[i] !== this.appliedSnapshot[i]) return true;
+      }
+      return false;
+    },
+
+    /** Number of modules added or removed since last apply. */
+    get changedCount() {
+      const cur = new Set(this._currentEnabledModules());
+      const snap = new Set(this.appliedSnapshot);
+      let n = 0;
+      for (const k of cur) if (!snap.has(k)) n++;
+      for (const k of snap) if (!cur.has(k)) n++;
+      return n;
+    },
+
+    /** The preset object currently applied (or null for Custom). */
+    get activePreset() {
+      if (!this.activePresetId || this.activePresetId === '__custom__') return null;
+      return this.presets.find(p => p.id === this.activePresetId) || null;
+    },
+
+    // ==================================================== last-used persistence
+
+    _persistLastUsed() {
+      try {
+        localStorage.setItem('sf.lastPreset.id', this.activePresetId);
+        localStorage.setItem('sf.lastPreset.dirty', String(this.isDirty));
+        localStorage.setItem(
+          'sf.lastPreset.modules',
+          JSON.stringify(this._currentEnabledModules())
+        );
+      } catch (e) {
+        // localStorage may be unavailable (Safari private mode etc.)
+      }
+    },
+
+    /** Page-load resolution: localStorage → DB default → Footprint. */
+    _restoreOrDefault() {
+      let lastId, lastDirty, lastModules;
+      try {
+        lastId = localStorage.getItem('sf.lastPreset.id');
+        lastDirty = localStorage.getItem('sf.lastPreset.dirty') === 'true';
+        lastModules = JSON.parse(localStorage.getItem('sf.lastPreset.modules') || '[]');
+      } catch (e) { /* ignore */ }
+
+      // 1. Try last-used
+      if (lastId && lastId !== '__custom__') {
+        const preset = this.presets.find(p => p.id === lastId);
+        if (preset) {
+          this.applyPreset(lastId);
+          if (lastDirty && Array.isArray(lastModules) && lastModules.length > 0) {
+            this._restoreExactModules(lastModules);
+            // Don't update snapshot — we want isDirty to remain true
+          }
+          return;
+        }
+      }
+      if (lastId === '__custom__' && Array.isArray(lastModules) && lastModules.length > 0) {
+        this._restoreExactModules(lastModules);
+        this.activePresetId = '__custom__';
+        this.appliedSnapshot = [];
+        return;
+      }
+
+      // 2. Try DB-marked default
+      const def = this.presets.find(p => p.is_default);
+      if (def) {
+        this.applyPreset(def.id);
+        return;
+      }
+
+      // 3. Hard fallback
+      this.applyPreset('builtin:footprint');
+    },
+
+    /** Replace module selection with an explicit list (filter unknowns). */
+    _restoreExactModules(moduleNames) {
+      const wanted = new Set(moduleNames.filter(n => this.modules[n] !== undefined));
+      for (const key of Object.keys(this.modules)) {
+        this.modules[key].enabled = wanted.has(key);
       }
     },
 
