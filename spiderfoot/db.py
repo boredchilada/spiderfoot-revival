@@ -17,6 +17,7 @@ import re
 import sqlite3
 import threading
 import time
+import typing
 import uuid
 
 
@@ -457,12 +458,19 @@ class SpiderFootDb:
                 raise IOError("SQL error encountered when setting up database") from e
 
     # ----------------------------------------------------------------- presets
+    #
+    # Note on exception handling: unlike the scanInstance* methods which wrap
+    # sqlite3 errors in IOError, the preset methods let sqlite3.IntegrityError
+    # propagate directly. The API layer (blueprints/api.py) needs to
+    # distinguish UNIQUE/CHECK constraint violations (return HTTP 400 with a
+    # specific message) from other failures (return HTTP 500). Wrapping every
+    # sqlite error as IOError would lose that distinction.
 
     def presetCreate(
         self,
         preset_id: str,
         name: str,
-        description,
+        description: typing.Optional[str],
         kind: str,
         sort_order: int,
         modules: list,
@@ -485,7 +493,7 @@ class SpiderFootDb:
                 )
             self.conn.commit()
 
-    def presetGet(self, preset_id: str) -> dict:
+    def presetGet(self, preset_id: str) -> typing.Optional[dict]:
         """Return preset as a dict including its modules list, or None."""
         with self.dbhLock:
             row = self.dbh.execute(
@@ -539,7 +547,7 @@ class SpiderFootDb:
         self,
         preset_id: str,
         name: str,
-        description,
+        description: typing.Optional[str],
         modules: list,
         now_ms: int,
     ) -> None:
