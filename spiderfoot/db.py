@@ -456,6 +456,128 @@ class SpiderFootDb:
             except sqlite3.Error as e:
                 raise IOError("SQL error encountered when setting up database") from e
 
+    # ----------------------------------------------------------------- presets
+
+    def presetCreate(
+        self,
+        preset_id: str,
+        name: str,
+        description,
+        kind: str,
+        sort_order: int,
+        modules: list,
+        now_ms: int,
+    ) -> None:
+        """Insert a preset row + its module list. Raises sqlite3.IntegrityError
+        on duplicate id or name conflict."""
+        with self.dbhLock:
+            self.dbh.execute(
+                "INSERT INTO tbl_scan_preset (id, name, description, kind, "
+                "is_default, sort_order, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, 0, ?, ?, ?)",
+                (preset_id, name, description, kind, sort_order, now_ms, now_ms),
+            )
+            for mod in modules:
+                self.dbh.execute(
+                    "INSERT INTO tbl_scan_preset_module (preset_id, module) "
+                    "VALUES (?, ?)",
+                    (preset_id, mod),
+                )
+            self.conn.commit()
+
+    def presetGet(self, preset_id: str) -> dict:
+        """Return preset as a dict including its modules list, or None."""
+        with self.dbhLock:
+            row = self.dbh.execute(
+                "SELECT id, name, description, kind, is_default, sort_order, "
+                "created_at, updated_at FROM tbl_scan_preset WHERE id = ?",
+                (preset_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            mods = self.dbh.execute(
+                "SELECT module FROM tbl_scan_preset_module WHERE preset_id = ?",
+                (preset_id,),
+            ).fetchall()
+            return {
+                'id': row[0],
+                'name': row[1],
+                'description': row[2],
+                'kind': row[3],
+                'is_default': row[4],
+                'sort_order': row[5],
+                'created_at': row[6],
+                'updated_at': row[7],
+                'modules': [m[0] for m in mods],
+            }
+
+    def presetList(self) -> list:
+        """Return all presets (each as the same dict shape as presetGet),
+        sorted by sort_order ascending then name ascending."""
+        with self.dbhLock:
+            rows = self.dbh.execute(
+                "SELECT id, name, description, kind, is_default, sort_order, "
+                "created_at, updated_at FROM tbl_scan_preset "
+                "ORDER BY sort_order ASC, name COLLATE NOCASE ASC"
+            ).fetchall()
+            mods_by_preset = {}
+            for preset_id, module in self.dbh.execute(
+                "SELECT preset_id, module FROM tbl_scan_preset_module"
+            ).fetchall():
+                mods_by_preset.setdefault(preset_id, []).append(module)
+            return [
+                {
+                    'id': r[0], 'name': r[1], 'description': r[2], 'kind': r[3],
+                    'is_default': r[4], 'sort_order': r[5],
+                    'created_at': r[6], 'updated_at': r[7],
+                    'modules': mods_by_preset.get(r[0], []),
+                }
+                for r in rows
+            ]
+
+    def presetUpdate(
+        self,
+        preset_id: str,
+        name: str,
+        description,
+        modules: list,
+        now_ms: int,
+    ) -> None:
+        """Replace name, description, modules, and updated_at. Does not change
+        kind, sort_order, is_default, or created_at."""
+        with self.dbhLock:
+            self.dbh.execute(
+                "UPDATE tbl_scan_preset SET name = ?, description = ?, "
+                "updated_at = ? WHERE id = ?",
+                (name, description, now_ms, preset_id),
+            )
+            self.dbh.execute(
+                "DELETE FROM tbl_scan_preset_module WHERE preset_id = ?",
+                (preset_id,),
+            )
+            for mod in modules:
+                self.dbh.execute(
+                    "INSERT INTO tbl_scan_preset_module (preset_id, module) "
+                    "VALUES (?, ?)",
+                    (preset_id, mod),
+                )
+            self.conn.commit()
+
+    def presetDelete(self, preset_id: str) -> None:
+        """Delete a preset row. SQLite does not enforce ON DELETE CASCADE
+        unless PRAGMA foreign_keys=ON, which this codebase does not set —
+        so explicitly delete child rows first."""
+        with self.dbhLock:
+            self.dbh.execute(
+                "DELETE FROM tbl_scan_preset_module WHERE preset_id = ?",
+                (preset_id,),
+            )
+            self.dbh.execute(
+                "DELETE FROM tbl_scan_preset WHERE id = ?",
+                (preset_id,),
+            )
+            self.conn.commit()
+
     def close(self) -> None:
         """Close the database handle."""
 
