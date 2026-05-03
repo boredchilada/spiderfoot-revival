@@ -152,3 +152,49 @@ class TestPresetCRUD(unittest.TestCase):
             ('user:y',),
         ).fetchone()[0]
         self.assertEqual(leftover, 0)
+
+
+
+class TestPresetDefault(unittest.TestCase):
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.tmpdir, 'def.db')
+        self.db = SpiderFootDb({'__database': self.db_path}, init=True)
+        now = int(time.time() * 1000)
+        self.db.presetCreate('user:a', 'Alpha', None, 'user', 0, [], now)
+        self.db.presetCreate('user:b', 'Bravo', None, 'user', 0, [], now)
+
+    def tearDown(self):
+        try:
+            self.db.close()
+            self.db.conn.close()
+        except Exception:
+            pass
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_presetSetDefault_marks_one_only(self):
+        self.db.presetSetDefault('user:a')
+        self.assertEqual(self.db.presetGet('user:a')['is_default'], 1)
+        self.assertEqual(self.db.presetGet('user:b')['is_default'], 0)
+
+    def test_presetSetDefault_clears_prior_default_atomically(self):
+        self.db.presetSetDefault('user:a')
+        self.db.presetSetDefault('user:b')
+        self.assertEqual(self.db.presetGet('user:a')['is_default'], 0)
+        self.assertEqual(self.db.presetGet('user:b')['is_default'], 1)
+
+    def test_presetClearDefault_unsets_default(self):
+        self.db.presetSetDefault('user:a')
+        self.db.presetClearDefault()
+        self.assertEqual(self.db.presetGet('user:a')['is_default'], 0)
+
+    def test_presetGetDefault_returns_default_or_none(self):
+        self.assertIsNone(self.db.presetGetDefault())
+        self.db.presetSetDefault('user:b')
+        d = self.db.presetGetDefault()
+        self.assertEqual(d['id'], 'user:b')
+
+    def test_presetDelete_clears_default_if_was_default(self):
+        self.db.presetSetDefault('user:a')
+        self.db.presetDelete('user:a')
+        self.assertIsNone(self.db.presetGetDefault())
