@@ -1,0 +1,32 @@
+id: shared_hosting_environment
+version: 1
+meta:
+  name: Target IP appears to host multiple unrelated sites (shared hosting)
+  description: >
+    An IP address attributed to the target was found to be hosting a
+    significant number of other domains. This is characteristic of
+    shared hosting (a VPS / web host with multiple tenants) rather than
+    dedicated infrastructure.
+
+    Why it matters: assets on shared hosting share an IP reputation
+    with every other tenant. A neighbouring site getting blocklisted
+    or compromised can affect the target's mail deliverability,
+    SEO standing, and edge filtering. Investigation tooling that
+    treats one IP as one organisation will produce misleading results.
+
+    The threshold is intentionally moderate (10) to flag VPS / cheap
+    web-host scenarios without firing on regional CDN PoPs (which are
+    typically caught by shared_edge_density instead).
+  risk: INFO
+collections:
+  - collect:
+      - method: exact
+        field: type
+        value: CO_HOSTED_SITE
+aggregation:
+  field: source.data
+analysis:
+  - method: threshold
+    field: source.data
+    minimum: 10
+headline: "Shared hosting detected: target IP {source.data} hosts many unrelated sites"
