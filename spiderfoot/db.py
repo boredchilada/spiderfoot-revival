@@ -587,11 +587,11 @@ class SpiderFootDb:
             self.conn.commit()
 
     def presetSetDefault(self, preset_id: str) -> None:
-        """Mark this preset as the default. Atomically clears prior default
-        first to avoid the UNIQUE partial-index conflict."""
+        """Mark this preset as the default. Clears the prior default first
+        in the same implicit transaction to avoid the UNIQUE partial-index
+        conflict — both UPDATEs commit together."""
         with self.dbhLock:
             try:
-                self.dbh.execute("BEGIN")
                 self.dbh.execute(
                     "UPDATE tbl_scan_preset SET is_default = 0 "
                     "WHERE is_default = 1"
@@ -606,6 +606,7 @@ class SpiderFootDb:
                 raise
 
     def presetClearDefault(self) -> None:
+        """Unset the current default preset, if any."""
         with self.dbhLock:
             self.dbh.execute(
                 "UPDATE tbl_scan_preset SET is_default = 0 WHERE is_default = 1"
@@ -620,7 +621,7 @@ class SpiderFootDb:
             ).fetchone()
             if row is None:
                 return None
-        return self.presetGet(row[0])
+            return self.presetGet(row[0])
 
     def close(self) -> None:
         """Close the database handle."""
