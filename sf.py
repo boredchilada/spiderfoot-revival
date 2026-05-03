@@ -177,6 +177,14 @@ def main() -> None:
     sfConfig['__modules__'] = sfModules
     sfConfig['__correlationrules__'] = sfCorrelationRules
 
+    # Seed built-in scan presets. Idempotent — runs every startup so a code
+    # change to BUILTIN_PRESETS propagates without manual migration.
+    try:
+        from spiderfoot.services.preset_service import seed_builtin_presets
+        seed_builtin_presets(dbh, sfModules)
+    except Exception as e:
+        log.error(f"Failed to seed built-in presets: {e}", exc_info=True)
+
     if args.correlate:
         if not correlationRulesRaw:
             log.error("Unable to perform correlations as no correlation rules were found.")
