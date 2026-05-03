@@ -21,6 +21,8 @@ import re
 import shlex
 import sys
 import time
+
+from spiderfoot.__version__ import __version__
 from os.path import expanduser
 
 import requests
@@ -54,7 +56,7 @@ class bcolors:
 
 
 class SpiderFootCli(cmd.Cmd):
-    version = "5.0.3"
+    version = __version__
     pipecmd = None
     output = None
     modules = []
