@@ -185,3 +185,18 @@ class TestPresetAPI(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(self.client.get(f'/api/presets/{pid}').data)
         self.assertFalse(data['is_default'])
+
+    def test_POST_preset_400_on_long_description(self):
+        long_desc = 'x' * 201
+        resp = self.client.post('/api/presets', json={
+            'name': 'long-desc', 'description': long_desc,
+            'modules': ['sfp_crt'],
+        }, headers=self._auth_headers())
+        self.assertEqual(resp.status_code, 400)
+
+    def test_PATCH_preset_400_on_long_description(self):
+        pid = self._create_user_preset()
+        resp = self.client.patch(f'/api/presets/{pid}', json={
+            'description': 'x' * 201,
+        }, headers=self._auth_headers())
+        self.assertEqual(resp.status_code, 400)

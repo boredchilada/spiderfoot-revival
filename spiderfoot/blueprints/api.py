@@ -1618,6 +1618,10 @@ def presets_create():
 
     if not name or len(name) > 60:
         return jsonify_error('400', "Name must be 1-60 characters")
+    if description is not None and not isinstance(description, str):
+        return jsonify_error('400', "description must be a string")
+    if description is not None and len(description) > 200:
+        return jsonify_error('400', "description must be 200 characters or fewer")
     if not isinstance(modules, list):
         return jsonify_error('400', "modules must be a list")
 
@@ -1668,6 +1672,10 @@ def presets_update(preset_id):
 
     if not name or len(name) > 60:
         return jsonify_error('400', "Name must be 1-60 characters")
+    if description is not None and not isinstance(description, str):
+        return jsonify_error('400', "description must be a string")
+    if description is not None and len(description) > 200:
+        return jsonify_error('400', "description must be 200 characters or fewer")
     if not isinstance(modules, list):
         return jsonify_error('400', "modules must be a list")
 
