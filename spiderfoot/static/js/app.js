@@ -380,7 +380,8 @@ window.scanForm = (initialModules, presets) => ({
           this.pendingDeleteId = null;
           return;
         }
-        await this._refreshPresets();
+        // Remove the deleted preset from the in-memory list (no refetch needed).
+        this.presets = this.presets.filter(p => p.id !== presetId);
         if (this.activePresetId === presetId) {
           this.applyPreset('builtin:footprint');
         }
@@ -402,7 +403,11 @@ window.scanForm = (initialModules, presets) => ({
           this.showToast(`Failed to set default (${resp.status})`, 'error');
           return;
         }
-        await this._refreshPresets();
+        // Toggle is_default flags locally: target gets true, others false.
+        this.presets = this.presets.map(p => ({
+          ...p,
+          is_default: p.id === presetId,
+        }));
         this.showToast('Default preset updated', 'success');
       } catch (e) {
         this.showToast(`Failed to set default: ${e.message}`, 'error');
@@ -416,7 +421,8 @@ window.scanForm = (initialModules, presets) => ({
           headers: this._csrfHeaders(),
         });
         if (!resp.ok) return;
-        await this._refreshPresets();
+        // Clear all is_default flags locally.
+        this.presets = this.presets.map(p => ({ ...p, is_default: false }));
         this.showToast('Default preset cleared', 'success');
       } catch (e) { /* ignore */ }
     },
