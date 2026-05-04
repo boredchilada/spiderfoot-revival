@@ -15,6 +15,7 @@ window.scanForm = (initialModules, presets) => ({
     appliedSnapshot: [],  // module names enabled at last preset apply
     _suppressPersist: false,
     manageOpen: false,
+    droppedModules: [],
 
     /**
      * modules — keyed by module name (sfp_xxx).
@@ -141,32 +142,34 @@ window.scanForm = (initialModules, presets) => ({
      */
     applyPreset(presetId) {
       this.activePresetId = presetId;
+      this.droppedModules = [];
       if (presetId === '__custom__') {
-        // Custom: snapshot is whatever's currently selected, no module change
         this.appliedSnapshot = this._currentEnabledModules();
         this._persistLastUsed();
         return;
       }
       const preset = this.presets.find(p => p.id === presetId);
       if (!preset) {
-        // Stale reference — fall through to Footprint
         console.warn(`Preset ${presetId} not found, falling back`);
         this.applyPreset('builtin:footprint');
         return;
       }
-      // Toggle every module to match the preset's set. Suppress per-mutation
-      // persistence to avoid hundreds of localStorage writes per click; we
-      // call _persistLastUsed once at the end.
-      const wanted = new Set(preset.modules);
+      const wantedSet = new Set(preset.modules);
+      const knownSet = new Set(Object.keys(this.modules));
+      // Track preset modules that don't exist in this codebase
+      this.droppedModules = preset.modules.filter(m => !knownSet.has(m));
+      // Toggle every module to match the preset's valid set
       this._suppressPersist = true;
       try {
         for (const key of Object.keys(this.modules)) {
-          this.modules[key].enabled = wanted.has(key);
+          this.modules[key].enabled = wantedSet.has(key);
         }
       } finally {
         this._suppressPersist = false;
       }
-      this.appliedSnapshot = preset.modules.slice().sort();
+      // Snapshot is just the preset's *valid* module list (so isDirty doesn't
+      // immediately fire because of dropped names that can never be enabled)
+      this.appliedSnapshot = preset.modules.filter(m => knownSet.has(m)).sort();
       this._persistLastUsed();
     },
 
