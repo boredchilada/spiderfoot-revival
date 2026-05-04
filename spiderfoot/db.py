@@ -622,16 +622,6 @@ class SpiderFootDb:
             )
             self.conn.commit()
 
-    def presetGetDefault(self) -> typing.Optional[dict]:
-        """Return the default preset (with modules) or None."""
-        with self.dbhLock:
-            row = self.dbh.execute(
-                "SELECT id FROM tbl_scan_preset WHERE is_default = 1 LIMIT 1"
-            ).fetchone()
-            if row is None:
-                return None
-            return self.presetGet(row[0])
-
     def close(self) -> None:
         """Close the database handle."""
 
