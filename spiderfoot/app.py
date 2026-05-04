@@ -273,8 +273,8 @@ def create_app(config=None):
 
     @app.before_request
     def check_csrf():
-        # Only enforce on POST requests
-        if flask_request.method != 'POST':
+        # Enforce on all state-changing methods. GET/HEAD/OPTIONS are safe.
+        if flask_request.method in ('GET', 'HEAD', 'OPTIONS'):
             return None
 
         # Skip CSRF for API clients authenticating via Basic Auth
