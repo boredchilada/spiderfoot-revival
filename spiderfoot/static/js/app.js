@@ -317,8 +317,12 @@ window.scanForm = (initialModules, presets) => ({
           return false;
         }
         const created = await resp.json();
-        // Refresh the in-memory preset list and switch to the new one
-        await this._refreshPresets();
+        // Merge the new preset into the in-memory list rather than re-fetching.
+        // Keep the list sorted by sort_order, then name (matches API ordering).
+        this.presets = [...this.presets, created].sort((a, b) => {
+          if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+          return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+        });
         this.applyPreset(created.id);
         this.showToast(`Saved "${created.name}"`, 'success');
         return true;
@@ -348,7 +352,9 @@ window.scanForm = (initialModules, presets) => ({
           return;
         }
         const presetName = this.activePreset.name;
-        await this._refreshPresets();
+        // Replace the updated preset in-memory rather than re-fetching.
+        const updated = await resp.json();
+        this.presets = this.presets.map(p => p.id === updated.id ? updated : p);
         // Re-apply to refresh snapshot (now == current selection => clean)
         this.applyPreset(this.activePresetId);
         this.showToast(`Updated "${presetName}"`, 'success');
