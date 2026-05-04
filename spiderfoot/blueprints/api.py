@@ -25,7 +25,7 @@ from flask import Blueprint, Response, current_app, jsonify, request
 import openpyxl
 
 from spiderfoot import SpiderFootDb, SpiderFootHelpers, __version__
-from spiderfoot.services.preset_service import validate_module_names
+from spiderfoot.services.preset_service import serialize_preset, validate_module_names
 
 api_bp = Blueprint('api', __name__)
 
@@ -1590,24 +1590,11 @@ def scanvizmulti():
 # ---------------------------------------------------------------------------
 
 
-def _serialize_preset(r):
-    return {
-        'id': r['id'],
-        'name': r['name'],
-        'description': r['description'],
-        'kind': r['kind'],
-        'is_default': bool(r['is_default']),
-        'sort_order': r['sort_order'],
-        'module_count': len(r['modules']),
-        'modules': r['modules'],
-    }
-
-
 @api_bp.route('/presets', methods=['GET'])
 def presets_list():
     """List all scan presets (built-in + user)."""
     dbh = get_db()
-    return jsonify([_serialize_preset(r) for r in dbh.presetList()])
+    return jsonify([serialize_preset(r) for r in dbh.presetList()])
 
 
 @api_bp.route('/presets/<path:preset_id>', methods=['GET'])
@@ -1617,7 +1604,7 @@ def presets_get(preset_id):
     r = dbh.presetGet(preset_id)
     if r is None:
         return jsonify_error('404', f"Preset {preset_id} not found")
-    return jsonify(_serialize_preset(r))
+    return jsonify(serialize_preset(r))
 
 
 @api_bp.route('/presets', methods=['POST'])
@@ -1662,7 +1649,7 @@ def presets_create():
         return jsonify_error('400', f"Constraint violation: {e}")
     except Exception as e:
         return jsonify_error('500', f"Failed to create preset: {e}")
-    return jsonify(_serialize_preset(dbh.presetGet(preset_id))), 201
+    return jsonify(serialize_preset(dbh.presetGet(preset_id))), 201
 
 
 @api_bp.route('/presets/<path:preset_id>', methods=['PATCH'])
@@ -1705,7 +1692,7 @@ def presets_update(preset_id):
         return jsonify_error('400', f"Constraint violation: {e}")
     except Exception as e:
         return jsonify_error('500', f"Failed to update preset: {e}")
-    return jsonify(_serialize_preset(dbh.presetGet(preset_id)))
+    return jsonify(serialize_preset(dbh.presetGet(preset_id)))
 
 
 # IMPORTANT: register the LITERAL /presets/default route BEFORE the

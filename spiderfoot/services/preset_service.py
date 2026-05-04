@@ -112,6 +112,21 @@ def validate_module_names(names: Iterable[str], modules: dict) -> tuple:
     return valid, invalid
 
 
+def serialize_preset(row: dict) -> dict:
+    """Convert a presetGet/presetList row into the JSON-friendly shape used
+    by both the API and the New Scan page payload."""
+    return {
+        'id': row['id'],
+        'name': row['name'],
+        'description': row['description'],
+        'kind': row['kind'],
+        'is_default': bool(row['is_default']),
+        'sort_order': row['sort_order'],
+        'module_count': len(row['modules']),
+        'modules': row['modules'],
+    }
+
+
 def _modules_for_usecase(usecase: str, modules: dict) -> list:
     """Return module names whose meta.useCases contains the given usecase."""
     out = []

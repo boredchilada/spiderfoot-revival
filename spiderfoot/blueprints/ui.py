@@ -5,6 +5,7 @@ from flask import Blueprint, current_app, render_template, request
 from spiderfoot import SpiderFootDb
 from spiderfoot.__version__ import __version__
 from spiderfoot.helpers import SpiderFootHelpers
+from spiderfoot.services.preset_service import serialize_preset
 
 ui_bp = Blueprint('ui', __name__)
 
@@ -234,20 +235,7 @@ def _build_modules_data():
 def newscan():
     modules, categories = _build_modules_data()
     dbh = _get_db()
-    presets_raw = dbh.presetList()
-    presets = [
-        {
-            'id': r['id'],
-            'name': r['name'],
-            'description': r['description'],
-            'kind': r['kind'],
-            'is_default': bool(r['is_default']),
-            'sort_order': r['sort_order'],
-            'module_count': len(r['modules']),
-            'modules': r['modules'],
-        }
-        for r in presets_raw
-    ]
+    presets = [serialize_preset(r) for r in dbh.presetList()]
     return render_template(
         'pages/scan_new.html',
         page_id='NEWSCAN',
