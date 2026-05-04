@@ -14,6 +14,7 @@ window.scanForm = (initialModules, presets) => ({
     activePresetId: 'builtin:footprint',
     appliedSnapshot: [],  // module names enabled at last preset apply
     _suppressPersist: false,
+    _persistTimer: null,
     manageOpen: false,
     droppedModules: [],
 
@@ -208,7 +209,20 @@ window.scanForm = (initialModules, presets) => ({
 
     // ==================================================== last-used persistence
 
+    /** Schedule a debounced persist (200ms) to coalesce rapid module toggles
+     *  into a single localStorage write batch. */
     _persistLastUsed() {
+      if (this._persistTimer !== null) {
+        clearTimeout(this._persistTimer);
+      }
+      this._persistTimer = setTimeout(() => {
+        this._persistTimer = null;
+        this._persistLastUsedNow();
+      }, 200);
+    },
+
+    /** Synchronous write (debounced via _persistLastUsed). */
+    _persistLastUsedNow() {
       try {
         localStorage.setItem('sf.lastPreset.id', this.activePresetId);
         localStorage.setItem('sf.lastPreset.dirty', String(this.isDirty));
