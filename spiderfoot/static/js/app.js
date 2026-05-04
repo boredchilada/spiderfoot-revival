@@ -16,6 +16,7 @@ window.scanForm = (initialModules, presets) => ({
     _suppressPersist: false,
     _persistTimer: null,
     manageOpen: false,
+    pendingDeleteId: null,
     droppedModules: [],
 
     /**
@@ -364,7 +365,9 @@ window.scanForm = (initialModules, presets) => ({
     },
 
     async deletePreset(presetId) {
-      if (!confirm('Delete this preset? This cannot be undone.')) return;
+      // Two-stage flow: first call sets pendingDeleteId so the row shows the
+      // confirm/cancel buttons; second call (with confirmed=true via the
+      // template) actually deletes.
       try {
         const resp = await fetch(`/api/presets/${encodeURIComponent(presetId)}`, {
           method: 'DELETE',
@@ -374,15 +377,17 @@ window.scanForm = (initialModules, presets) => ({
           const err = await resp.json().catch(() => ({}));
           const msg = err?.error?.message || `Delete failed (${resp.status})`;
           this.showToast(msg, 'error');
+          this.pendingDeleteId = null;
           return;
         }
         await this._refreshPresets();
-        // If the deleted preset was active, fall back to Footprint
         if (this.activePresetId === presetId) {
           this.applyPreset('builtin:footprint');
         }
+        this.pendingDeleteId = null;
         this.showToast('Preset deleted', 'success');
       } catch (e) {
+        this.pendingDeleteId = null;
         this.showToast(`Delete failed: ${e.message}`, 'error');
       }
     },

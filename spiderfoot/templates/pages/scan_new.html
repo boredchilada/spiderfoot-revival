@@ -566,8 +566,8 @@
      Click outside or Escape to close. #}
   <div x-show="manageOpen" x-cloak x-transition.opacity
        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-       @click.self="manageOpen = false"
-       @keydown.escape.window="manageOpen = false">
+       @click.self="manageOpen = false; pendingDeleteId = null"
+       @keydown.escape.window="manageOpen = false; pendingDeleteId = null">
     <div class="bg-white dark:bg-sf-surface w-full max-w-2xl mx-4 rounded-lg
                 border border-slate-200 dark:border-sf-border shadow-xl
                 max-h-[85vh] overflow-y-auto">
@@ -577,7 +577,7 @@
         <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100">
           Manage presets
         </h2>
-        <button type="button" @click="manageOpen = false"
+        <button type="button" @click="manageOpen = false; pendingDeleteId = null"
                 class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl leading-none">
           &times;
         </button>
@@ -607,11 +607,27 @@
                       :title="p.is_default ? 'Current default' : 'Set as default'">
                 &#9733; <span x-text="p.is_default ? 'Default' : 'Set default'"></span>
               </button>
-              <button type="button"
-                      @click="deletePreset(p.id)"
-                      class="text-xs px-2 py-1 text-red-400 hover:text-red-500 transition-colors">
-                Delete
-              </button>
+              <template x-if="pendingDeleteId !== p.id">
+                <button type="button"
+                        @click="pendingDeleteId = p.id"
+                        class="text-xs px-2 py-1 text-red-400 hover:text-red-500 transition-colors">
+                  Delete
+                </button>
+              </template>
+              <template x-if="pendingDeleteId === p.id">
+                <span class="flex items-center gap-1">
+                  <button type="button"
+                          @click="deletePreset(p.id)"
+                          class="text-xs px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
+                    Confirm delete
+                  </button>
+                  <button type="button"
+                          @click="pendingDeleteId = null"
+                          class="text-xs px-2 py-1 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                    Cancel
+                  </button>
+                </span>
+              </template>
             </div>
           </template>
           <template x-if="presets.some(p => p.is_default)">
