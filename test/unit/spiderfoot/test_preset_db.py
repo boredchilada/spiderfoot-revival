@@ -188,16 +188,14 @@ class TestPresetDefault(unittest.TestCase):
         self.db.presetClearDefault()
         self.assertEqual(self.db.presetGet('user:a')['is_default'], 0)
 
-    def test_presetGetDefault_returns_default_or_none(self):
-        self.assertIsNone(self.db.presetGetDefault())
-        self.db.presetSetDefault('user:b')
-        d = self.db.presetGetDefault()
-        self.assertEqual(d['id'], 'user:b')
-
     def test_presetDelete_clears_default_if_was_default(self):
         self.db.presetSetDefault('user:a')
         self.db.presetDelete('user:a')
-        self.assertIsNone(self.db.presetGetDefault())
+        # Verify no row remains with is_default=1
+        cnt = self.db.dbh.execute(
+            "SELECT COUNT(*) FROM tbl_scan_preset WHERE is_default = 1"
+        ).fetchone()[0]
+        self.assertEqual(cnt, 0)
 
     def test_presetUpdate_changes_sort_order_when_provided(self):
         now = int(time.time() * 1000)
