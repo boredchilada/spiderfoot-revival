@@ -654,3 +654,17 @@ window.scanForm = (initialModules, presets) => ({
       }
     },
   });
+
+// Minimal Markdown renderer used by AI summary cards. Escapes HTML, then
+// applies a tiny subset (headings, bold, list items, line breaks).
+window.renderMarkdown = function(text) {
+  if (!text) return '';
+  const esc = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return esc
+    .replace(/^### (.+)$/gm, '<h3 class="font-semibold mt-2">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="font-bold mt-3">$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+};

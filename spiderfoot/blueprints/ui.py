@@ -6,6 +6,9 @@ from spiderfoot import SpiderFootDb
 from spiderfoot.__version__ import __version__
 from spiderfoot.helpers import SpiderFootHelpers
 from spiderfoot.services.preset_service import serialize_preset
+from spiderfoot.services.ai_persistence import (
+    fetch_models_for_scan, fetch_cached
+)
 
 ui_bp = Blueprint('ui', __name__)
 
@@ -262,6 +265,14 @@ def scaninfo():
             critical_count=0,
             warning_count=0,
             module_count=0,
+            ai_enabled=False,
+            default_model='',
+            fallback_model='',
+            all_models=[],
+            cached=[],
+            cached_models=[],
+            selected='',
+            active_cache=None,
         )
 
     try:
@@ -284,6 +295,14 @@ def scaninfo():
             critical_count=0,
             warning_count=0,
             module_count=0,
+            ai_enabled=False,
+            default_model='',
+            fallback_model='',
+            all_models=[],
+            cached=[],
+            cached_models=[],
+            selected='',
+            active_cache=None,
         )
 
     # row: (name, seed_target, created, started, ended, status)
@@ -349,6 +368,30 @@ def scaninfo():
         except (ValueError, TypeError):
             pass
 
+    # AI summary context (always populated; fragment hides itself if disabled)
+    ai_enabled = bool(current_app.config['SF_CONFIG'].get('_ai_enabled'))
+    default_model = current_app.config['SF_CONFIG'].get(
+        '_ai_default_model', 'moonshotai/kimi-k2.6'
+    )
+    fallback_model = current_app.config['SF_CONFIG'].get(
+        '_ai_fallback_model', 'z-ai/glm-5.1'
+    )
+    all_models = [
+        {"id": "moonshotai/kimi-k2.6", "label": "Kimi K2.6"},
+        {"id": "z-ai/glm-5.1",         "label": "GLM 5.1"},
+    ]
+    try:
+        cached_models = fetch_models_for_scan(
+            dbh, scan_id=scan_id, kind='scan', target_id=''
+        )
+        active_cache = fetch_cached(
+            dbh, scan_id=scan_id, kind='scan', target_id='',
+            model_requested=default_model,
+        )
+    except Exception:
+        cached_models = []
+        active_cache = None
+
     return render_template(
         'pages/scan_results.html',
         page_id='SCANINFO',
@@ -366,6 +409,14 @@ def scaninfo():
         low_count=low_count,
         module_count=module_count,
         scan_duration=scan_duration,
+        ai_enabled=ai_enabled,
+        default_model=default_model,
+        fallback_model=fallback_model,
+        all_models=all_models,
+        cached=cached_models,
+        cached_models=cached_models,
+        selected=default_model,
+        active_cache=active_cache,
     )
 
 

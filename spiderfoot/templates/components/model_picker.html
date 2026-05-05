@@ -1,0 +1,16 @@
+{# Inputs (passed via {% include with context %}):
+     name        - the form/query parameter name (default 'model')
+     selected    - currently-selected model id
+     cached      - list of {model_requested, created_at} dicts (may be empty)
+     all_models  - list of {id, label}
+#}
+<select name="{{ name|default('model') }}"
+        x-model="model"
+        class="rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900
+               text-sm py-1 px-2">
+  {% for m in all_models %}
+    <option value="{{ m.id }}" {% if m.id == selected %}selected{% endif %}>
+      {{ m.label }}{% for c in cached %}{% if c.model_requested == m.id %} (cached){% endif %}{% endfor %}
+    </option>
+  {% endfor %}
+</select>

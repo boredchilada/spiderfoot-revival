@@ -1,0 +1,59 @@
+{# Inputs:
+     scan          - dict with .id, .target
+     ai_enabled    - bool
+     default_model - str
+     fallback_model - str
+     all_models    - [{id, label}, ...]
+     cached_models - list of {model_requested, model_used, created_at}
+     active_cache  - cached row dict for the selected model, or None
+#}
+{% if ai_enabled %}
+<div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4 mt-4"
+     x-data="{
+        model: '{{ default_model }}',
+        streaming: false,
+        content: {{ (active_cache.content if active_cache else '') | tojson }},
+        error: '',
+        startStream(regenerate) {
+          this.streaming = true;
+          this.error = '';
+          if (!regenerate) this.content = '';
+          const url = `/frag/scan/{{ scan.id }}/summary?model=${encodeURIComponent(this.model)}` +
+                      (regenerate ? '&regenerate=1' : '');
+          const es = new EventSource(url);
+          es.addEventListener('token', (e) => { this.content += e.data; });
+          es.addEventListener('done',  ()  => { es.close(); this.streaming = false; });
+          es.addEventListener('error', (e) => {
+            this.error = e.data || 'Stream interrupted.';
+            es.close(); this.streaming = false;
+          });
+        }
+     }">
+  <div class="flex items-center gap-2 mb-3">
+    <span class="font-semibold">AI Summary</span>
+    {% include 'components/model_picker.html' with context %}
+    <button type="button"
+            class="px-3 py-1 rounded bg-blue-600 text-white text-sm disabled:opacity-50"
+            :disabled="streaming"
+            @click="startStream(content && content.length > 0)">
+      <span x-show="!streaming && (!content || content.length === 0)">Generate</span>
+      <span x-show="!streaming && content && content.length > 0">Regenerate</span>
+      <span x-show="streaming">Streaming…</span>
+    </button>
+  </div>
+
+  <div class="prose dark:prose-invert max-w-none text-sm" x-html="renderMarkdown(content)"></div>
+
+  <p x-show="error" class="text-red-600 text-sm mt-2" x-text="error"></p>
+
+  {% if active_cache %}
+  <p class="text-xs text-gray-500 mt-3">
+    {{ active_cache.prompt_tokens or 0 }} prompt tokens ·
+    {{ active_cache.completion_tokens or 0 }} completion ·
+    {% if active_cache.cost_usd is not none %}${{ '%.4f'|format(active_cache.cost_usd) }}{% else %}cost unavailable{% endif %} ·
+    via {{ active_cache.model_used or 'unknown' }}
+    {% if active_cache.truncation_note %} · {{ active_cache.truncation_note }}{% endif %}
+  </p>
+  {% endif %}
+</div>
+{% endif %}
