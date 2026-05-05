@@ -64,8 +64,12 @@ def _enforce_same_origin():
 
 
 def _sse_format(event: str, payload: str) -> str:
-    safe = (payload or '').replace('\r', '').replace('\n', ' ')
-    return f"event: {event}\ndata: {safe}\n\n"
+    """Format an SSE event, splitting payload on newlines into multiple
+    `data:` lines so the receiver reassembles the original text. Carriage
+    returns are stripped because they're not part of valid SSE framing."""
+    text = (payload or '').replace('\r', '')
+    data_lines = '\n'.join(f"data: {line}" for line in text.split('\n'))
+    return f"event: {event}\n{data_lines}\n\n"
 
 
 def _emit_cached(cached: dict):

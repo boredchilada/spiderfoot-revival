@@ -99,3 +99,25 @@ class TestAiBlueprint(unittest.TestCase):
             self.assertEqual(resp.status_code, 409)
         finally:
             ai_service.release_lock(key)
+
+    def test_cached_emit_preserves_newlines_in_markdown(self):
+        from spiderfoot.services.ai_persistence import upsert_summary
+        dbh = SpiderFootDb(self.app.config['SF_CONFIG'])
+        markdown = "# Heading\n\nParagraph one.\n\n- bullet\n- bullet two"
+        upsert_summary(dbh, scan_id='s1', kind='scan', target_id='',
+                       model_requested='moonshotai/kimi-k2.6',
+                       model_used='moonshotai/kimi-k2.6',
+                       content=markdown, status='complete', scan_ended=100,
+                       prompt_tokens=1, completion_tokens=1, cost_usd=0.0,
+                       truncation_note=None)
+        resp = self.client.get(
+            '/frag/scan/s1/summary?model=moonshotai/kimi-k2.6',
+            headers={'Sec-Fetch-Site': 'same-origin'},
+            buffered=True,
+        )
+        body = resp.get_data(as_text=True)
+        # The cached event should contain the markdown structure intact —
+        # multiple data: lines per the SSE multi-line convention.
+        self.assertIn("data: # Heading", body)
+        self.assertIn("data: - bullet", body)
+        self.assertIn("data: Paragraph one.", body)
