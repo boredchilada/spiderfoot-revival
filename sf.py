@@ -65,6 +65,12 @@ def main() -> None:
         '_socks3port': '',
         '_socks4user': '',
         '_socks5pwd': '',
+        # AI Assistant (OpenRouter)
+        '_ai_enabled': False,
+        '_ai_openrouter_key': '',
+        '_ai_default_model': 'moonshotai/kimi-k2.6',
+        '_ai_fallback_model': 'z-ai/glm-5.1',
+        '_ai_redact_pii': False,
     }
 
     sfOptdescs = {
@@ -81,6 +87,11 @@ def main() -> None:
         '_socks3port': 'SOCKS Server TCP Port. Usually 1080 for 4/5, 8080 for HTTP and 9050 for TOR.',
         '_socks4user': 'SOCKS Username. Valid only for SOCKS4 and SOCKS5 servers.',
         '_socks5pwd': "SOCKS Password. Valid only for SOCKS5 servers.",
+        '_ai_enabled': "Enable AI summarization features (requires OpenRouter API key).",
+        '_ai_openrouter_key': "OpenRouter API key for AI summarization. Stored in your local SpiderFoot database; never sent anywhere except OpenRouter.",
+        '_ai_default_model': "Default OpenRouter model. 'moonshotai/kimi-k2.6' or 'z-ai/glm-5.1'.",
+        '_ai_fallback_model': "Fallback model if default fails. 'moonshotai/kimi-k2.6' or 'z-ai/glm-5.1'.",
+        '_ai_redact_pii': "Mask emails, public IPs, and the scan target's root domain before sending payloads to OpenRouter.",
         '_modulesenabled': "Modules enabled for the scan."  # This is a hack to get a description for an option not actually available.
     }
 
