@@ -206,7 +206,7 @@ def _interest_score(event: dict) -> int:
     else:
         base = 0
     # Recency contributes a small bump (newer wins ties).
-    return base + int(event.get("generated", 0))
+    return base + int(event.get("generated") or 0)
 
 
 def rank_events(events: list) -> list:

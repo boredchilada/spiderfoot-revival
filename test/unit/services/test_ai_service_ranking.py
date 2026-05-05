@@ -40,6 +40,15 @@ class TestRanking(unittest.TestCase):
         ranked = rank_events(events)
         self.assertEqual(ranked[0]["data"], "newer")
 
+    def test_none_generated_does_not_crash(self):
+        events = [
+            {"type": "INTERNET_NAME", "data": "x", "source_module": "sfp_x",
+             "generated": None, "in_correlation": False},
+        ]
+        # Should not raise
+        ranked = rank_events(events)
+        self.assertEqual(len(ranked), 1)
+
 
 class TestTruncation(unittest.TestCase):
     def test_short_data_unchanged(self):
