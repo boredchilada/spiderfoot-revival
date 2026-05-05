@@ -247,3 +247,120 @@ def fit_to_budget(rendered_events: list, ceiling_tokens: int) -> tuple:
         kept.append(ev)
         total += cost
     return kept, len(rendered_events) - len(kept)
+
+
+# ----------------------------------------------------------------------------
+# PII redaction (run on assembled prompt string when _ai_redact_pii=True)
+# ----------------------------------------------------------------------------
+
+import ipaddress
+import re
+from urllib.parse import urlparse, urlunparse
+
+_EMAIL_RE = re.compile(r"\b[\w.+\-]+@[\w.\-]+\.[A-Za-z]{2,}\b")
+_IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+# IPv6: rough match — colon-separated hex groups, with optional :: compression.
+# We then validate via ipaddress to avoid mangling MAC addresses or version strings.
+_IPV6_RE = re.compile(r"(?:[0-9A-Fa-f]{0,4}:){2,}[0-9A-Fa-f]{0,4}")
+_URL_RE = re.compile(r"https?://[^\s\"'<>]+")
+
+
+def _is_public_ipv4(ip_str: str) -> bool:
+    try:
+        ip = ipaddress.IPv4Address(ip_str)
+    except ValueError:
+        return False
+    return not (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_multicast or ip.is_reserved or ip.is_unspecified)
+
+
+def _is_public_ipv6(ip_str: str) -> bool:
+    try:
+        ip = ipaddress.IPv6Address(ip_str)
+    except ValueError:
+        return False
+    # For IPv6, only truly private ranges are preserved: ULA (fc00::/7),
+    # link-local, loopback, unspecified, and multicast. Everything else is redacted.
+    return not (ip.is_loopback or ip.is_link_local or ip.is_unspecified
+                or ip.is_multicast or ip in ipaddress.IPv6Network("fc00::/7"))
+
+
+def _stable_token(prefix: str, key: str, registry: dict) -> str:
+    if key not in registry:
+        registry[key] = f"[{prefix}-{len(registry) + 1}]"
+    return registry[key]
+
+
+def _redact_url(match, ipv4_tokens, ipv6_tokens) -> str:
+    raw = match.group(0)
+    try:
+        u = urlparse(raw)
+    except ValueError:
+        return raw
+    netloc = u.hostname or ""
+    if u.port:
+        netloc = f"{netloc}:{u.port}"
+    if u.hostname:
+        if _is_public_ipv4(u.hostname):
+            netloc = _stable_token("IP", u.hostname, ipv4_tokens)
+            if u.port:
+                netloc = f"{netloc}:{u.port}"
+        elif _is_public_ipv6(u.hostname):
+            netloc = _stable_token("IP6", u.hostname, ipv6_tokens)
+            if u.port:
+                netloc = f"{netloc}:{u.port}"
+    rebuilt = urlunparse(u._replace(netloc=netloc))
+    rebuilt = _EMAIL_RE.sub(
+        lambda m: f"***@{m.group(0).split('@', 1)[1]}", rebuilt
+    )
+    return rebuilt
+
+
+def redact_payload(text: str, target: str) -> tuple:
+    """Apply PII redaction to ``text`` for OpenRouter submission.
+
+    Returns (redacted_text, mapping_dict). ``mapping_dict`` is request-scoped
+    and not persisted — the caller may discard it.
+    """
+    ipv4_tokens: dict = {}
+    ipv6_tokens: dict = {}
+
+    # 1. URLs first (decompose so userinfo + query strings get cleaned).
+    text = _URL_RE.sub(
+        lambda m: _redact_url(m, ipv4_tokens, ipv6_tokens), text
+    )
+
+    # 2. Emails (anywhere remaining).
+    text = _EMAIL_RE.sub(
+        lambda m: f"***@{m.group(0).split('@', 1)[1]}", text
+    )
+
+    # 3. Public IPv4 → stable tokens; private/reserved preserved.
+    def _ipv4_sub(m):
+        ip = m.group(0)
+        if _is_public_ipv4(ip):
+            return _stable_token("IP", ip, ipv4_tokens)
+        return ip
+    text = _IPV4_RE.sub(_ipv4_sub, text)
+
+    # 4. Public IPv6 → stable tokens.
+    def _ipv6_sub(m):
+        ip = m.group(0)
+        if _is_public_ipv6(ip):
+            return _stable_token("IP6", ip, ipv6_tokens)
+        return ip
+    text = _IPV6_RE.sub(_ipv6_sub, text)
+
+    # 5. Scan-target root replacement (subdomains preserved relative).
+    if target:
+        target = target.strip().lower()
+        # Replace `host.target` first to keep relative form, then bare target.
+        sub_pattern = re.compile(
+            r"\b([\w\-]+(?:\.[\w\-]+)*)\." + re.escape(target) + r"\b",
+            re.IGNORECASE,
+        )
+        text = sub_pattern.sub(r"\1.<TARGET>", text)
+        text = re.compile(r"\b" + re.escape(target) + r"\b",
+                          re.IGNORECASE).sub("<TARGET>", text)
+
+    return text, {"ipv4": ipv4_tokens, "ipv6": ipv6_tokens}
