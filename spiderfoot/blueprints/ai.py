@@ -58,9 +58,35 @@ def _ensure_enabled_or_abort():
 
 
 def _enforce_same_origin():
+    """Enforce that this SSE call is same-origin.
+
+    Modern browsers send `Sec-Fetch-Site: same-origin` for fetch/EventSource
+    calls from the same site. Older clients omit it — fall back to
+    Origin/Referer comparison against the request's host. Without this,
+    cross-origin pages could trigger OpenRouter billing via tag-based GETs.
+    """
     sfs = request.headers.get('Sec-Fetch-Site')
-    if sfs is not None and sfs != 'same-origin':
-        abort(403)
+    if sfs is not None:
+        if sfs not in ('same-origin', 'same-site'):
+            abort(403)
+        return
+
+    # No Sec-Fetch-Site — fall back to Origin/Referer.
+    expected_host = request.host_url.rstrip('/')
+    origin = request.headers.get('Origin', '')
+    referer = request.headers.get('Referer', '')
+    if origin:
+        if not origin.rstrip('/').startswith(expected_host):
+            abort(403)
+        return
+    if referer:
+        if not referer.startswith(expected_host):
+            abort(403)
+        return
+    # Neither header present — reject. SSE/EventSource always sends one of
+    # these from a real browser; absence indicates a non-browser client or
+    # a stripped-header attack and should not trigger billable upstream calls.
+    abort(403)
 
 
 def _sse_format(event: str, payload: str) -> str:

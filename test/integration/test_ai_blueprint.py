@@ -82,6 +82,7 @@ class TestAiBlueprint(unittest.TestCase):
         with patch.object(ai_service.OpenRouterClient, 'stream_chat') as mock_call:
             resp = self.client.get(
                 '/frag/scan/s1/summary?model=moonshotai/kimi-k2.6',
+                headers={'Sec-Fetch-Site': 'same-origin'},
                 buffered=True,
             )
             mock_call.assert_not_called()
@@ -94,6 +95,7 @@ class TestAiBlueprint(unittest.TestCase):
         try:
             resp = self.client.get(
                 '/frag/scan/s1/summary?model=moonshotai/kimi-k2.6&regenerate=1',
+                headers={'Sec-Fetch-Site': 'same-origin'},
                 buffered=True,
             )
             self.assertEqual(resp.status_code, 409)
