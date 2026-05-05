@@ -479,3 +479,86 @@ def build_correlation_prompt(
         {"role": "system", "content": CORRELATION_SYSTEM_PROMPT},
         {"role": "user", "content": user_content},
     ], None
+
+
+# ----------------------------------------------------------------------------
+# Concurrency lock (process-local — multi-worker is documented as v2)
+# ----------------------------------------------------------------------------
+
+import threading
+
+_LOCKS_GUARD = threading.Lock()
+_HELD: set = set()
+
+
+def acquire_lock(key: tuple) -> bool:
+    """Try to acquire a per-key in-flight lock. Returns False if already held."""
+    with _LOCKS_GUARD:
+        if key in _HELD:
+            return False
+        _HELD.add(key)
+        return True
+
+
+def release_lock(key: tuple) -> None:
+    with _LOCKS_GUARD:
+        _HELD.discard(key)
+
+
+# ----------------------------------------------------------------------------
+# StreamRunner — drives the OpenRouter client to completion regardless of
+# whether the HTTP client is still listening, so we always have something to
+# persist and never waste billed tokens.
+# ----------------------------------------------------------------------------
+
+
+class StreamRunner:
+    def __init__(self, *, client, model, fallback, messages, max_tokens,
+                 metadata, session_id):
+        self._client = client
+        self._kw = dict(
+            model=model, fallback=fallback, messages=messages,
+            max_tokens=max_tokens, metadata=metadata, session_id=session_id,
+        )
+        self.assembled = ""
+        self.model_used: Optional[str] = None
+        self.prompt_tokens: Optional[int] = None
+        self.completion_tokens: Optional[int] = None
+        self.cost_usd: Optional[float] = None
+        self.status: str = "failed"
+        self.error_message: Optional[str] = None
+
+    def run(self):
+        """Generator yielding events for the HTTP layer.
+
+        Event shapes:
+          {"type": "token",  "content": "..."}
+          {"type": "done"}                          - on successful [DONE]
+          {"type": "error",  "message": "..."}      - on upstream failure
+        """
+        try:
+            for ev in self._client.stream_chat(**self._kw):
+                if ev["type"] == "token":
+                    self.assembled += ev["content"]
+                    yield ev
+                elif ev["type"] == "done":
+                    self.model_used = ev.get("model_used")
+                    self.prompt_tokens = ev.get("prompt_tokens")
+                    self.completion_tokens = ev.get("completion_tokens")
+                    self.cost_usd = ev.get("cost_usd")
+                    self.status = "complete"
+                    yield {"type": "done"}
+                    return
+            # Stream ended without [DONE].
+            self.status = "partial" if self.assembled else "failed"
+            self.error_message = "Stream ended unexpectedly."
+            yield {"type": "error", "message": self.error_message}
+        except OpenRouterError as e:
+            self.error_message = str(e)
+            self.status = "partial" if self.assembled else "failed"
+            yield {"type": "error", "message": self.error_message}
+        except Exception as e:  # noqa: BLE001 — last-resort safety net
+            log.warning("StreamRunner unexpected error: %s", e)
+            self.error_message = "Unexpected error during summary generation."
+            self.status = "partial" if self.assembled else "failed"
+            yield {"type": "error", "message": self.error_message}
