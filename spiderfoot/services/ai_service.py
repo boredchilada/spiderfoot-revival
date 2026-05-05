@@ -172,3 +172,78 @@ class OpenRouterClient:
                 content = delta.get("content")
                 if content:
                     yield {"type": "token", "content": content}
+
+
+# ----------------------------------------------------------------------------
+# Event ranking and prompt budget management
+# ----------------------------------------------------------------------------
+
+# Tokens per character heuristic. Empirically OpenRouter's tokenizers run
+# 3.3–3.7 chars/token on English+ASCII; we round to 3.5 and over-estimate
+# slightly so we stay safely under the model's hard limits.
+_CHARS_PER_TOKEN = 3.5
+
+_HIGH_INTEREST_PREFIXES = (
+    "VULNERABILITY_",
+    "LEAKED_",
+    "PASSWORD_",
+)
+_HIGH_INTEREST_KEYWORDS = (
+    "_PASSWORD_",
+    "_BREACH_",
+    "_HIJACKABLE",
+)
+
+
+def _interest_score(event: dict) -> int:
+    etype = event.get("type", "")
+    if any(etype.startswith(p) for p in _HIGH_INTEREST_PREFIXES):
+        base = 10000
+    elif any(k in etype for k in _HIGH_INTEREST_KEYWORDS):
+        base = 9000
+    elif event.get("in_correlation"):
+        base = 5000
+    else:
+        base = 0
+    # Recency contributes a small bump (newer wins ties).
+    return base + int(event.get("generated", 0))
+
+
+def rank_events(events: list) -> list:
+    """Return events sorted highest-interest-first (stable for ties)."""
+    return sorted(events, key=_interest_score, reverse=True)
+
+
+def truncate_event_data(data: str, limit: int = 512) -> str:
+    """Truncate per-event data with a trailing ellipsis if over the limit."""
+    if data is None:
+        return ""
+    if len(data) <= limit:
+        return data
+    return data[:limit] + "…"
+
+
+def estimate_tokens(text: str) -> int:
+    """Cheap token estimator (chars / 3.5). Over-estimates slightly."""
+    if not text:
+        return 0
+    return int(len(text) / _CHARS_PER_TOKEN)
+
+
+def fit_to_budget(rendered_events: list, ceiling_tokens: int) -> tuple:
+    """Drop lowest-ranked events until total estimated tokens ≤ ceiling.
+
+    Each item must have a ``_render`` key holding its rendered string.
+    Input is assumed already ranked (highest-interest first).
+
+    Returns (kept_events, dropped_count).
+    """
+    total = 0
+    kept = []
+    for ev in rendered_events:
+        cost = estimate_tokens(ev["_render"])
+        if total + cost > ceiling_tokens:
+            break
+        kept.append(ev)
+        total += cost
+    return kept, len(rendered_events) - len(kept)
