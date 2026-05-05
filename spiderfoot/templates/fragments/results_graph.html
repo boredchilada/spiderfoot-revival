@@ -68,6 +68,33 @@
                      hover:bg-amber-200 dark:hover:bg-amber-900/60">
         Show <span x-text="hiddenNodeIds.size"></span> hidden
       </button>
+
+      {# Collapse leaves of hubs with many degree-1 children. Reduces visible #}
+      {# nodes dramatically on scans dominated by subdomain enumeration.      #}
+      <button x-show="collapsibleHubCount > 0" x-cloak
+              @click="toggleCollapse()" type="button"
+              :title="collapseHubs
+                ? `Currently hiding ${collapsedLeafCount} leaf nodes under ${collapsibleHubCount} hubs. Click hubs (+N) to peek individually.`
+                : 'Re-collapse leaf children of high-degree hubs.'"
+              class="text-xs px-2 py-1.5 rounded-md border"
+              :class="collapseHubs
+                ? 'bg-sf-accent/10 dark:bg-sf-accent/20 text-sf-accent border-sf-accent/40 hover:bg-sf-accent/20'
+                : 'bg-slate-100 dark:bg-sf-elevated text-slate-700 dark:text-slate-200 border-slate-300 dark:border-sf-border hover:bg-slate-200 dark:hover:bg-sf-border'">
+        <span x-show="collapseHubs">Leaves: collapsed</span>
+        <span x-show="!collapseHubs" x-cloak>Leaves: expanded</span>
+      </button>
+
+      {# Min-degree slider — hide weakly-connected nodes. Root is never hidden. #}
+      <div x-show="maxDegree > 1" x-cloak
+           class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300"
+           title="Hide nodes with fewer than N connections. Root is always shown.">
+        <span>Min deg</span>
+        <input type="range" min="0" :max="Math.min(maxDegree, 20)" step="1"
+               x-model.number="minDegree"
+               @input="applyVisibility()"
+               class="w-20 accent-sf-accent">
+        <span class="font-mono w-4 text-right" x-text="minDegree"></span>
+      </div>
     </div>
 
     <div class="text-xs text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
@@ -245,6 +272,18 @@ function scanGraph(scanId) {
     hiddenCats: new Set(),
     hiddenNodeIds: new Set(),         // manually hidden via right-click menu
     categories: [],
+    // Hub-leaf collapse state. A "leaf" here is a degree-1 node whose sole
+    // neighbor is a hub with >= LEAF_THRESHOLD such leaves. Collapsing them
+    // turns blob-clusters of *.example.com subdomains into a "(+247)" badge
+    // on the parent hub.
+    LEAF_THRESHOLD: 8,
+    collapseHubs: true,
+    expandedHubs: new Set(),          // hubs the user clicked to peek inside
+    collapsibleHubCount: 0,
+    collapsedLeafCount: 0,
+    // Min-degree filter slider.
+    minDegree: 0,
+    maxDegree: 1,
     ctx: { open: false, x: 0, y: 0, nodeId: null, label: '' },
     POS_KEY: `sf_graph_pos_${scanId}`,
 
@@ -362,13 +401,51 @@ function scanGraph(scanId) {
           return Math.min(36, 12 + Math.sqrt(degree[n.id] || 0) * 4);
         };
 
+        // Detect "collapsible leaves" — degree-1 nodes whose sole neighbor is
+        // a hub with many such leaves. Build adjacency once.
+        const adj = {};
+        for (const n of nodes) adj[n.id] = [];
+        for (const e of edges) {
+          adj[e.source].push(e.target);
+          adj[e.target].push(e.source);
+        }
+        const leafParent = {};      // leafId -> hubId
+        const hubLeafCount = {};    // hubId  -> count of degree-1 leaf children
+        for (const n of nodes) {
+          if (n.is_root) continue;
+          if ((degree[n.id] || 0) !== 1) continue;
+          const parent = adj[n.id][0];
+          if (parent === undefined) continue;
+          leafParent[n.id] = parent;
+          hubLeafCount[parent] = (hubLeafCount[parent] || 0) + 1;
+        }
+        // Only hubs that exceed the threshold get the (+N) treatment.
+        const collapsibleHubs = new Set();
+        for (const [hubId, count] of Object.entries(hubLeafCount)) {
+          if (count >= this.LEAF_THRESHOLD) collapsibleHubs.add(hubId);
+        }
+        let collapsedLeaves = 0;
+        const isCollapsibleLeaf = {};
+        for (const [leafId, hubId] of Object.entries(leafParent)) {
+          if (collapsibleHubs.has(hubId)) {
+            isCollapsibleLeaf[leafId] = true;
+            collapsedLeaves++;
+          }
+        }
+        this.collapsibleHubCount = collapsibleHubs.size;
+        this.collapsedLeafCount = collapsedLeaves;
+        this.maxDegree = Object.values(degree).reduce((a, b) => Math.max(a, b), 1);
+
         const elements = [];
         for (const n of nodes) {
           const cat = n.is_root ? 'root' : this.typeToCategory(n.type);
+          const hubCount = collapsibleHubs.has(n.id) ? hubLeafCount[n.id] : 0;
+          const baseLabel = n.label;
           elements.push({
             data: {
               id: n.id,
-              label: n.label,
+              label: hubCount ? `${baseLabel}  (+${hubCount})` : baseLabel,
+              baseLabel,
               fullLabel: n.label,
               type: n.type,
               category: cat,
@@ -376,6 +453,8 @@ function scanGraph(scanId) {
               isRoot: !!n.is_root,
               size: nodeSize(n),
               degree: degree[n.id] || 0,
+              hubLeafCount: hubCount,                          // 0 if not a collapsible hub
+              collapsedBy: isCollapsibleLeaf[n.id] ? leafParent[n.id] : null,
             }
           });
         }
@@ -482,7 +561,15 @@ function scanGraph(scanId) {
             .update();
         }
 
-        cy.on('tap', 'node', (evt) => this.selectNode(evt.target));
+        cy.on('tap', 'node', (evt) => {
+          const node = evt.target;
+          // Clicking a hub with collapsed leaves toggles them open/closed
+          // before the usual selection — gives a one-click "peek" UX.
+          if (this.collapseHubs && node.data('hubLeafCount') > 0) {
+            this.toggleHubExpansion(node.id());
+          }
+          this.selectNode(node);
+        });
         cy.on('tap', (evt) => {
           if (evt.target === cy) this.clearSelection();
           this.ctx.open = false;
@@ -524,6 +611,7 @@ function scanGraph(scanId) {
         }
 
         this.computeCategories();
+        this.applyVisibility();
         this.runLayout();
       } catch (err) {
         console.error('Graph load failed:', err);
@@ -681,15 +769,49 @@ function scanGraph(scanId) {
     applyVisibility() {
       if (!cy) return;
       const search = this.search ? this.search.toLowerCase() : '';
+      const minDeg = this.minDegree | 0;
       cy.batch(() => {
         cy.nodes().forEach((n) => {
+          const isRoot = n.data('isRoot');
+          const collapsedBy = n.data('collapsedBy');
+          // A leaf is hidden if its parent hub is in collapse mode AND the
+          // user hasn't clicked that hub to peek inside.
+          const hiddenByCollapse = !!collapsedBy
+            && this.collapseHubs
+            && !this.expandedHubs.has(collapsedBy);
+          const hiddenByDegree = !isRoot && (n.data('degree') || 0) < minDeg;
           const hide = this.hiddenCats.has(n.data('category')) ||
                        this.hiddenNodeIds.has(n.id()) ||
-                       (search && !n.data('label').toLowerCase().includes(search));
+                       hiddenByCollapse ||
+                       hiddenByDegree ||
+                       (search && !n.data('baseLabel').toLowerCase().includes(search));
           n.toggleClass('hidden', hide);
+          // Toggle the (+N) suffix on the parent hub as the user expands it.
+          const hubCount = n.data('hubLeafCount') || 0;
+          if (hubCount > 0) {
+            const showBadge = this.collapseHubs && !this.expandedHubs.has(n.id());
+            const desired = showBadge
+              ? `${n.data('baseLabel')}  (+${hubCount})`
+              : n.data('baseLabel');
+            if (n.data('label') !== desired) n.data('label', desired);
+          }
         });
       });
       this.visibleNodes = cy.nodes().not('.hidden').length;
+    },
+
+    toggleCollapse() {
+      this.collapseHubs = !this.collapseHubs;
+      // Switching modes resets per-hub peek state to avoid confusing UI.
+      this.expandedHubs = new Set();
+      this.applyVisibility();
+    },
+
+    toggleHubExpansion(hubId) {
+      if (this.expandedHubs.has(hubId)) this.expandedHubs.delete(hubId);
+      else this.expandedHubs.add(hubId);
+      this.expandedHubs = new Set(this.expandedHubs);  // reactivity
+      this.applyVisibility();
     },
 
     applySearch() {

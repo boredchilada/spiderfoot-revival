@@ -155,7 +155,7 @@ class sfp_tool_nuclei(SpiderFootPlugin):
             args = [
                 exe,
                 "-silent",
-                "-json",
+                "-jsonl",
                 "-concurrency",
                 "100",
                 "-retries",
@@ -189,12 +189,20 @@ class sfp_tool_nuclei(SpiderFootPlugin):
         if not content:
             return
 
-        try:
-            for line in content.split("\n"):
-                if not line:
-                    continue
+        for line in content.split("\n"):
+            stripped = line.strip()
+            # Skip blank lines and any non-JSON output that leaks past
+            # nuclei's -silent flag (e.g. ANSI-coloured WRN/INF lines).
+            if not stripped or not stripped.startswith("{"):
+                continue
 
-                data = json.loads(line)
+            try:
+                data = json.loads(stripped)
+            except (KeyError, ValueError) as e:
+                self.debug(f"Skipping unparseable Nuclei line ({e}): {stripped[:120]}")
+                continue
+
+            try:
                 srcevent = event
                 host = data['matched-at'].split(":")[0]
                 if host != eventData:
@@ -205,7 +213,7 @@ class sfp_tool_nuclei(SpiderFootPlugin):
                     srcevent = SpiderFootEvent(srctype, host, self.__name__, event)
                     self.notifyListeners(srcevent)
 
-                matches = re.findall(r"CVE-\d{4}-\d{4,7}", line)
+                matches = re.findall(r"CVE-\d{4}-\d{4,7}", stripped)
                 if matches:
                     for cve in matches:
                         etype, cvetext = self.sf.cveInfo(cve)
@@ -232,10 +240,9 @@ class sfp_tool_nuclei(SpiderFootPlugin):
                             srcevent,
                         )
                         self.notifyListeners(evt)
-        except (KeyError, ValueError) as e:
-            self.error(f"Couldn't parse the JSON output of Nuclei: {e}")
-            self.error(f"Nuclei content: {content}")
-            return
+            except KeyError as e:
+                self.debug(f"Nuclei finding missing expected key {e}: {stripped[:120]}")
+                continue
 
 
 # End of sfp_tool_nuclei class

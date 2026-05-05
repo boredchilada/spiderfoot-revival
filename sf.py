@@ -177,6 +177,11 @@ def main() -> None:
     sfConfig['__modules__'] = sfModules
     sfConfig['__correlationrules__'] = sfCorrelationRules
 
+    # Merge DB-stored config overrides into defaults. Without this, the web
+    # server boots with module defaults only and any setting written to the
+    # DB outside the /opts UI flow is invisible to scans started via Flask.
+    sfConfig = SpiderFoot(sfConfig).configUnserialize(dbh.configGet(), sfConfig)
+
     # Seed built-in scan presets. Idempotent — runs every startup so a code
     # change to BUILTIN_PRESETS propagates without manual migration.
     try:

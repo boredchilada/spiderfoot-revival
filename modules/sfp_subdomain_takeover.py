@@ -13,6 +13,7 @@
 # -------------------------------------------------------------------------------
 
 import json
+import os
 
 from spiderfoot import SpiderFootEvent, SpiderFootPlugin
 
@@ -48,13 +49,33 @@ class sfp_subdomain_takeover(SpiderFootPlugin):
         for opt in userOpts.keys():
             self.opts[opt] = userOpts[opt]
 
-        content = self.sf.cacheGet("subjack-fingerprints", 48)
+        # Vendored copy — upstream subjack repo (haccer/subjack) deleted the
+        # fingerprints.json file, leaving the public URL returning 404.
+        vendored = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "spiderfoot", "dicts", "subjack-fingerprints.json"
+        )
+        content = None
+        if os.path.isfile(vendored):
+            with open(vendored, "r", encoding="utf-8") as f:
+                content = f.read()
+
+        if content is None:
+            content = self.sf.cacheGet("subjack-fingerprints", 48)
+
         if content is None:
             url = "https://raw.githubusercontent.com/haccer/subjack/master/fingerprints.json"
             res = self.sf.fetchUrl(url, useragent="SpiderFoot")
 
             if res['content'] is None:
                 self.error(f"Unable to fetch {url}")
+                self.errorState = True
+                return
+
+            try:
+                json.loads(res['content'])
+            except Exception:
+                self.error(f"Fetched content from {url} is not valid JSON; not caching")
                 self.errorState = True
                 return
 

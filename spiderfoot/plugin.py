@@ -559,7 +559,13 @@ class SpiderFootPlugin():
             self.sf._dbh = self.__sfdb__
 
             if not (self.incomingEventQueue and self.outgoingEventQueue):
-                self.sf.error("Please set up queues before starting module as thread")
+                self.sf.error(
+                    f"Please set up queues before starting module as thread "
+                    f"[module={self.__name__} "
+                    f"incoming={'set' if self.incomingEventQueue else 'None'} "
+                    f"outgoing={'set' if self.outgoingEventQueue else 'None'} "
+                    f"errorState={self.errorState}]"
+                )
                 return
 
             while not self.checkForStop():
