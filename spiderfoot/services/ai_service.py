@@ -364,3 +364,118 @@ def redact_payload(text: str, target: str) -> tuple:
                           re.IGNORECASE).sub("<TARGET>", text)
 
     return text, {"ipv4": ipv4_tokens, "ipv6": ipv6_tokens}
+
+
+# ----------------------------------------------------------------------------
+# Prompt builders
+# ----------------------------------------------------------------------------
+
+SCAN_SYSTEM_PROMPT = (
+    "You are a senior threat-intelligence analyst summarizing an OSINT scan "
+    "from SpiderFoot. Produce a concise executive summary (≤400 words) in "
+    "markdown with these sections:\n\n"
+    "1. **Target Overview** — what was scanned and at what depth\n"
+    "2. **Notable Findings** — bulleted list, each with severity (HIGH/MEDIUM/LOW)\n"
+    "3. **Attack Surface** — exposed services, subdomains, infrastructure\n"
+    "4. **Identities & Exposure** — emails, leaked credentials, social presence\n"
+    "5. **Recommended Next Steps** — concrete, prioritized actions\n\n"
+    "Cite specific hostnames, IPs, CVEs, or correlation rule names from the "
+    "data. Do not invent findings not present in the data. Be direct and "
+    "skip filler."
+)
+
+CORRELATION_SYSTEM_PROMPT = (
+    "You are a senior threat-intelligence analyst. A SpiderFoot correlation "
+    "rule has fired during a scan. Explain in ≤200 words, in markdown:\n\n"
+    "1. **What this means** — what pattern triggered the rule and why it matters\n"
+    "2. **Evidence** — the specific events that matched\n"
+    "3. **Suggested response** — concrete next steps for the defender\n\n"
+    "Be direct. Do not speculate beyond the matched evidence."
+)
+
+
+def _render_event_line(ev: dict) -> str:
+    data = truncate_event_data(ev.get("data") or "", limit=512)
+    return f"  [{ev.get('type')}] {data} ({ev.get('source_module')})"
+
+
+def build_scan_prompt(
+    scan: dict,
+    type_counts: list,
+    correlations: list,
+    events: list,
+    *,
+    max_events: int = 200,
+    ceiling_tokens: int = 80000,
+    redact: bool = False,
+):
+    """Return (messages, truncation_note).
+
+    ``scan``: dict with keys target, status, event_count, module_count.
+    ``type_counts``: list of (TYPE, count) tuples (already top-30, sorted).
+    ``correlations``: list of {title, severity, evidence}.
+    ``events``: full event list (will be ranked + capped + budget-fitted).
+    """
+    ranked = rank_events(events)[:max_events]
+    rendered = [{"_render": _render_event_line(ev), **ev} for ev in ranked]
+    kept, dropped = fit_to_budget(rendered, ceiling_tokens=ceiling_tokens)
+
+    parts = [
+        f"TARGET: {scan.get('target')}",
+        f"SCAN STATUS: {scan.get('status')}, "
+        f"{scan.get('event_count')} events from {scan.get('module_count')} modules",
+        "",
+        "EVENT TYPE COUNTS (top 30):",
+    ]
+    for etype, count in type_counts[:30]:
+        parts.append(f"  {etype}: {count}")
+
+    parts.append("")
+    parts.append(f"CORRELATIONS ({len(correlations)} hits):")
+    for c in correlations:
+        parts.append(
+            f"  - \"{c.get('title')}\" ({c.get('severity')}): {c.get('evidence')}"
+        )
+
+    parts.append("")
+    parts.append(f"TOP EVENTS ({len(kept)}, ranked by interest score):")
+    for ev in kept:
+        parts.append(ev["_render"])
+
+    user_content = "\n".join(parts)
+    if redact:
+        user_content, _ = redact_payload(user_content, target=scan.get("target") or "")
+
+    truncation_note = (
+        f"{dropped} events omitted to fit token budget" if dropped > 0 else None
+    )
+    return [
+        {"role": "system", "content": SCAN_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ], truncation_note
+
+
+def build_correlation_prompt(
+    scan: dict, rule: dict, matched_events: list, *, redact: bool = False
+):
+    parts = [
+        f"SCAN TARGET: {scan.get('target')}",
+        f"CORRELATION RULE: {rule.get('id')}",
+        f"RULE TITLE: {rule.get('title')}",
+        f"RULE DESCRIPTION: {rule.get('description')}",
+        f"SEVERITY: {rule.get('severity')}",
+        f"RISK: {rule.get('risk')}",
+        "",
+        f"MATCHED EVENTS ({len(matched_events)}):",
+    ]
+    for ev in matched_events:
+        parts.append(_render_event_line(ev))
+
+    user_content = "\n".join(parts)
+    if redact:
+        user_content, _ = redact_payload(user_content, target=scan.get("target") or "")
+
+    return [
+        {"role": "system", "content": CORRELATION_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ], None
