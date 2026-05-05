@@ -1370,6 +1370,7 @@ class SpiderFootDb:
         qry4 = "DELETE FROM tbl_scan_log WHERE scan_instance_id = ?"
         qry5 = "DELETE FROM tbl_scan_correlation_results_events WHERE correlation_id IN (SELECT id FROM tbl_scan_correlation_results WHERE scan_instance_id = ?)"
         qry6 = "DELETE FROM tbl_scan_correlation_results WHERE scan_instance_id = ?"
+        qry7 = "DELETE FROM tbl_ai_summaries WHERE scan_id = ?"
         qvars = [instanceId]
 
         with self.dbhLock:
@@ -1380,6 +1381,10 @@ class SpiderFootDb:
                     self.dbh.execute(qry6, qvars)
                 except sqlite3.Error:
                     pass  # Correlation tables may not exist in older databases
+                try:
+                    self.dbh.execute(qry7, qvars)
+                except sqlite3.Error:
+                    pass  # AI summaries table may not exist in older databases
                 self.dbh.execute(qry3, qvars)
                 self.dbh.execute(qry4, qvars)
                 self.dbh.execute(qry2, qvars)
