@@ -197,10 +197,14 @@ def scan_summary(scan_id: str):
     if not ai_service.acquire_lock(key):
         abort(409, "Summary already generating for this scan and model.")
 
-    messages, truncation_note = ai_service.build_scan_prompt(
-        scan, type_counts, correlations, events,
-        max_events=200, ceiling_tokens=80000, redact=cfg["redact"],
-    )
+    try:
+        messages, truncation_note = ai_service.build_scan_prompt(
+            scan, type_counts, correlations, events,
+            max_events=200, ceiling_tokens=80000, redact=cfg["redact"],
+        )
+    except Exception:
+        ai_service.release_lock(key)
+        raise
 
     return _stream_response(
         dbh=dbh, scan_id=scan_id, kind='scan', target_id=target_id,
@@ -254,24 +258,28 @@ def correlation_explain(correlation_id: str):
     if not ai_service.acquire_lock(key):
         abort(409)
 
-    dbh.dbh.execute(
-        "SELECT r.type, r.data, r.module, r.generated FROM tbl_scan_results r "
-        "JOIN tbl_scan_correlation_results_events e ON e.event_hash = r.hash "
-        "WHERE e.correlation_id=? AND r.scan_instance_id=?",
-        [correlation_id, scan_id],
-    )
-    matched = [
-        {"type": r[0], "data": r[1], "source_module": r[2],
-         "generated": r[3], "in_correlation": True}
-        for r in dbh.dbh.fetchall()
-    ]
-    rule = {
-        "id": rule_id, "title": title, "description": descr,
-        "severity": risk, "risk": risk,
-    }
-    messages, _ = ai_service.build_correlation_prompt(
-        {"target": target}, rule, matched, redact=cfg["redact"],
-    )
+    try:
+        dbh.dbh.execute(
+            "SELECT r.type, r.data, r.module, r.generated FROM tbl_scan_results r "
+            "JOIN tbl_scan_correlation_results_events e ON e.event_hash = r.hash "
+            "WHERE e.correlation_id=? AND r.scan_instance_id=?",
+            [correlation_id, scan_id],
+        )
+        matched = [
+            {"type": r[0], "data": r[1], "source_module": r[2],
+             "generated": r[3], "in_correlation": True}
+            for r in dbh.dbh.fetchall()
+        ]
+        rule = {
+            "id": rule_id, "title": title, "description": descr,
+            "severity": risk, "risk": risk,
+        }
+        messages, _ = ai_service.build_correlation_prompt(
+            {"target": target}, rule, matched, redact=cfg["redact"],
+        )
+    except Exception:
+        ai_service.release_lock(key)
+        raise
 
     return _stream_response(
         dbh=dbh, scan_id=scan_id, kind='correlation', target_id=correlation_id,
