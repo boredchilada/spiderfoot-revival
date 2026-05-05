@@ -85,6 +85,16 @@ def _safe_filename(name: str) -> str:
 _SENSITIVE_OPT_PATTERNS = ('api_key', 'apikey', 'password', 'secret', 'token', 'passphrase')
 
 
+def _redact_secrets(opts: dict) -> dict:
+    """Mask secret config keys before sending to clients."""
+    REDACTED = ('_ai_openrouter_key',)
+    out = dict(opts)
+    for k in REDACTED:
+        if k in out and out[k]:
+            out[k] = '********'
+    return out
+
+
 def _csv_safe(value) -> str:
     """Prevent CSV formula injection by prefixing dangerous characters."""
     s = str(value) if value is not None else ''
@@ -925,7 +935,7 @@ def correlationrules():
 @api_bp.route('/optsraw', methods=['GET', 'POST'])
 def optsraw():
     """Return global and module settings as JSON."""
-    config = get_config()
+    config = _redact_secrets(get_config())
     ret = dict()
 
     for opt in config:
