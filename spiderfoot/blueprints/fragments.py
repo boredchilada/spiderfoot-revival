@@ -189,9 +189,20 @@ def results_tab():
         except Exception:
             correlations = []
 
+        sf_config = current_app.config.get('SF_CONFIG', {})
+        ai_enabled = bool(sf_config.get('_ai_enabled'))
+        default_model = sf_config.get('_ai_default_model', 'moonshotai/kimi-k2.6')
+        all_models = [
+            {"id": "moonshotai/kimi-k2.6", "label": "Kimi K2.6"},
+            {"id": "z-ai/glm-5.1",         "label": "GLM 5.1"},
+        ]
+
         return render_template(
             'fragments/results_correlations.html',
             correlations=correlations,
+            ai_enabled=ai_enabled,
+            default_model=default_model,
+            all_models=all_models,
         )
 
     elif tab == 'log':

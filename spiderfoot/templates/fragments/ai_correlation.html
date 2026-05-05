@@ -1,0 +1,44 @@
+{# Inputs:
+     correlation_id - required
+     ai_enabled     - bool
+     default_model  - str
+     all_models     - [{id, label}, ...]
+#}
+{% if ai_enabled %}
+<div x-data="{
+   model: '{{ default_model }}',
+   streaming: false,
+   content: '',
+   error: '',
+   startStream() {
+     this.streaming = true; this.error = ''; this.content = '';
+     const url = `/frag/correlation/{{ correlation_id }}/explain?model=${encodeURIComponent(this.model)}`;
+     const es = new EventSource(url);
+     es.addEventListener('token', (e) => { this.content += e.data; });
+     es.addEventListener('done',  () => { es.close(); this.streaming = false; });
+     es.addEventListener('error', (e) => {
+       this.error = e.data || 'Stream interrupted.';
+       es.close(); this.streaming = false;
+     });
+   }
+}" class="space-y-2 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+  <div class="flex items-center gap-2">
+    <select x-model="model"
+            class="rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-sf-elevated text-xs py-1 px-2">
+      {% for m in all_models %}
+        <option value="{{ m.id }}">{{ m.label }}</option>
+      {% endfor %}
+    </select>
+    <button type="button"
+            class="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs disabled:opacity-50"
+            :disabled="streaming"
+            @click="startStream()">
+      <span x-show="!streaming">Explain</span>
+      <span x-show="streaming">Streaming…</span>
+    </button>
+  </div>
+  <div class="prose dark:prose-invert max-w-none text-xs"
+       x-show="content" x-html="renderMarkdown(content)"></div>
+  <p x-show="error" class="text-red-600 text-xs" x-text="error"></p>
+</div>
+{% endif %}
