@@ -123,7 +123,25 @@ class SpiderFootDb:
             module    TEXT NOT NULL, \
             PRIMARY KEY (preset_id, module) \
         )",
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_scan_preset_default ON tbl_scan_preset(is_default) WHERE is_default = 1"
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_scan_preset_default ON tbl_scan_preset(is_default) WHERE is_default = 1",
+        "CREATE TABLE IF NOT EXISTS tbl_ai_summaries ( \
+            id                INTEGER PRIMARY KEY AUTOINCREMENT, \
+            scan_id           TEXT NOT NULL, \
+            kind              TEXT NOT NULL CHECK (kind IN ('scan','correlation')), \
+            target_id         TEXT NOT NULL DEFAULT '', \
+            model_requested   TEXT NOT NULL, \
+            model_used        TEXT, \
+            content           TEXT NOT NULL, \
+            status            TEXT NOT NULL CHECK (status IN ('complete','partial','failed')), \
+            scan_ended        INTEGER, \
+            prompt_tokens     INTEGER, \
+            completion_tokens INTEGER, \
+            cost_usd          REAL, \
+            truncation_note   TEXT, \
+            created_at        INTEGER NOT NULL, \
+            UNIQUE (scan_id, kind, target_id, model_requested) \
+        )",
+        "CREATE INDEX IF NOT EXISTS idx_ai_summaries_scan ON tbl_ai_summaries(scan_id)"
     ]
 
     eventDetails = [
