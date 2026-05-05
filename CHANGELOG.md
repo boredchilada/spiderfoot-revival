@@ -2,6 +2,18 @@
 
 All notable changes to the SpiderFoot Revival project.
 
+## [5.2.0] - 2026-05-04
+
+### AI Summarization Feature
+
+- AI Summarization via OpenRouter: per-scan executive summaries and per-correlation explanations on the scan results page.
+- Models: Kimi K2.6 (default) and GLM 5.1, with automatic OpenRouter-side failover via the `models` array.
+- New `tbl_ai_summaries` table persists generated summaries per (scan_id, kind, target_id, model). Cascade-deleted with the scan.
+- New "AI Assistant" settings section: API key, default/fallback model selection, monthly cost display, and PII redaction toggle.
+- Server-Sent Events streaming with client-disconnect-tolerant upstream handling — summaries persist even when the user closes the browser tab mid-stream, so paid-for tokens are never wasted.
+- Per-key in-flight lock prevents duplicate concurrent generations for the same scan and model.
+- Optional PII redaction: emails, public IPv4/IPv6, URL credentials, and the scan target root can be masked before payloads leave your machine.
+
 ## [5.1.0] - 2026-05-02
 
 ### New Modules

@@ -4,7 +4,7 @@ Self-hosted OSINT automation platform. Forked from [SpiderFoot](https://github.c
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.9+-green)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-5.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.2.0-blue.svg)](CHANGELOG.md)
 
 ## What Changed from Upstream
 
@@ -49,6 +49,16 @@ python sf.py -l 127.0.0.1:5001
 ```
 
 Requires Python 3.9+.
+
+## AI Summarization (5.2.0+)
+
+The AI Assistant uses Server-Sent Events (SSE) to stream summaries from OpenRouter.
+Configure your key at **Settings → AI Assistant** and enable the feature.
+
+- **Single-worker assumption.** The in-flight concurrency lock is process-local. Multi-worker deployments may permit duplicate concurrent generations for the same scan/model (each worker grants its own lock); we recommend single-worker until v2.
+- **gunicorn:** SSE requires `--worker-class gevent` (or `eventlet`), or sync workers with `--threads N` (≥4). The default sync single-thread worker will serialize all SSE clients and the UI will appear to hang.
+- **nginx / Cloudflare:** the streaming endpoint emits `X-Accel-Buffering: no`. nginx honors this; Cloudflare requires the Enterprise plan. On Cloudflare Free, summaries still work but appear as a single chunk after the model finishes rather than streaming live.
+- **Disable feature:** uncheck **Enable AI features** in the AI Assistant settings to remove all AI UI elements.
 
 ## Authentication
 
