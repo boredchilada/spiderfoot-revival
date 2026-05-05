@@ -38,6 +38,7 @@
 
   <!-- HTMX -->
   <script defer src="{{ url_for('static', filename='vendor/htmx.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='vendor/htmx-ext-sse.min.js') }}"></script>
   <script>
   document.addEventListener('htmx:configRequest', function(e) {
       var token = document.querySelector('meta[name="csrf-token"]');
