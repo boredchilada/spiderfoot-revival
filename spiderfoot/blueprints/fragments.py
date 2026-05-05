@@ -528,4 +528,24 @@ def settings_section():
     elif section == 'appearance':
         return render_template('fragments/settings_appearance.html')
 
+    elif section == 'ai':
+        from spiderfoot.services.ai_persistence import fetch_monthly_cost
+        import time
+
+        ai_models = [
+            {"id": "moonshotai/kimi-k2.6", "label": "Kimi K2.6"},
+            {"id": "z-ai/glm-5.1",         "label": "GLM 5.1"},
+        ]
+        try:
+            month_start = int(time.time()) - 30 * 86400
+            monthly_cost = fetch_monthly_cost(dbh, since_unix=month_start)
+        except Exception:
+            monthly_cost = 0.0
+        return render_template(
+            'fragments/settings_ai.html',
+            config=config,
+            ai_models=ai_models,
+            monthly_cost=monthly_cost,
+        )
+
     return '<p class="text-sm text-slate-400 p-6">Unknown section.</p>'

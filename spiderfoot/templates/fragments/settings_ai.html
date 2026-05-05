@@ -1,0 +1,139 @@
+{# AI Assistant settings — OpenRouter key + model selection + redaction toggle.
+   The OpenRouter key field is pre-filled with the masked placeholder
+   "********" when a key is stored; the savesettings endpoint preserves
+   existing values when this exact placeholder is resubmitted. #}
+
+<div class="space-y-6">
+  <div>
+    <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100">AI Assistant</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+      OpenRouter-powered scan summaries and correlation explanations.
+      Get a key at
+      <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer"
+         class="text-sf-accent hover:underline">openrouter.ai</a>.
+    </p>
+  </div>
+
+  <form id="ai-settings-form" class="space-y-5">
+
+    <label class="flex items-center gap-2">
+      <input type="checkbox" name="_ai_enabled"
+             {% if config._ai_enabled %}checked{% endif %}
+             class="rounded border-slate-300 dark:border-slate-700 text-sf-accent focus:ring-sf-accent">
+      <span class="text-sm text-slate-700 dark:text-slate-200">Enable AI features</span>
+    </label>
+
+    <label class="block">
+      <span class="text-sm font-medium text-slate-700 dark:text-slate-200">OpenRouter API key</span>
+      <input type="password"
+             name="_ai_openrouter_key"
+             autocomplete="new-password"
+             value="{{ '********' if config._ai_openrouter_key else '' }}"
+             placeholder="sk-or-..."
+             class="mt-1 block w-full rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-sf-elevated text-sm py-2 px-3">
+      <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">
+        Leave the masked value to keep your existing key. Type a new value to replace it.
+      </span>
+    </label>
+
+    <div class="grid grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Default model</span>
+        <select name="_ai_default_model"
+                class="mt-1 block w-full rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-sf-elevated text-sm py-2 px-3">
+          {% for m in ai_models %}
+            <option value="{{ m.id }}"
+                    {% if m.id == config._ai_default_model %}selected{% endif %}>
+              {{ m.label }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Fallback model</span>
+        <select name="_ai_fallback_model"
+                class="mt-1 block w-full rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-sf-elevated text-sm py-2 px-3">
+          {% for m in ai_models %}
+            <option value="{{ m.id }}"
+                    {% if m.id == config._ai_fallback_model %}selected{% endif %}>
+              {{ m.label }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+
+    <label class="flex items-start gap-2">
+      <input type="checkbox" name="_ai_redact_pii"
+             {% if config._ai_redact_pii %}checked{% endif %}
+             class="mt-0.5 rounded border-slate-300 dark:border-slate-700 text-sf-accent focus:ring-sf-accent">
+      <span class="text-sm text-slate-700 dark:text-slate-200">
+        Mask emails, public IPs, and the scan target's root domain before sending
+        payloads to OpenRouter
+      </span>
+    </label>
+
+    <p class="text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200 dark:border-sf-border">
+      Usage this month:
+      <span class="font-mono">${{ '%.4f'|format(monthly_cost) }}</span>
+    </p>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit"
+              class="px-4 py-2 rounded bg-sf-accent text-white text-sm hover:opacity-90">
+        Save
+      </button>
+      <span id="ai-settings-msg" class="text-sm text-slate-400 dark:text-slate-500 hidden"></span>
+    </div>
+  </form>
+</div>
+
+<script>
+(function() {
+  const form = document.getElementById('ai-settings-form');
+  if (!form) return;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const opts = {};
+    // Boolean checkboxes — coerce missing-key to "0" since unchecked checkboxes
+    // are not included in FormData by default.
+    for (const key of ['_ai_enabled', '_ai_redact_pii']) {
+      opts[key] = fd.has(key) ? '1' : '0';
+    }
+    // String/select fields
+    for (const key of ['_ai_openrouter_key', '_ai_default_model', '_ai_fallback_model']) {
+      opts[key] = fd.get(key) || '';
+    }
+    const body = new URLSearchParams();
+    body.append('allopts', JSON.stringify(opts));
+    const msg = document.getElementById('ai-settings-msg');
+    msg.classList.remove('hidden', 'text-red-600', 'text-green-600');
+    msg.textContent = 'Saving…';
+    try {
+      const r = await fetch('/api/savesettings', {
+        method: 'POST',
+        body,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRF-Token': window.__SF_CSRF_TOKEN__ || '',
+        },
+      });
+      const data = await r.json();
+      if (data && data[0] === 'SUCCESS') {
+        msg.textContent = 'Saved.';
+        msg.classList.add('text-green-600');
+        setTimeout(() => {
+          htmx.ajax('GET', '/frag/settings-section?section=ai', '#settings-content');
+        }, 600);
+      } else {
+        msg.textContent = (data && data[1]) || 'Save failed.';
+        msg.classList.add('text-red-600');
+      }
+    } catch (err) {
+      msg.textContent = 'Save failed: ' + (err.message || err);
+      msg.classList.add('text-red-600');
+    }
+  });
+})();
+</script>
