@@ -13,8 +13,6 @@ pip3 install -r test/requirements.txt
 
 To run the tests locally, run `./test/run` from the SpiderFoot root directory.
 
-These tests are run on all pull requests automatically.
-
 Module integration tests are excluded.
 
 To run all unit and integration tests, including module integration tests, run:
@@ -38,7 +36,7 @@ python3 -m pytest -n auto --flake8 --dist loadfile --durations=5 --cov-report ht
 ## Acceptance Tests
 
 The acceptance tests check that the web intereface is working as
-intended and that SpiderFooot is operating correctly as a whole.
+intended and that SpiderFoot is operating correctly as a whole.
 
 These tests use a headless browser (Firefox by default), and
 must be run with `./test/acceptance` as current working directory.

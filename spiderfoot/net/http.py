@@ -256,7 +256,10 @@ class SpiderFootHttp:
 
                 return result
 
-            size = int(hdr.headers.get('content-length', 0))
+            try:
+                size = int(hdr.headers.get('content-length', 0))
+            except (ValueError, TypeError):
+                size = 0
             newloc = hdr.headers.get('location', url).strip()
 
             # Relative re-direct
@@ -285,7 +288,10 @@ class SpiderFootHttp:
                         verify=verify,
                         timeout=timeout
                     )
-                    size = int(hdr.headers.get('content-length', 0))
+                    try:
+                        size = int(hdr.headers.get('content-length', 0))
+                    except (ValueError, TypeError):
+                        size = 0
                     result['realurl'] = hdr.headers.get('location', result['realurl'])
                     result['code'] = str(hdr.status_code)
 
@@ -379,6 +385,7 @@ class SpiderFootHttp:
                     disableContentEncoding,
                     sizeLimit,
                     headOnly,
+                    verify=verify,
                     _redirectDepth=_redirectDepth + 1
                 )
 

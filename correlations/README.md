@@ -79,27 +79,32 @@ We can see above that a port was found to be open by the `sfp_portscan_tcp` modu
 **NOTE:** Rules will only succeed if relevant data exists in your scan results in the first place. In other words, correlation rules analyze scan data, they don't collect data from targets.
 
 ### How it works
-In short, SpiderFoot translates the YAML rules into a combination queries against the backend database of scan results and Python logic to filter and group the results, creating "correlation results" in the SpiderFoot database. These results can be viewed in the SpiderFot web interface or from the SpiderFoot CLI. You can also query them directly out of the SQLite database if you like (they are in the `tbl_scan_correlation_results` table, and the `tbl_scan_correlation_results_events` table maps the events (data elements) to the correlation result).
+In short, SpiderFoot translates the YAML rules into a combination queries against the backend database of scan results and Python logic to filter and group the results, creating "correlation results" in the SpiderFoot database. These results can be viewed in the SpiderFoot web interface or from the SpiderFoot CLI. You can also query them directly out of the SQLite database if you like (they are in the `tbl_scan_correlation_results` table, and the `tbl_scan_correlation_results_events` table maps the events (data elements) to the correlation result).
 
 ### The rules
 
-Each rule exists as a YAML file within the `/correlations` folder in the SpiderFoot installation path. Here you can see a list of rules in 4.0, which we hope to grow over time:
+Each rule exists as a YAML file within the `/correlations` folder in the SpiderFoot installation path. There are currently 44 built-in rules:
 
 ```sh
 cert_expired.yaml                    host_only_from_certificatetransparency.yaml  outlier_ipaddress.yaml
 cloud_bucket_open.yaml               http_errors.yaml                             outlier_registrar.yaml
 cloud_bucket_open_related.yaml       human_name_in_whois.yaml                     outlier_webserver.yaml
-data_from_base64.yaml                internal_host.yaml                           remote_desktop_exposed.yaml
-data_from_docmeta.yaml               multiple_malicious.yaml                      root_path_needs_auth.yaml
-database_exposed.yaml                multiple_malicious_affiliate.yaml            stale_host.yaml
-dev_or_test_system.yaml              multiple_malicious_cohost.yaml               strong_affiliate_certs.yaml
-dns_zone_transfer_possible.yaml      name_only_from_pasteleak_site.yaml           strong_similardomain_crossref.yaml
-egress_ip_from_wikipedia.yaml        open_port_version.yaml                       template.yaml
-email_in_multiple_breaches.yaml      outlier_cloud.yaml                           vulnerability_critical.yaml
-email_in_whois.yaml                  outlier_country.yaml                         vulnerability_high.yaml
-email_only_from_pasteleak_site.yaml  outlier_email.yaml                           vulnerability_mediumlow.yaml
-host_only_from_bruteforce.yaml       outlier_hostname.yaml
+data_from_base64.yaml                internal_host.yaml                           ransomware_victim.yaml
+data_from_docmeta.yaml               login_form_plaintext.yaml                    remote_desktop_exposed.yaml
+database_exposed.yaml                multiple_malicious.yaml                      risky_port_exposed.yaml
+database_service_exposed.yaml        multiple_malicious_affiliate.yaml            root_path_needs_auth.yaml
+dev_or_test_system.yaml              multiple_malicious_cohost.yaml               shared_edge_density.yaml
+dns_zone_transfer_possible.yaml      name_only_from_pasteleak_site.yaml           shared_hosting_environment.yaml
+egress_ip_from_wikipedia.yaml        open_port_version.yaml                       stale_host.yaml
+email_in_multiple_breaches.yaml      outlier_cloud.yaml                           strong_affiliate_certs.yaml
+email_in_whois.yaml                  outlier_country.yaml                         strong_similardomain_crossref.yaml
+email_only_from_pasteleak_site.yaml  outlier_email.yaml                           typosquat_registered.yaml
+host_only_from_bruteforce.yaml       outlier_hostname.yaml                        vulnerability_critical.yaml
+                                                                                  vulnerability_high.yaml
+                                                                                  vulnerability_mediumlow.yaml
 ```
+
+(`template.yaml` is also included as a starting point for writing new rules.)
 ### Rule components
 
 The rules themselves are broken down into the following components:

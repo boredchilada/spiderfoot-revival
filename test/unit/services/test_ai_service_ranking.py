@@ -40,6 +40,28 @@ class TestRanking(unittest.TestCase):
         ranked = rank_events(events)
         self.assertEqual(ranked[0]["data"], "newer")
 
+    def test_interest_tier_beats_recency_at_epoch_scale(self):
+        # Regression: `generated` is epoch SECONDS (~1.7e9). The old scoring
+        # added it to the tier base (max 10000), so a boring-but-newer event
+        # outranked a critical-but-older one on any realistic scan. Tier must
+        # dominate; recency is only a tie-break.
+        events = [
+            _ev("INTERNET_NAME", "boring-but-newer", ts=1_000_100_000),
+            _ev("VULNERABILITY_CVE_CRITICAL", "critical-but-older", ts=1_000_000_000),
+        ]
+        ranked = rank_events(events)
+        self.assertEqual(ranked[0]["type"], "VULNERABILITY_CVE_CRITICAL")
+
+    def test_correlation_beats_recency_at_epoch_scale(self):
+        # Same bug, correlation tier (5000) vs a boring event newer by >5000s.
+        events = [
+            _ev("INTERNET_NAME", "boring-but-newer", ts=1_000_100_000),
+            _ev("INTERNET_NAME", "correlated-but-older", ts=1_000_000_000,
+                in_correlation=True),
+        ]
+        ranked = rank_events(events)
+        self.assertEqual(ranked[0]["data"], "correlated-but-older")
+
     def test_none_generated_does_not_crash(self):
         events = [
             {"type": "INTERNET_NAME", "data": "x", "source_module": "sfp_x",

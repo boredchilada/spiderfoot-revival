@@ -289,9 +289,9 @@ def scanstatus():
     if not data:
         return jsonify([])
 
-    created = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(data[2]))
-    started = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(data[3]))
-    ended = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(data[4]))
+    created = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(data[2])) if data[2] else "Not yet"
+    started = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(data[3])) if data[3] else "Not yet"
+    ended = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(data[4])) if data[4] else "Not yet"
     riskmatrix = {"HIGH": 0, "MEDIUM": 0, "LOW": 0, "INFO": 0}
     try:
         correlations = dbh.scanCorrelationSummary(id, by="risk")
@@ -361,7 +361,10 @@ def scaneventresults():
     """All event results for a scan."""
     id = request.values.get('id', '')
     eventType = request.values.get('eventType', None)
-    filterfp = request.values.get('filterfp', False)
+    # Coerce to a real bool — request.values are strings, and "0"/"false" are
+    # truthy as strings. Pass as keyword: scanResultEvent's 3rd positional is
+    # srcModule, not filterFp (signature gained params in the middle).
+    filterfp = str(request.values.get('filterfp', '')).lower() in ('1', 'true', 'yes')
     correlationId = request.values.get('correlationId', None)
     retdata = []
 
@@ -371,7 +374,7 @@ def scaneventresults():
         eventType = 'ALL'
 
     try:
-        data = dbh.scanResultEvent(id, eventType, filterfp, correlationId=correlationId)
+        data = dbh.scanResultEvent(id, eventType, filterFp=filterfp, correlationId=correlationId)
     except Exception:
         return jsonify(retdata)
 
@@ -492,7 +495,13 @@ def scanlog():
 def scanerrors():
     """Scan error data."""
     id = request.values.get('id', '')
-    limit = request.values.get('limit', None)
+    # scanErrors() requires an int limit (0 == no limit). request.values are
+    # strings/None, which would raise TypeError inside scanErrors and get
+    # swallowed below — leaving the endpoint permanently returning [].
+    try:
+        limit = int(request.values.get('limit', 0))
+    except (TypeError, ValueError):
+        limit = 0
 
     dbh = get_db()
     retdata = []
@@ -1210,9 +1219,13 @@ def scancorrelationsexport():
 
     try:
         scaninfo = dbh.scanInstanceGet(id)
-        scan_name = scaninfo[0]
     except Exception:
         return jsonify(["ERROR", "Could not retrieve info for scan."])
+
+    if not scaninfo:
+        return jsonify(["ERROR", "Could not retrieve info for scan."])
+
+    scan_name = scaninfo[0]
 
     try:
         correlations = dbh.scanCorrelationList(id)
@@ -1225,7 +1238,7 @@ def scancorrelationsexport():
         rows = []
         for row in correlations:
             correlation = row[1]
-            rule_name = row[2]
+            rule_name = row[4]
             rule_risk = row[3]
             rule_description = row[5]
             rows.append([rule_name, correlation, rule_risk, rule_description])
@@ -1248,7 +1261,7 @@ def scancorrelationsexport():
 
         for row in correlations:
             correlation = row[1]
-            rule_name = row[2]
+            rule_name = row[4]
             rule_risk = row[3]
             rule_description = row[5]
             parser.writerow([_csv_safe(rule_name), _csv_safe(correlation), _csv_safe(rule_risk), _csv_safe(rule_description)])
@@ -1525,6 +1538,9 @@ def scanviz():
 
     if not scan:
         return Response('', status=204)
+
+    if not data:
+        return Response('{"nodes":[],"edges":[]}', mimetype='application/json', status=200)
 
     scan_name = scan[0]
     root = scan[1]

@@ -18,6 +18,7 @@ import logging
 import os
 import re
 import sys
+import tempfile
 import time
 import urllib.parse
 from copy import deepcopy
@@ -256,19 +257,38 @@ class SpiderFoot:
             data (str): Data to cache
         """
         pathLabel = hashlib.sha224(label.encode('utf-8')).hexdigest()
-        cacheFile = SpiderFootHelpers.cachePath() + "/" + pathLabel
-        with io.open(cacheFile, "w", encoding="utf-8", errors="ignore") as fp:
-            if isinstance(data, list):
-                for line in data:
-                    if isinstance(line, str):
-                        fp.write(line)
-                        fp.write("\n")
-                    else:
-                        fp.write(line.decode('utf-8') + '\n')
-            elif isinstance(data, bytes):
-                fp.write(data.decode('utf-8'))
-            else:
-                fp.write(data)
+        cacheDir = SpiderFootHelpers.cachePath()
+        cacheFile = cacheDir + "/" + pathLabel
+
+        # Write to a uniquely-named temp file then atomically rename into place.
+        # This guarantees a reader (cacheGet) sees either the complete old file
+        # or the complete new one — never a truncated body from a crash/kill
+        # mid-write, and concurrent writers to the same key can't interleave.
+        fd, tmpFile = tempfile.mkstemp(dir=cacheDir, prefix=pathLabel + ".", suffix=".tmp")
+        try:
+            with io.open(fd, "w", encoding="utf-8", errors="ignore") as fp:
+                if isinstance(data, list):
+                    for line in data:
+                        if isinstance(line, str):
+                            fp.write(line)
+                            fp.write("\n")
+                        elif isinstance(line, bytes):
+                            fp.write(line.decode('utf-8', errors='ignore') + '\n')
+                        else:
+                            fp.write(str(line) + '\n')
+                elif isinstance(data, bytes):
+                    fp.write(data.decode('utf-8', errors='ignore'))
+                else:
+                    fp.write(data)
+                fp.flush()
+                os.fsync(fp.fileno())
+            os.replace(tmpFile, cacheFile)
+        except Exception:
+            try:
+                os.unlink(tmpFile)
+            except OSError:
+                pass
+            raise
 
     def cacheGet(self, label: str, timeoutHrs: int) -> str:
         """Retreive data from the cache.
@@ -294,6 +314,7 @@ class SpiderFoot:
         if cache_stat.st_size == 0:
             return None
 
+        timeoutHrs = float(timeoutHrs)
         if cache_stat.st_mtime > time.time() - timeoutHrs * 3600 or timeoutHrs == 0:
             with open(cacheFile, "r", encoding='utf-8') as fp:
                 return fp.read()

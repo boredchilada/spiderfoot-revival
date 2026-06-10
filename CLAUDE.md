@@ -1,6 +1,6 @@
 # SpiderFoot Revival
 
-Self-hosted OSINT automation platform forked from [SpiderFoot](https://github.com/smicallef/spiderfoot). Major overhaul — new UI, new modules, modernized stack. Current version: **5.1.0**.
+Self-hosted OSINT automation platform forked from [SpiderFoot](https://github.com/smicallef/spiderfoot). Major overhaul — new UI, new modules, modernized stack. Current version: **5.2.0**.
 
 ## Quick Start
 
@@ -25,13 +25,20 @@ spiderfoot/
   sf.py                          # Main entry point (CLI + web server)
   sflib.py                       # Core library facade (delegates to net/*)
   sfscan.py                      # Scan engine and module orchestration
+  sfcli.py                       # CLI client
   modules/                       # 244 OSINT modules (sfp_*.py)
+  tailwind.config.js             # Tailwind PostCSS build config + safelist
   spiderfoot/
     app.py                       # Flask app factory, auth (bcrypt), CSRF
     db.py                        # SQLite database layer
     plugin.py                    # Base plugin class (SpiderFootPlugin)
     correlation.py               # YAML-based correlation engine
-    __version__.py               # Version (5.1.0)
+    event.py                     # SpiderFootEvent class
+    target.py                    # SpiderFootTarget class
+    helpers.py                   # SpiderFootHelpers utility class
+    logger.py                    # SQLite log handler, queue listener
+    threadpool.py                # SpiderFootThreadPool thread pool
+    __version__.py               # Version (5.2.0)
     net/                         # Network utilities (extracted from sflib.py)
       http.py                    # HTTP client (fetchUrl, sessions, proxy)
       dns.py                     # DNS resolution and validation
@@ -39,18 +46,24 @@ spiderfoot/
       host.py                    # IP/hostname/domain validation utilities
     services/
       event_service.py           # Event formatting, categories, badge colors
+      preset_service.py          # Scan preset catalog + DB seeding
+      ai_service.py              # OpenRouter chat completions client
+      ai_persistence.py          # AI summary DB persistence (tbl_ai_summaries)
     blueprints/
       api.py                     # REST API endpoints (/api/*)
       ui.py                      # HTML page routes (/, /newscan, /scaninfo, /opts)
       fragments.py               # HTMX fragment routes (/frag/*)
+      ai.py                      # AI summarization SSE routes (/frag/scan/*, /frag/correlation/*)
     templates/
       base.html                  # Master layout (Tailwind, HTMX, Alpine.js)
       pages/                     # Full page templates (4 pages)
-      components/                # Reusable UI components (9 files)
-      fragments/                 # HTMX swap fragments (13 files)
+      components/                # Reusable UI components (11 files)
+      fragments/                 # HTMX swap fragments (17 files)
     static/
       css/custom.css             # Custom animations, scrollbars
-      js/app.js                  # Alpine.js scan form component
+      css/input.css              # Tailwind @layer components (custom classes)
+      css/tailwind.css           # Compiled Tailwind output (built artifact)
+      js/app.js                  # Alpine.js scan form component + markdown renderer
       js/theme.js                # Dark/light theme toggle
       vendor/                    # HTMX, Alpine.js
 ```
@@ -66,7 +79,7 @@ spiderfoot/
 ## Tech Stack
 
 - **Backend**: Python 3, Flask, SQLite
-- **Frontend**: Tailwind CSS (CDN in dev), HTMX, Alpine.js, Jinja2
+- **Frontend**: Tailwind CSS (PostCSS build), HTMX, Alpine.js, Jinja2
 - **Deployment**: Docker (Alpine Linux)
 
 ## Do NOT
@@ -76,7 +89,7 @@ spiderfoot/
 - Import `requests` in modules — use `self.sf.fetchUrl()`
 - Add new pages or routes — extend existing ones
 - Use jQuery for new code — use Alpine.js + HTMX
-- Add Tailwind CDN warning suppressions — we'll move to PostCSS build later
+- Modify `tailwind.config.js` safelist without verifying which classes are dynamically injected
 
 ## Environment (Windows)
 
@@ -96,7 +109,7 @@ spiderfoot/
 - **SpiderFoot events have no inherent severity**: Don't add artificial red/amber/green severity to events. Group by category (Attack Surface, Identities, Infrastructure, Reputation, Vulnerabilities) instead.
 - **Event categories**: Defined in `services/event_service.py` as `EVENT_CATEGORIES` dict — used by both summary tab and filter chips.
 - **Event badge colors**: Defined in `event_badge_color()` in `services/event_service.py` — computed server-side, NOT in Jinja2 templates (Jinja2 `.startswith()` is unreliable in sandboxed Flask).
-- **Tailwind CDN safelist**: Classes used only in HTMX-swapped content (not in initial HTML) MUST be added to the `safelist` array in `base.html`'s Tailwind config. Firefox caches the JIT stylesheet and won't regenerate for dynamically loaded classes.
+- **Tailwind safelist**: Classes used only in HTMX-swapped content (not in initial HTML) MUST be added to the `safelist` array in `tailwind.config.js`. The Tailwind CLI can't detect classes injected dynamically from Python (e.g. `event_badge_color()` return values). Rebuild with `npx tailwindcss` after changes.
 - **Local tool detection**: Modules with `'tool'` in their `flags` metadata or `sfp_tool_*` prefix are shown in the Local Tools section. Set `isLocalTool` in `ui.py:_build_modules_data()`.
 - **BBOT runtime args must include `--no-deps`**: BBOT's first run as a non-root user installs core deps (openssl-dev) and per-module deps via Ansible with `become: true`. The container's `spiderfoot` user has no sudo, so omitting `--no-deps` causes a silent hang on a `getpass` prompt and the SpiderFoot module sees empty stdout. `Dockerfile.full` pre-installs deps as root and copies `/root/.bbot` to `/home/spiderfoot/.bbot` so the runtime cache hit skips the install path.
 - **New event types need the `eventDetails` sync**: `db.py:eventDetails` is now imported into `tbl_event_types` on every startup (not just init), so adding a new event type to that list is enough — existing DBs get migrated. The `tbl_scan_results.type` foreign key requires the row to exist before any module can emit the type.

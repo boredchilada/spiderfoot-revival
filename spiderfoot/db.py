@@ -390,7 +390,6 @@ class SpiderFootDb:
                 self.dbh.execute('SELECT COUNT(*) FROM tbl_scan_config')
                 self.conn.create_function("REGEXP", 2, __dbregex__)
             except sqlite3.Error:
-                init = True
                 try:
                     self.create()
                 except Exception as e:

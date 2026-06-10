@@ -34,18 +34,18 @@ SQLite via `spiderfoot/db.py`. Key tables:
 - `tbl_config` — global settings (API keys, proxy, etc.)
 
 ### Flask App
-- `app.py`: Factory pattern, registers 3 blueprints
-- `blueprints/api.py`: REST API (scan lifecycle, data export, config)
+- `app.py`: Factory pattern, registers 4 blueprints (+ 1 compat re-registration)
+- `blueprints/api.py`: REST API (scan lifecycle, data export, config, presets)
 - `blueprints/ui.py`: HTML pages (dashboard, newscan, scaninfo, settings)
 - `blueprints/fragments.py`: HTMX fragments (tab content, table rows, settings sections)
+- `blueprints/ai.py`: AI summarization SSE endpoints (scan summary, correlation explain)
 
 All API endpoints are dual-registered at `/api/*` and `/*` for backwards compatibility.
 
 ### Frontend
-- **Tailwind CSS**: CDN in development, `tailwind.config.js` defines `sf.*` color tokens
+- **Tailwind CSS**: PostCSS build via `tailwind.config.js`, defines `sf.*` color tokens. Rebuild with `npx tailwindcss -i static/css/tailwind-input.css -o static/css/tailwind.css`
 - **HTMX**: Fragment-driven updates (scan table polling, tab switching, search/filter)
 - **Alpine.js**: Reactive components (scan form, theme toggle, expandable rows)
-- **No build step**: Everything runs from CDN/static files in development
 
 ### HTMX Patterns
 - Scan table polls every 5s: `hx-trigger="every 5s"`

@@ -149,7 +149,8 @@ def event_badge_color(type_code: str) -> str:
     # Cyan — network / attack surface (IPs, domains, ports, hostnames)
     if any(k in tc for k in ('IP_ADDRESS', 'INTERNET_NAME', 'DOMAIN_NAME',
                               'TCP_PORT', 'UDP_PORT', 'NETBLOCK', 'BGP',
-                              'AFFILIATE_INTERNET', 'DNS_', 'PROVIDER_')):
+                              'AFFILIATE_INTERNET', 'DNS_', 'PROVIDER_',
+                              'CO_HOSTED')):
         return 'bg-cyan-900/40 text-cyan-300 border border-cyan-500/30'
 
     # Violet — identity / people (emails, usernames, names, phones, accounts)

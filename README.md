@@ -78,7 +78,7 @@ On startup, SpiderFoot loads this file and enforces HTTP Basic Auth on all endpo
 - **Web UI** — dark theme, real-time scan progress, categorized results, expandable event details
 - **REST API** — full scan lifecycle management, JSON/CSV/GEXF export, config import/export
 - **CLI mode** — run scans without the web server
-- **Correlation engine** — YAML-configurable rules (37 built-in) for cross-referencing findings
+- **Correlation engine** — YAML-configurable rules (44 built-in) for cross-referencing findings
 - **Docker-first** — Alpine-based image, non-root user, persistent volume support
 
 ## Target Types
@@ -123,6 +123,11 @@ SpiderFoot can scan:
 | RansomLook | Ransomware victim tracking | Free, no key |
 | C2-Tracker | Live C2 server feeds | Free, no key |
 | Vulners | CVE/exploit database | Free tier with key |
+
+### New in v5.1.0 (1)
+
+| Module | Source | Auth |
+|--------|--------|------|
 | Ransomware.live | Ransomware leak-site victim lookup | Free, no key (rate-limited, personal use) |
 
 ### Removed Modules (11)
@@ -163,12 +168,19 @@ See [CLAUDE_TECHNICAL.md](CLAUDE_TECHNICAL.md) for the full API reference.
 sf.py                          # Entry point (CLI + web server)
 sflib.py                       # Core library facade (delegates to net/*)
 sfscan.py                      # Scan engine and module orchestration
+sfcli.py                       # CLI client
 modules/                       # 244 OSINT modules (sfp_*.py)
+tailwind.config.js             # Tailwind PostCSS build config + safelist
 spiderfoot/
   app.py                       # Flask app factory, auth, CSRF
   db.py                        # SQLite database layer
   plugin.py                    # Base plugin class
   correlation.py               # YAML-based correlation engine
+  event.py                     # SpiderFootEvent class
+  target.py                    # SpiderFootTarget class
+  helpers.py                   # SpiderFootHelpers utility class
+  logger.py                    # SQLite log handler, queue listener
+  threadpool.py                # SpiderFootThreadPool thread pool
   net/                         # Network utilities (extracted from sflib.py)
     http.py                    # HTTP client (fetchUrl, sessions, proxy)
     dns.py                     # DNS resolution and validation
@@ -176,13 +188,17 @@ spiderfoot/
     host.py                    # IP/hostname/domain validation utilities
   services/
     event_service.py           # Event formatting, categories, badge colors
+    preset_service.py          # Scan preset catalog + DB seeding
+    ai_service.py              # OpenRouter chat completions client
+    ai_persistence.py          # AI summary DB persistence
   blueprints/
     api.py                     # REST API endpoints (/api/*)
     ui.py                      # HTML page routes
     fragments.py               # HTMX fragment routes (/frag/*)
+    ai.py                      # AI summarization SSE routes (/frag/scan/*, /frag/correlation/*)
   templates/                   # Jinja2 templates (pages, components, fragments)
   static/                      # CSS, JS, vendor libs
-correlations/                  # YAML correlation rules
+correlations/                  # 44 YAML correlation rules
 ```
 
 ## Tech Stack
@@ -190,7 +206,7 @@ correlations/                  # YAML correlation rules
 | Layer | Technology |
 |-------|-----------|
 | Backend | Python 3, Flask, SQLite |
-| Frontend | Tailwind CSS (CDN), HTMX, Alpine.js |
+| Frontend | Tailwind CSS (PostCSS build), HTMX, Alpine.js |
 | Templates | Jinja2 with component/fragment pattern |
 | Deployment | Docker (Alpine 3.18), non-root |
 

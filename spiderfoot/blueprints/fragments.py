@@ -7,9 +7,8 @@ from flask import Blueprint, current_app, render_template, request
 
 from spiderfoot import SpiderFootDb
 from spiderfoot.services.event_service import (
-    EVENT_CATEGORIES, categorize_event_summary, event_badge_color,
-    human_size, dedup_events, build_event_dict, clean_source_data,
-    parse_cert_fields, extract_port_service,
+    EVENT_CATEGORIES, categorize_event_summary,
+    human_size, dedup_events, build_event_dict,
 )
 
 frag_bp = Blueprint('frag', __name__)

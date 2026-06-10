@@ -90,6 +90,11 @@ class OpenRouterClient:
             "temperature": temperature,
             "top_p": top_p,
             "stream": True,
+            # Ask OpenRouter to include token/cost accounting in the final SSE
+            # chunk. Without this, `usage` is often absent and cost_usd is
+            # persisted as NULL while tokens are actually billed — the monthly
+            # cost dashboard would under-report real spend.
+            "usage": {"include": True},
             "provider": {
                 "sort": "throughput",
                 "allow_fallbacks": True,
@@ -205,13 +210,23 @@ def _interest_score(event: dict) -> int:
         base = 5000
     else:
         base = 0
-    # Recency contributes a small bump (newer wins ties).
-    return base + int(event.get("generated") or 0)
+    return base
 
 
 def rank_events(events: list) -> list:
-    """Return events sorted highest-interest-first (stable for ties)."""
-    return sorted(events, key=_interest_score, reverse=True)
+    """Return events sorted highest-interest-first, newer breaking ties.
+
+    Interest tier is the primary key; recency (`generated`, epoch seconds) is
+    only a tie-breaker within a tier. (Previously recency was *added* to the
+    tier score, but epoch seconds (~1.7e9) dwarf the max tier (10000), so a
+    boring-but-newer event outranked a critical-but-older one on any scan
+    lasting more than a few seconds.)
+    """
+    return sorted(
+        events,
+        key=lambda e: (_interest_score(e), int(e.get("generated") or 0)),
+        reverse=True,
+    )
 
 
 def truncate_event_data(data: str, limit: int = 512) -> str:
@@ -507,8 +522,12 @@ def release_lock(key: tuple) -> None:
 
 # ----------------------------------------------------------------------------
 # StreamRunner — drives the OpenRouter client to completion regardless of
-# whether the HTTP client is still listening, so we always have something to
-# persist and never waste billed tokens.
+# whether the HTTP client is still listening, so we always capture the final
+# usage/cost figures and have a complete summary to persist.
+# NOTE: draining the stream does NOT save money — OpenRouter bills for the
+# tokens it generates whether or not we read them. Cost is bounded by
+# `max_tokens`, not by reading to the end. (A client disconnect cannot cancel
+# an in-flight completion here.)
 # ----------------------------------------------------------------------------
 
 
