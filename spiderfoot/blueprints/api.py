@@ -610,6 +610,7 @@ def startscan():
 
     scanname = clean_user_input([scanname])[0]
     scantarget = clean_user_input([scantarget])[0]
+    scantarget = html.unescape(scantarget)
 
     if not scanname:
         return jsonify(["ERROR", "Incorrect usage: scan name was not specified."])

@@ -113,6 +113,12 @@ window.scanForm = (initialModules, presets) => ({
       // Domain — has at least one dot, no spaces, no @ symbol
       if (/^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+$/.test(v)) return 'Domain';
 
+      // Bitcoin address (legacy Base58 or Bech32)
+      if (/^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(v) || /^bc1[a-z0-9]{25,87}$/i.test(v)) return 'Bitcoin';
+
+      // Username — single token with no spaces, @, or domain dot
+      if (/^[A-Za-z0-9._-]{2,64}$/.test(v) && !v.includes('@') && !v.includes('.')) return 'Username';
+
       // Fallback — treat multi-word values as a name
       if (/\s/.test(v) && !/[@\/]/.test(v)) return 'Name';
 
@@ -617,7 +623,7 @@ window.scanForm = (initialModules, presets) => ({
 
         const body = new URLSearchParams({
           scanname,
-          scantarget: t.value,
+          scantarget: (t.type === "Name" || t.type === "Username") ? "\"" + t.value + "\"" : t.value,
           modulelist: enabledMods.join(','),
         });
 
